@@ -1,7 +1,7 @@
 # CP1 EDA summary for mentor
 
 Date: 2026-09-16
-Status: EDA CLOSED for the CP1 cleaning decision. Remaining work is contract review, TDD implementation, and stay-point threshold sensitivity rather than open-ended EDA.
+Status: broad EDA is closed for the CP1 cleaning decision. One bounded transportation-label audit rerun remains before the exact V2 speed table is treated as final.
 
 ## 1. Objective
 
@@ -135,27 +135,26 @@ Decision: stay duration must not bridge arbitrary observation outages. `max_gap_
 
 The release contains 14,718 transportation-label intervals over 69 labeled users. Labels are auxiliary movement evidence, not Home/Office ground truth.
 
-A first strict-containment segment/label join matched 4,849,858 segments (40.83% coverage among valid segments of labeled users), but label overlaps were found. Labels were then canonicalized so only windows with exactly one distinct active mode remained.
+A first strict-containment segment/label join matched 4,849,858 segments (40.83% coverage among valid segments of labeled users), but label interval ambiguity required a canonicalization step.
 
-Canonicalization produced:
+An independent re-audit identified an interval-semantics issue in the original canonicalization: it treated end times as inclusive and therefore turned many different-mode endpoint touches into one-second ambiguous windows. The project now uses standard half-open `[start, end)` semantics, where touching endpoints are not overlaps.
 
-- 14,537 unambiguous windows;
-- 1,886 ambiguous windows;
-- 12,723.9 unambiguous labeled hours;
-- 76.9 ambiguous hours (0.60% of represented labeled time).
+Corrected label accounting under `[start, end)`:
 
-The V2 strict-containment join matched 4,812,641 segments (40.52% coverage). Per-mode p99 values changed by less than 0.5 km/h versus the provisional benchmark, showing the broad speed shape is stable.
+- 14,583 unambiguous canonical windows;
+- 138 ambiguous windows;
+- 12,720.83 unambiguous labeled hours;
+- 76.345 ambiguous hours;
+- ambiguous share approximately 0.597% of represented labeled time;
+- the external audit reported 1,742 different-mode endpoint-touching pairs and 146 different-mode pairs with true temporal overlap.
 
-Key canonical V2 values:
+This correction changes the window-count narrative materially but not the core interpretation: true label ambiguity occupies only about 0.6% of represented labeled time.
 
-- airplane: median 624.54 km/h, p99 937.92, max 1,048.11; 52.89% of segments exceed 500 km/h;
-- train: median 93.14, p99 210.33;
-- car: median 29.99, p99 119.62;
-- bus: median 16.89, p99 90.60;
-- bike: median 11.19, p99 40.63;
-- walk: median 4.08, p99 40.42.
+The previously reported V2 strict-containment benchmark (4,812,641 matched segments, 40.52% coverage) and its exact per-mode percentiles were computed under the earlier inclusive-end convention. Their broad shape was nearly identical to the provisional benchmark, so the qualitative speed conclusions remain useful, but these exact V2 values should be recomputed once under `[start, end)` before being presented as the final audited benchmark.
 
-Decision: generic `speed > 100`, `>200`, or `>500 km/h => noise` rules are rejected because they would delete legitimate fast transport. Rare multi-thousand-km/h values still appear inside ordinary modes, so speed remains useful only as a conservative corruption guard.
+Historical V2 values that support the qualitative conclusion include airplane around 625 km/h median and 938 km/h p99, train around 93/210, car around 30/120, bus around 17/91, bike around 11/41 and walk around 4/40. More than half of airplane segments in that historical benchmark exceeded 500 km/h.
+
+Decision retained: generic `speed > 100`, `>200`, or `>500 km/h => noise` rules are not justified because they would remove legitimate fast transport. Rare multi-thousand-km/h values inside ordinary modes also show that speed is best used as a conservative corruption guard rather than a generic motion filter.
 
 ## 12. EDA-backed cleaning proposal
 
@@ -168,12 +167,13 @@ The EDA supports this proposed preprocessing sequence, pending review before pro
 5. a release-specific hard speed guard of 1,200 km/h becomes a continuity boundary only, not endpoint deletion;
 6. stay-point detection runs independently inside each resulting sequence.
 
-The 1,200 km/h value sits above the maximum observed canonical airplane segment (~1,048 km/h) while catching clearly extreme corruption. It is a release-specific engineering guard, not a universal physical limit.
+The 1,200 km/h guard remains a conservative proposal, not a universal physical limit. The broad transport evidence supports avoiding lower global speed cutoffs, while the exact half-open V2 transport table should be rerun before final contract approval cites exact airplane percentages/maxima as fully audited evidence.
 
 ## 13. What is finished versus what remains
 
-EDA is complete for the CP1 cleaning decision. The remaining work is not open-ended EDA:
+Broad EDA is complete for the CP1 cleaning decision. Remaining work is bounded and implementation-oriented:
 
+- rerun the transportation-label V2 segment join/table once under `[start, end)` semantics;
 - review/approve the cleaning + stay-point contract;
 - write RED tests;
 - implement preprocessing and stay-point detection;
@@ -195,9 +195,10 @@ Chronological evidence is retained in:
 - `docs/eda/07_same_second_consolidation_prototype.md` — prototype behavior on representative trajectories;
 - `docs/eda/08_full_consolidation_findings.md` — full-release consolidation and segment speed;
 - `docs/eda/09_gap_and_label_inventory.md` — temporal-gap sensitivity and transport labels;
-- `docs/eda/10_transport_speed_provisional.md` — first speed-by-mode benchmark and overlap issue;
-- `docs/eda/11_label_overlap_canonicalization.md` — unambiguous label windows and V2 coverage;
-- `docs/eda/12_transport_speed_final.md` — final canonical speed benchmark and EDA stop condition;
+- `docs/eda/10_transport_speed_provisional.md` — first speed-by-mode benchmark and initial overlap/touching issue;
+- `docs/eda/11_label_overlap_canonicalization.md` — corrected half-open label accounting and historical V2 status;
+- `docs/eda/12_transport_speed_final.md` — historical V2 table plus interval-audit caveat;
+- `docs/eda/14_label_interval_semantics_audit.md` — independent audit correction and reporting convention;
 - `docs/design/01_cleaning_staypoint_contract.md` — proposed implementation contract derived from EDA;
 - `docs/worklog.md` — chronological project milestones;
 - `docs/learning-journal-en.md` and `docs/learning-journal-vi.md` — learning narrative and decision evolution.
