@@ -50,4 +50,12 @@ All 821 exact-duplicate hash groups were found to span multiple user IDs. The 1,
 
 This is important because the point-weighted exposure is larger than the file-count exposure. Duplicate traces are therefore longer than average and can have disproportionate influence on point-level metrics. The raw release does not explain why the same content is assigned to multiple users, so I should not infer that these user IDs represent the same person. For evaluation, however, content hashes need to act as grouping keys so identical traces cannot leak across folds.
 
-Next learning target: quantify the redundant point mass beyond one representative per hash group, inspect user connected-components linked by shared content, then prototype same-second consolidation before recomputing movement-speed and temporal-gap distributions.
+## 2026-09-16 — Redundancy and connected components changed the split strategy
+
+After retaining one representative per exact-content hash group, the extra copies still account for 1,495,115 points, or 6.01% of the full dataset. This clarifies the difference between duplicate exposure and true redundancy: 11.92% of points belong to duplicate groups, but 6.01% are extra copies beyond one representative.
+
+The shared-content user graph includes 52 users across 18 connected components. The largest component contains 15 user IDs. Therefore even a user-level split is not enough to guarantee content independence: different user IDs can still be linked by identical trajectories. For strict evaluation, content-hash grouping is required, and connected-component grouping is a reasonable candidate when measuring user-level generalization.
+
+A useful stopping lesson is also emerging: EDA must support decisions rather than becoming the entire project. Duplicate structure is now sufficiently characterized for CP1. The next focus should return to preprocessing that directly affects stay-point detection: same-second consolidation, temporal gaps, and movement anomalies.
+
+Next learning target: prototype a robust one-row-per-timestamp representation for spatially compact same-second groups, flag spatial conflicts, then recompute speed and temporal-gap distributions before selecting cleaning thresholds.
