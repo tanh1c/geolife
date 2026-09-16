@@ -68,4 +68,14 @@ Nhưng cùng transform đó không sửa được trajectory corrupted của use
 
 Bài học chính là preprocessing nên có nhiều stage dễ giải thích: validate coordinate trước, collapse same-second group compact tiếp theo, rồi mới xử lý temporal gap và movement anomaly. Global speed threshold chỉ nên được cân nhắc sau khi các failure mode trước đã được xử lý hoặc flag.
 
-Mục tiêu tiếp theo: chạy consolidation experiment trên toàn release, so sánh sampling/speed distribution trước và sau, rồi mới quyết định có cần movement-speed filter hay không trước khi implement stay-point detection.
+## 2026-09-16 — Full consolidation thay đổi cách đọc speed tail
+
+Khi áp dụng same-second consolidation trên toàn release, 24,876,978 raw points giảm còn 24,178,077 timestamp-level rows, tức giảm 2.81%, trong khi chỉ có 835 timestamps (0.0035%) bị spatial conflict. Đây là evidence mạnh rằng transform này xử lý đúng pattern duplicate-second chính mà không làm mất nhiều observation hợp lệ.
+
+Kết quả quan trọng hơn là speed tail còn lại gần như không biến mất. Ở trajectory level, 46.96% trajectories vẫn có max speed >100 km/h, nhưng ở segment level chỉ 5.40% valid movement segments vượt 100 km/h. Trên 150 km/h chỉ còn khoảng 1.00%, trên 200 km/h khoảng 0.37%, và trên 1,000 km/h chỉ 0.007%.
+
+Điều này cho thấy trajectory-max và segment prevalence trả lời hai câu hỏi khác nhau. Chỉ một bad segment cũng đủ làm cả trajectory trông extreme, nên cleaning threshold phải được reasoning ở segment level rồi mới truy ngược về trajectory/user.
+
+Temporal gap là một failure mode độc lập khác: median của trajectory max-gap là 325 giây, p90 khoảng 11,010 giây, còn maximum là 93,298 giây. Với stay-point detection, hai point gần nhau nhưng bị ngăn bởi một observation outage dài không thể tự động được hiểu là user đã dwell liên tục tại đó.
+
+Mục tiêu tiếp theo: dùng transportation-mode labels sẵn có để đo distribution của legitimate movement speed, phân tích sensitivity của temporal gap, rồi freeze một cleaning contract có evidence trước khi implement stay-point detection.
