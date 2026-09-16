@@ -119,4 +119,29 @@ Interpretation:
 
 Detailed evidence is recorded in `docs/eda/06_duplicate_redundancy_and_user_components.md`.
 
-Next evidence step: prototype same-second consolidation for spatially compact groups, flag conflicting groups, then recompute movement-speed and temporal-gap distributions before choosing noise thresholds or implementing stay-point detection.
+## 2026-09-16 — Same-second consolidation prototype
+
+An exploratory one-row-per-timestamp transform was tested with a 10 m compact-group candidate threshold.
+
+Duplicate-heavy trajectory user `141` / `20111022031803`:
+
+- 56,780 raw points -> 11,565 consolidated timestamp rows;
+- 11,562 compact rows and only 3 spatial-conflict rows;
+- after consolidation, the largest inspected segment speeds were about 225, 220 and 209 km/h.
+
+Structurally corrupted trajectory user `062` / `20080926000623`:
+
+- 8,117 raw points -> 8,091 consolidated rows;
+- 26 same-second spatial conflicts were correctly flagged;
+- the repeated ~850 km jumps between singleton timestamps remain, with speeds around 3.1 million km/h.
+
+Interpretation:
+
+- same-second consolidation clearly removes one timestamp-resolution/order failure mode;
+- it does not solve interleaved/mixed-trace corruption between distinct timestamps;
+- movement anomaly handling therefore remains a separate preprocessing stage;
+- the 10 m radius is still an experimental candidate, not a production threshold.
+
+Detailed evidence is recorded in `docs/eda/07_same_second_consolidation_prototype.md`.
+
+Next evidence step: run the consolidation transform over all 18,670 trajectories, recompute sampling-gap and speed distributions, compare them with the raw baseline, then decide whether and how a movement-speed filter is justified before stay-point implementation.
