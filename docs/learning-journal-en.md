@@ -22,4 +22,14 @@ This changes how I should think about evaluation. A single trajectory-weighted s
 
 The first raw trajectory also showed why spot checks are useful but insufficient: timestamps parsed cleanly as UTC, while altitude values had a very wide range. I should not convert one unusual value into a cleaning rule; I need the dataset-wide distribution first.
 
-Next learning target: inspect sampling intervals, trajectory duration/distance, timestamp anomalies, altitude missingness, and segment-speed distributions before proposing noise thresholds.
+## 2026-09-16 — Data-quality diagnostics changed the cleaning plan
+
+The full scan confirmed 24,876,978 points. It also showed why a simple `speed > threshold => noise` rule would be premature.
+
+I found one malformed latitude (`400.166667`) that is clearly different from a repeated corruption pattern in another trajectory, where coordinates jump roughly 850–862 km in one second over and over. These are different failure modes and may need different handling.
+
+A bigger lesson came from the apparent 698,900 duplicate timestamps. The worst trajectories contain several distinct coordinates within the same second. Because the current parser uses the date/time text fields at one-second resolution, I may be creating duplicate timestamps by discarding sub-second information. The PLT serial-date field must be tested before deduplicating or trusting speed/sampling summaries.
+
+I also confirmed that one raw trajectory is byte-identical across three different user folders. This introduces a potential leakage/weighting concern for future evaluation and shows that file-level duplication should be measured explicitly.
+
+Next learning target: validate timestamp precision from `serial_date`, rerun timing/speed summaries with the correct timestamp semantics, then propose cleaning rules from measured failure modes rather than one global threshold.
