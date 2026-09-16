@@ -226,4 +226,12 @@ Interpretation:
 
 Detailed evidence is recorded in `docs/eda/11_label_overlap_canonicalization.md`.
 
-Next evidence step: recompute the per-mode speed table from the canonical V2 cache, compare it with the provisional table, then stop EDA and move to the stay-point cleaning/design contract.
+## 2026-09-16 — Final transportation-speed benchmark + contract proposal
+
+Canonical V2 per-mode percentiles are effectively unchanged from the provisional benchmark: absolute p99 deltas are below 0.5 km/h for every mode. Airplane remains about 625 km/h median and 938 km/h p99, train about 93/210, car about 30/120, bus about 17/91, bike about 11/41 and walk about 4/40.
+
+This closes speed-focused EDA for CP1. Generic 100/200/500 km/h removal thresholds are rejected because they would erase legitimate fast travel; 52.89% of canonical airplane segments exceed 500 km/h. A conservative release-specific 1,200 km/h hard guard is proposed only as a continuity boundary, not as endpoint deletion, because all observed canonical airplane segments remain below about 1,048 km/h while clear corruptions extend into the thousands or millions.
+
+A proposed production contract is now documented in `docs/design/01_cleaning_staypoint_contract.md`: coordinate validation, 10 m same-second consolidation, explicit temporal continuity boundaries, a conservative hard-speed boundary, and sequence-scoped stay-point detection. No production implementation should begin until this contract is reviewed and approved.
+
+Detailed final speed evidence is recorded in `docs/eda/12_transport_speed_final.md`.
