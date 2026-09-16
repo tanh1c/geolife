@@ -38,4 +38,10 @@ In a trajectory with 45,215 duplicate text timestamps, the duplicate count stays
 
 This changes the preprocessing problem: same-second observations are genuinely ambiguous at the released timestamp resolution. I cannot estimate within-second velocity or impose an arbitrary order. I should first measure the spatial spread of these groups, then decide whether to collapse them or preserve them as simultaneous observations.
 
-Next learning target: quantify same-second spatial spread, exact duplicate-file prevalence, and impossible-jump patterns before proposing cleaning or stay-point thresholds.
+## 2026-09-16 — Same-second groups are mostly jitter, but exact duplicates are structural
+
+The same-second analysis found 212,409 groups. Most are spatially compact: the median maximum radius from the coordinate-wise median is about 0.47 m, p95 is 4.85 m, p99 is 7.06 m, and 99.61% are within 10 m. This supports testing a robust one-row-per-timestamp representation for compact groups. The tiny long-distance tail must be flagged separately rather than averaged across incompatible locations.
+
+The raw-file hash scan changed the evaluation plan more substantially. There are 821 exact duplicate hash groups containing 1,677 files. About 8.98% of trajectory files participate in an exact duplicate group, and several groups span different user IDs. Therefore content identity is not a rare edge case. Future train/test splitting should keep byte-identical content in the same fold, and benchmark weighting should avoid giving duplicated content accidental extra influence.
+
+Next learning target: measure the cross-user duplicate share and point-weighted impact, prototype same-second consolidation only for spatially compact groups, then recompute segment speeds and temporal gaps before proposing movement-noise thresholds.
