@@ -98,4 +98,25 @@ Interpretation:
 
 Detailed evidence is recorded in `docs/eda/05_cross_user_duplication.md`.
 
-Next evidence step: quantify redundant point mass beyond one representative per hash group and inspect user connected-components induced by shared content hashes, then prototype same-second consolidation before recomputing movement-speed and temporal-gap distributions.
+## 2026-09-16 — Measured EDA Phase 5
+
+Redundant point mass and the user graph induced by shared exact content were quantified.
+
+Observed:
+
+- 1,495,115 GPS points are redundant beyond one representative per exact-content hash group, equal to 6.01% of all points;
+- 52 users are involved in cross-user duplication;
+- shared-content links form 18 connected components;
+- the largest component contains 15 user IDs;
+- several smaller 3-user components recur, while most remaining components are pairs.
+
+Interpretation:
+
+- 11.92% is exposure to duplicated groups, while 6.01% is the truly redundant point mass after keeping one representative per content hash;
+- user-only splitting is not sufficient to guarantee content independence because distinct user IDs can be connected through identical trajectories;
+- content-hash grouping is required for leakage control, and component-aware grouping is a candidate for stricter user-level evaluation;
+- duplicate analysis is now sufficiently characterized for CP1 and should not expand further unless later evaluation exposes a specific need.
+
+Detailed evidence is recorded in `docs/eda/06_duplicate_redundancy_and_user_components.md`.
+
+Next evidence step: prototype same-second consolidation for spatially compact groups, flag conflicting groups, then recompute movement-speed and temporal-gap distributions before choosing noise thresholds or implementing stay-point detection.
