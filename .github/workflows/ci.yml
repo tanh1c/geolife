@@ -1,0 +1,23 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Compile Python sources
+        run: python -m compileall -q src notebooks/eda_core.py
+      - name: Validate EDA notebook JSON
+        run: python -c "import json; json.load(open('notebooks/01_geolife_eda.ipynb', encoding='utf-8')); print('notebook json ok')"
+      - name: Import EDA helpers
+        run: python -c "from notebooks.eda_core import read_plt, haversine_vectorized, inventory_dataset; print('eda helpers import ok')"
