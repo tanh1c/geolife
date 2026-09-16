@@ -58,4 +58,12 @@ The shared-content user graph includes 52 users across 18 connected components. 
 
 A useful stopping lesson is also emerging: EDA must support decisions rather than becoming the entire project. Duplicate structure is now sufficiently characterized for CP1. The next focus should return to preprocessing that directly affects stay-point detection: same-second consolidation, temporal gaps, and movement anomalies.
 
-Next learning target: prototype a robust one-row-per-timestamp representation for spatially compact same-second groups, flag spatial conflicts, then recompute speed and temporal-gap distributions before selecting cleaning thresholds.
+## 2026-09-16 — Same-second consolidation solves one failure mode, not all of them
+
+The consolidation prototype made the separation between failure modes concrete. On a duplicate-heavy trajectory, 56,780 raw points collapsed to 11,565 timestamp rows with only three spatial conflicts, and the largest inspected speeds dropped to roughly 225 km/h. That is evidence that timestamp-resolution ambiguity was materially affecting segment construction.
+
+The same transform did not fix the structurally corrupted user-062 trajectory. It flagged 26 same-second conflicts, but the multi-million-km/h jumps remained because they occur between singleton timestamps at different seconds. This means same-second ambiguity and impossible inter-timestamp movement are independent cleaning problems.
+
+The main lesson is to make preprocessing staged and interpretable: first validate coordinates, then consolidate compact same-second groups, then deal with temporal gaps and movement anomalies. A global speed filter should come only after those earlier failure modes are removed or flagged.
+
+Next learning target: apply the consolidation experiment across the full release, compare pre/post sampling and speed distributions, then justify whether a movement-speed filter is needed before implementing stay-point detection.
