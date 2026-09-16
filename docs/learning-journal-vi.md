@@ -60,4 +60,12 @@ User graph tạo bởi shared exact content có 52 users nằm trong 18 connecte
 
 Một bài học khác là biết điểm dừng của EDA. Phần duplicate structure hiện đã đủ evidence cho CP1; tiếp tục đào sâu sẽ dễ biến EDA thành project riêng. Trọng tâm tiếp theo nên quay lại preprocessing phục vụ stay-point detection: same-second consolidation, temporal gaps và movement anomalies.
 
-Mục tiêu tiếp theo: prototype representation một row cho mỗi timestamp đối với same-second group compact, flag spatial conflict, rồi tính lại speed và temporal-gap distribution trước khi chọn cleaning threshold.
+## 2026-09-16 — Same-second consolidation giải quyết một failure mode, không phải tất cả
+
+Prototype consolidation làm rõ sự khác nhau giữa các failure mode. Với một trajectory có nhiều duplicate timestamps, 56,780 raw points được collapse còn 11,565 timestamp rows và chỉ có 3 spatial conflicts. Các max speed lớn nhất sau consolidation giảm còn khoảng 225 km/h. Đây là evidence cho thấy timestamp-resolution ambiguity thực sự ảnh hưởng tới cách tạo segment.
+
+Nhưng cùng transform đó không sửa được trajectory corrupted của user 062. Nó flag được 26 same-second conflicts, trong khi các jump hàng trăm km giữa những singleton timestamps ở các giây khác nhau vẫn còn và vẫn tạo speed cỡ hàng triệu km/h. Vì vậy same-second ambiguity và impossible movement giữa các timestamp khác nhau là hai vấn đề cleaning độc lập.
+
+Bài học chính là preprocessing nên có nhiều stage dễ giải thích: validate coordinate trước, collapse same-second group compact tiếp theo, rồi mới xử lý temporal gap và movement anomaly. Global speed threshold chỉ nên được cân nhắc sau khi các failure mode trước đã được xử lý hoặc flag.
+
+Mục tiêu tiếp theo: chạy consolidation experiment trên toàn release, so sánh sampling/speed distribution trước và sau, rồi mới quyết định có cần movement-speed filter hay không trước khi implement stay-point detection.
