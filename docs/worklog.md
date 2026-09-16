@@ -144,4 +144,29 @@ Interpretation:
 
 Detailed evidence is recorded in `docs/eda/07_same_second_consolidation_prototype.md`.
 
-Next evidence step: run the consolidation transform over all 18,670 trajectories, recompute sampling-gap and speed distributions, compare them with the raw baseline, then decide whether and how a movement-speed filter is justified before stay-point implementation.
+## 2026-09-16 — Full-release consolidation scan
+
+The 10 m exploratory same-second transform was applied across all 18,670 trajectories.
+
+Observed:
+
+- 24,876,978 raw points -> 24,178,077 consolidated timestamp rows;
+- 698,901 rows removed (2.81%);
+- only 835 consolidated timestamps are spatial conflicts (0.0035%);
+- the single invalid coordinate is still isolated cleanly;
+- 24,157,908 valid inter-timestamp movement segments remain;
+- segment-level prevalence after consolidation is 5.4029% >100 km/h, 0.9983% >150 km/h, 0.3661% >200 km/h, 0.2030% >500 km/h, and 0.0070% >1,000 km/h;
+- trajectory-level exceedance remains much larger because one bad segment marks a whole trajectory (46.96% of trajectories have max speed >100 km/h);
+- residual extreme trajectories remain essentially intact, including user 062 / `20080926000623` at ~3.10 million km/h;
+- temporal gaps remain highly heterogeneous, with trajectory max-gap median 325 s, p90 ~11,010 s, p99 ~20,690 s and max 93,298 s.
+
+Interpretation:
+
+- same-second consolidation is useful and low-loss, but it is not the main driver of the residual high-speed tail;
+- movement-noise decisions should use segment-level prevalence rather than trajectory-max prevalence;
+- temporal continuity must be handled before stay duration is trusted;
+- transportation-mode labels should be used next as auxiliary evidence to separate plausible fast travel from corrupted motion before choosing a global speed rule.
+
+Detailed evidence is recorded in `docs/eda/08_full_consolidation_findings.md`.
+
+Next evidence step: analyze post-consolidation segment speed by transportation-mode label where labels exist, characterize temporal-gap thresholds/sensitivity, then freeze an EDA-backed cleaning contract before implementing the stay-point detector.
