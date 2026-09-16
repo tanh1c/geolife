@@ -1,0 +1,111 @@
+# Learning Journal — EN
+
+## 2026-09-16 — Why GeoLife needs deeper EDA
+
+GeoLife is not a small i.i.d. tabular dataset. It is hierarchical and spatiotemporal: points belong to trajectories, trajectories belong to users, users have very different observation periods, sampling rates vary, and geography/timezone affect interpretation.
+
+Key lessons:
+
+- verify dataset counts from files instead of trusting documentation blindly;
+- inspect raw distributions before choosing cleaning thresholds;
+- avoid loading every GPS point into one giant DataFrame when trajectory-level reduction is enough;
+- evaluate user-history imbalance because Home/Office inference needs repeated behavior;
+- treat transportation labels as auxiliary movement labels, not Home/Office ground truth;
+- make timezone semantics explicit before using 'night' or 'office hours';
+- treat mobility privacy as a system-design concern, not just a reporting concern.
+
+## 2026-09-16 — What the first measured distributions changed
+
+The mounted release contains 182 users and 18,670 trajectory files. The user distribution is highly long-tailed: the median user has 27.5 trajectories, while the largest has 2,153. The top 10 users alone contribute 47.4% of all trajectories.
+
+This changes how I should think about evaluation. A single trajectory-weighted score can mostly reflect heavy users, so later model evaluation should include a per-user/macro view where appropriate. I also observed that users with transportation-label files represent 69/182 users but 58.4% of all trajectories, so the labeled subset is not representative by trajectory volume.
+
+The first raw trajectory also showed why spot checks are useful but insufficient: timestamps parsed cleanly as UTC, while altitude values had a very wide range. I should not convert one unusual value into a cleaning rule; I need the dataset-wide distribution first.
+
+## 2026-09-16 — Data-quality diagnostics changed the cleaning plan
+
+The full scan confirmed 24,876,978 points. It also showed why a simple `speed > threshold => noise` rule would be premature.
+
+I found one malformed latitude (`400.166667`) that is clearly different from a repeated corruption pattern in another trajectory, where coordinates jump roughly 850–862 km in one second over and over. These are different failure modes and may need different handling.
+
+I also confirmed that one raw trajectory is byte-identical across three different user folders. This introduces a potential leakage/weighting concern for future evaluation and shows that file-level duplication should be measured explicitly.
+
+## 2026-09-16 — A hypothesis was tested and rejected
+
+I initially suspected that the PLT `serial_date` field might preserve hidden sub-second timing and that the apparent duplicate timestamps were created by parsing only the text date/time fields. The data did not support that hypothesis.
+
+In a trajectory with 45,215 duplicate text timestamps, the duplicate count stays exactly 45,215 when timestamps are reconstructed from `serial_date`. Several different coordinates inside the same recorded second also have the same serial-date value. The few-microsecond difference between serial and text timestamps is just floating-point conversion noise, not useful extra timing precision.
+
+This changes the preprocessing problem: same-second observations are genuinely ambiguous at the released timestamp resolution. I cannot estimate within-second velocity or impose an arbitrary order. I should first measure the spatial spread of these groups, then decide whether to collapse them or preserve them as simultaneous observations.
+
+## 2026-09-16 — Same-second groups are mostly jitter, but exact duplicates are structural
+
+The same-second analysis found 212,409 groups. Most are spatially compact: the median maximum radius from the coordinate-wise median is about 0.47 m, p95 is 4.85 m, p99 is 7.06 m, and 99.61% are within 10 m. This supports testing a robust one-row-per-timestamp representation for compact groups. The tiny long-distance tail must be flagged separately rather than averaged across incompatible locations.
+
+The raw-file hash scan changed the evaluation plan more substantially. There are 821 exact duplicate hash groups containing 1,677 files. About 8.98% of trajectory files participate in an exact duplicate group, and several groups span different user IDs. Therefore content identity is not a rare edge case. Future train/test splitting should keep byte-identical content in the same fold, and benchmark weighting should avoid giving duplicated content accidental extra influence.
+
+## 2026-09-16 — Cross-user duplication is large enough to affect evaluation
+
+All 821 exact-duplicate hash groups were found to span multiple user IDs. The 1,677 affected files make up 8.98% of trajectories but contain 2,965,977 points, or 11.92% of the full dataset.
+
+This is important because the point-weighted exposure is larger than the file-count exposure. Duplicate traces are therefore longer than average and can have disproportionate influence on point-level metrics. The raw release does not explain why the same content is assigned to multiple users, so I should not infer that these user IDs represent the same person. For evaluation, however, content hashes need to act as grouping keys so identical traces cannot leak across folds.
+
+## 2026-09-16 — Redundancy and connected components changed the split strategy
+
+After retaining one representative per exact-content hash group, the extra copies still account for 1,495,115 points, or 6.01% of the full dataset. This clarifies the difference between duplicate exposure and true redundancy: 11.92% of points belong to duplicate groups, but 6.01% are extra copies beyond one representative.
+
+The shared-content user graph includes 52 users across 18 connected components. The largest component contains 15 user IDs. Therefore even a user-level split is not enough to guarantee content independence: different user IDs can still be linked by identical trajectories. For strict evaluation, content-hash grouping is required, and connected-component grouping is a reasonable candidate when measuring user-level generalization.
+
+A useful stopping lesson is also emerging: EDA must support decisions rather than becoming the entire project. Duplicate structure is now sufficiently characterized for CP1. The next focus should return to preprocessing that directly affects stay-point detection: same-second consolidation, temporal gaps, and movement anomalies.
+
+## 2026-09-16 — Same-second consolidation solves one failure mode, not all of them
+
+The consolidation prototype made the separation between failure modes concrete. On a duplicate-heavy trajectory, 56,780 raw points collapsed to 11,565 timestamp rows with only three spatial conflicts, and the largest inspected speeds dropped to roughly 225 km/h. That is evidence that timestamp-resolution ambiguity was materially affecting segment construction.
+
+The same transform did not fix the structurally corrupted user-062 trajectory. It flagged 26 same-second conflicts, but the multi-million-km/h jumps remained because they occur between singleton timestamps at different seconds. This means same-second ambiguity and impossible inter-timestamp movement are independent cleaning problems.
+
+The main lesson is to make preprocessing staged and interpretable: first validate coordinates, then consolidate compact same-second groups, then deal with temporal gaps and movement anomalies. A global speed filter should come only after those earlier failure modes are removed or flagged.
+
+## 2026-09-16 — Full consolidation changed how I interpret the speed tail
+
+Applying same-second consolidation to the whole release reduced 24,876,978 raw points to 24,178,077 timestamp-level rows, a 2.81% reduction, while only 835 timestamps (0.0035%) were spatial conflicts. This is strong evidence that the transform is low-loss for the dominant duplicate-second pattern.
+
+The more important result is that the residual speed tail barely disappears. At the trajectory level, 46.96% of trajectories still have a maximum speed above 100 km/h, but at the segment level only 5.40% of valid movement segments exceed 100 km/h. Above 150 km/h the segment share falls to about 1.00%, above 200 km/h to 0.37%, and above 1,000 km/h to 0.007%.
+
+This taught me that a trajectory-max statistic answers a different question from segment prevalence. One bad segment can make an otherwise normal trajectory look extreme, so cleaning thresholds should be reasoned about at the segment level and then traced back to trajectories/users.
+
+Temporal gaps are another independent issue: the median trajectory's largest gap is 325 seconds, while p90 is about 11,010 seconds and the maximum is 93,298 seconds. For stay-point detection, nearby points separated by a long observation outage cannot automatically be interpreted as continuous dwelling.
+
+## 2026-09-16 — Gap sensitivity shows why continuity must be explicit
+
+The gap sensitivity table made the continuity problem concrete. More than half of trajectories contain at least one gap longer than five minutes, 41.74% contain a gap longer than ten minutes, and 29.66% contain a gap longer than thirty minutes. A very strict 30-60 second continuity threshold would split most trajectories at least once.
+
+This means the gap threshold is not a harmless implementation detail. It changes which observations can contribute to a dwell interval, so it should be exposed as a sensitivity parameter and justified from downstream stay-point behavior rather than chosen only for convenience.
+
+The transportation-label parser also yielded 14,718 intervals across 69 user folders. Walk dominates the interval count, followed by bus, bike, taxi, car, subway and train, while airplane has only 17 intervals. These labels are useful for validating plausible movement-speed tails, but they are auxiliary evidence only and not Home/Office ground truth.
+
+## 2026-09-16 — Transportation labels validate the broad speed shape but reveal label ambiguity
+
+The first strict-containment join matched about 4.85 million segments, covering 40.83% of valid segments from labeled users. The broad distributions make sense as auxiliary evidence: airplane has median/p99 speeds around 624/938 km/h, train around 93/210, car around 30/120, bus around 17/90, walk around 4/41, and bike around 11/41.
+
+This immediately rules out a naive global 500 km/h filter: more than half of the currently matched airplane segments exceed 500 km/h. At the same time, non-airplane modes still contain rare multi-thousand-km/h maxima, so being inside a transportation label does not automatically make a GPS segment trustworthy.
+
+The important quality finding is that 1,903 label intervals overlap or touch the previous interval under the current check, and examples include genuine overlap between different modes. That means the current `merge_asof` join can choose one active label when several are valid. The exact per-mode percentiles are therefore provisional. Before using them to freeze a speed rule, overlapping labels should be canonicalized so only periods with one distinct active mode are benchmarked.
+
+## 2026-09-16 — Canonicalizing labels showed overlap is small by duration
+
+Canonicalization converted overlapping intervals into windows with exactly one active mode and excluded periods where different modes were simultaneously active. It produced 14,537 unambiguous windows and 1,886 ambiguous windows.
+
+The key comparison is duration rather than window count: unambiguous time totals 12,723.9 hours, while ambiguous time totals only 76.9 hours, or 0.60% of represented labeled time. The most common conflicts are bus+walk, bike+walk, taxi+walk and subway+walk. Many ambiguous windows are one-second boundaries, although a few are much longer.
+
+Reprocessing all labeled users with canonical windows yields 4,812,641 matched segments, about 40.52% coverage. That is only 37,217 fewer segments than the provisional benchmark, a reduction of about 0.77%. This makes it unlikely that the broad mode-speed shape was created by overlap ambiguity alone, but I still need the final V2 per-mode summary before freezing exact speed-cleaning decisions.
+
+## 2026-09-16 — Final speed benchmark closed the EDA loop
+
+The canonical V2 table is essentially identical to the provisional one: every mode's p99 changes by less than 0.5 km/h. Airplane remains around 625 km/h median and 938 km/h p99; train around 93/210; car around 30/120; bus around 17/91; bike around 11/41; and walk around 4/40.
+
+This is the evidence I needed to stop tuning by intuition. Generic 100, 200, or 500 km/h cleaning thresholds are wrong for this dataset because they would remove legitimate fast travel; 52.89% of canonical airplane segments are above 500 km/h. At the same time, rare multi-thousand-km/h values inside ordinary modes prove that a conservative corruption guard is still useful.
+
+The proposed compromise is a release-specific 1,200 km/h hard guard used only to break continuity, never to decide which endpoint to delete. It preserves all observed canonical airplane segments, whose maximum is about 1,048 km/h, while catching clearly extreme corruption. I also learned an important design principle: when evidence tells me a segment is untrustworthy but does not tell me which endpoint is wrong, breaking continuity is safer than inventing a repair.
+
+EDA is now closed for this cleaning decision. The next step is contract review, then RED tests before any production preprocessing or stay-point implementation.
