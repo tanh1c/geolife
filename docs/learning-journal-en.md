@@ -84,4 +84,12 @@ This means the gap threshold is not a harmless implementation detail. It changes
 
 The transportation-label parser also yielded 14,718 intervals across 69 user folders. Walk dominates the interval count, followed by bus, bike, taxi, car, subway and train, while airplane has only 17 intervals. These labels are useful for validating plausible movement-speed tails, but they are auxiliary evidence only and not Home/Office ground truth.
 
-Next learning target: join post-consolidation movement segments to same-user transportation intervals, compare per-mode speed distributions and labeled coverage, then freeze the cleaning contract and move into stay-point implementation.
+## 2026-09-16 — Transportation labels validate the broad speed shape but reveal label ambiguity
+
+The first strict-containment join matched about 4.85 million segments, covering 40.83% of valid segments from labeled users. The broad distributions make sense as auxiliary evidence: airplane has median/p99 speeds around 624/938 km/h, train around 93/210, car around 30/120, bus around 17/90, walk around 4/41, and bike around 11/41.
+
+This immediately rules out a naive global 500 km/h filter: more than half of the currently matched airplane segments exceed 500 km/h. At the same time, non-airplane modes still contain rare multi-thousand-km/h maxima, so being inside a transportation label does not automatically make a GPS segment trustworthy.
+
+The important quality finding is that 1,903 label intervals overlap or touch the previous interval under the current check, and examples include genuine overlap between different modes. That means the current `merge_asof` join can choose one active label when several are valid. The exact per-mode percentiles are therefore provisional. Before using them to freeze a speed rule, overlapping labels should be canonicalized so only periods with one distinct active mode are benchmarked.
+
+Next learning target: build non-overlapping unambiguous label windows, recompute the speed summary, then freeze the cleaning contract and move to stay-point implementation.
