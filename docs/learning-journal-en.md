@@ -66,4 +66,14 @@ The same transform did not fix the structurally corrupted user-062 trajectory. I
 
 The main lesson is to make preprocessing staged and interpretable: first validate coordinates, then consolidate compact same-second groups, then deal with temporal gaps and movement anomalies. A global speed filter should come only after those earlier failure modes are removed or flagged.
 
-Next learning target: apply the consolidation experiment across the full release, compare pre/post sampling and speed distributions, then justify whether a movement-speed filter is needed before implementing stay-point detection.
+## 2026-09-16 — Full consolidation changed how I interpret the speed tail
+
+Applying same-second consolidation to the whole release reduced 24,876,978 raw points to 24,178,077 timestamp-level rows, a 2.81% reduction, while only 835 timestamps (0.0035%) were spatial conflicts. This is strong evidence that the transform is low-loss for the dominant duplicate-second pattern.
+
+The more important result is that the residual speed tail barely disappears. At the trajectory level, 46.96% of trajectories still have a maximum speed above 100 km/h, but at the segment level only 5.40% of valid movement segments exceed 100 km/h. Above 150 km/h the segment share falls to about 1.00%, above 200 km/h to 0.37%, and above 1,000 km/h to 0.007%.
+
+This taught me that a trajectory-max statistic answers a different question from segment prevalence. One bad segment can make an otherwise normal trajectory look extreme, so cleaning thresholds should be reasoned about at the segment level and then traced back to trajectories/users.
+
+Temporal gaps are another independent issue: the median trajectory's largest gap is 325 seconds, while p90 is about 11,010 seconds and the maximum is 93,298 seconds. For stay-point detection, nearby points separated by a long observation outage cannot automatically be interpreted as continuous dwelling.
+
+Next learning target: use available transportation-mode labels to characterize legitimate speed distributions, analyze gap sensitivity, then freeze an evidence-backed cleaning contract before implementing stay-point detection.
