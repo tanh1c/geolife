@@ -14,7 +14,7 @@ Evidence/status:
 
 - files are present on branch `cp1-eda-foundation`;
 - GitHub Actions CI passed for the EDA foundation;
-- raw GeoLife 1.3 data is mounted in Modal and Phase-1 inventory/imbalance EDA has now been executed.
+- raw GeoLife 1.3 data is mounted in Modal and EDA is being executed against the official release.
 
 ## 2026-09-16 — Measured EDA Phase 1
 
@@ -30,4 +30,25 @@ Observed from the mounted release:
 
 Interpretation and caveats are recorded in `docs/eda/02_initial_findings.md`.
 
-Next evidence step: run the memory-bounded trajectory-level scan over all 18,670 files and inspect sampling, duration, distance, timestamp quality, altitude missingness, and speed/noise distributions before selecting cleaning or stay-point thresholds.
+## 2026-09-16 — Measured EDA Phase 2
+
+Full trajectory-level scan completed over all 18,670 files.
+
+Observed:
+
+- 24,876,978 total GPS points, matching the v1.3 guide table;
+- 0 null timestamps and 0 non-monotonic trajectories under the current parser;
+- 698,900 apparent duplicate-timestamp rows (2.81% of points) across 441 trajectories;
+- only one invalid latitude, an isolated `400.166667` value among surrounding `40.166...` points;
+- physically impossible raw speed/distance tails, including repeated ~850–862 km jumps in one-second intervals in user 062 trajectory `20080926000623`;
+- at least one byte-identical trajectory duplicated across three users (`057`, `094`, `150`), confirmed by identical SHA-256.
+
+Important interpretation:
+
+- speed/sampling statistics are still provisional because the current parser uses second-resolution date/time text;
+- many duplicate-second groups contain multiple distinct coordinates, so PLT `serial_date` must be tested for sub-second timing before deduplication or speed-threshold selection;
+- no cleaning threshold has been selected yet.
+
+Detailed evidence is recorded in `docs/eda/03_phase2_quality_findings.md`.
+
+Next evidence step: validate `serial_date` timing precision, characterize repeated impossible-jump patterns, measure cross-user duplicate prevalence, then rerun the trajectory summaries before proposing cleaning/stay-point thresholds.
