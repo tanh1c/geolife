@@ -92,4 +92,12 @@ This immediately rules out a naive global 500 km/h filter: more than half of the
 
 The important quality finding is that 1,903 label intervals overlap or touch the previous interval under the current check, and examples include genuine overlap between different modes. That means the current `merge_asof` join can choose one active label when several are valid. The exact per-mode percentiles are therefore provisional. Before using them to freeze a speed rule, overlapping labels should be canonicalized so only periods with one distinct active mode are benchmarked.
 
-Next learning target: build non-overlapping unambiguous label windows, recompute the speed summary, then freeze the cleaning contract and move to stay-point implementation.
+## 2026-09-16 — Canonicalizing labels showed overlap is small by duration
+
+Canonicalization converted overlapping intervals into windows with exactly one active mode and excluded periods where different modes were simultaneously active. It produced 14,537 unambiguous windows and 1,886 ambiguous windows.
+
+The key comparison is duration rather than window count: unambiguous time totals 12,723.9 hours, while ambiguous time totals only 76.9 hours, or 0.60% of represented labeled time. The most common conflicts are bus+walk, bike+walk, taxi+walk and subway+walk. Many ambiguous windows are one-second boundaries, although a few are much longer.
+
+Reprocessing all labeled users with canonical windows yields 4,812,641 matched segments, about 40.52% coverage. That is only 37,217 fewer segments than the provisional benchmark, a reduction of about 0.77%. This makes it unlikely that the broad mode-speed shape was created by overlap ambiguity alone, but I still need the final V2 per-mode summary before freezing exact speed-cleaning decisions.
+
+Next learning target: recompute the per-mode V2 table once, compare it with the provisional result, then stop EDA and formalize the cleaning/stay-point contract.
