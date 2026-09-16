@@ -94,4 +94,12 @@ Kết quả này đủ để bác bỏ ngay rule global `speed > 500 km/h => noi
 
 Finding quan trọng nhất là 1,903 label intervals overlap hoặc touch interval trước đó theo integrity check hiện tại, trong đó có những overlap thật giữa các mode khác nhau. Vì vậy `merge_asof` hiện tại có thể chọn một label trong khi đồng thời còn label khác cũng active. Các percentile theo mode hiện tại chỉ là provisional. Trước khi dùng chúng để freeze speed rule, cần canonicalize labels và chỉ benchmark các khoảng thời gian có đúng một distinct active mode.
 
-Mục tiêu tiếp theo: tạo các label windows không overlap và không ambiguous, tính lại speed summary, sau đó freeze cleaning contract và chuyển sang implement stay-point detector.
+## 2026-09-16 — Canonicalize labels cho thấy overlap nhỏ nếu đo theo duration
+
+Sau khi canonicalize, chỉ giữ các window có đúng một mode active và loại những khoảng có nhiều mode khác nhau cùng active. Kết quả có 14,537 unambiguous windows và 1,886 ambiguous windows.
+
+Điểm cần nhìn là thời lượng chứ không phải số window: unambiguous time là 12,723.9 giờ, ambiguous time chỉ 76.9 giờ, tức 0.60% represented labeled time. Các conflict phổ biến nhất là bus+walk, bike+walk, taxi+walk và subway+walk. Nhiều ambiguous window chỉ dài một giây, dù vẫn có một số overlap dài đáng kể.
+
+Khi process lại toàn bộ labeled users bằng canonical windows, V2 match được 4,812,641 segments, tương đương khoảng 40.52% coverage. So với benchmark provisional, chỉ mất 37,217 segments, khoảng 0.77% số segments từng match. Vì vậy broad speed shape khó có khả năng chỉ là artifact do label overlap, nhưng vẫn cần bảng per-mode V2 cuối cùng trước khi freeze decision về speed cleaning.
+
+Mục tiêu tiếp theo: tính lại per-mode V2 đúng một lần, compare với bảng provisional, rồi dừng EDA và formalize cleaning/stay-point contract.
