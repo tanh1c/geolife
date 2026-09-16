@@ -193,4 +193,14 @@ Interpretation:
 
 Detailed evidence is recorded in `docs/eda/09_gap_and_label_inventory.md`.
 
-Next evidence step: build a midpoint-based segment-to-label join, measure per-mode speed distributions and labeled coverage, then freeze an EDA-backed cleaning contract and implement stay-point detection.
+## 2026-09-16 — Provisional transportation-mode speed diagnostic
+
+The strict-containment segment/label join matched 4,849,858 of 11,878,198 valid movement segments from labeled users (40.83%). The broad per-mode speed shape is informative: airplane median/p99 are about 624/938 km/h, train about 93/210, car about 30/120, taxi about 31/105, subway about 50/94, bus about 17/90, walk about 4/41 and bike about 11/41.
+
+A critical label-quality issue was found before freezing the benchmark: 1,903 intervals are overlapping or touching the immediately previous interval under the current integrity check, including genuine overlaps across different modes. Therefore the current `merge_asof` assignment is not guaranteed to be unambiguous and exact per-mode statistics remain provisional.
+
+Despite that caveat, one conclusion is already robust enough for design: a global 500 km/h filter would remove about 52.9% of currently matched airplane segments and is not acceptable as a generic speed-cleaning threshold. Extremely large maxima also appear inside non-airplane labels, so label membership alone does not make a segment clean.
+
+Detailed evidence is recorded in `docs/eda/10_transport_speed_provisional.md`.
+
+Next evidence step: canonicalize transportation labels into non-overlapping unambiguous mode windows, exclude periods with simultaneous different modes, recompute coverage/per-mode speed distributions, then freeze the EDA-backed cleaning contract and move to stay-point implementation.
