@@ -76,4 +76,12 @@ This taught me that a trajectory-max statistic answers a different question from
 
 Temporal gaps are another independent issue: the median trajectory's largest gap is 325 seconds, while p90 is about 11,010 seconds and the maximum is 93,298 seconds. For stay-point detection, nearby points separated by a long observation outage cannot automatically be interpreted as continuous dwelling.
 
-Next learning target: use available transportation-mode labels to characterize legitimate speed distributions, analyze gap sensitivity, then freeze an evidence-backed cleaning contract before implementing stay-point detection.
+## 2026-09-16 — Gap sensitivity shows why continuity must be explicit
+
+The gap sensitivity table made the continuity problem concrete. More than half of trajectories contain at least one gap longer than five minutes, 41.74% contain a gap longer than ten minutes, and 29.66% contain a gap longer than thirty minutes. A very strict 30-60 second continuity threshold would split most trajectories at least once.
+
+This means the gap threshold is not a harmless implementation detail. It changes which observations can contribute to a dwell interval, so it should be exposed as a sensitivity parameter and justified from downstream stay-point behavior rather than chosen only for convenience.
+
+The transportation-label parser also yielded 14,718 intervals across 69 user folders. Walk dominates the interval count, followed by bus, bike, taxi, car, subway and train, while airplane has only 17 intervals. These labels are useful for validating plausible movement-speed tails, but they are auxiliary evidence only and not Home/Office ground truth.
+
+Next learning target: join post-consolidation movement segments to same-user transportation intervals, compare per-mode speed distributions and labeled coverage, then freeze the cleaning contract and move into stay-point implementation.
