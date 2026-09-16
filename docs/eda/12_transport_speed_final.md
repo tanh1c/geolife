@@ -1,16 +1,27 @@
-# Final transportation-speed diagnostic
+# Transportation-speed diagnostic
 
 Date: 2026-09-16
+Status: broad speed conclusions retained; exact V2 benchmark requires one half-open interval rerun after audit correction.
 
-This closes the speed-focused EDA before the stay-point cleaning contract is implemented.
+## Audit note
 
-## Canonical V2 benchmark
+The first V2 transportation-label benchmark used an inclusive-end canonicalization convention. An independent re-audit of the original GeoLife ZIP found that this convention incorrectly turned many different-mode endpoint touches into one-second ambiguities.
 
-Transportation labels were first canonicalized into windows with exactly one distinct active mode. Periods with simultaneous different modes were excluded. This left 14,537 unambiguous windows and 1,886 ambiguous windows; ambiguous time was only 76.9 hours, or 0.60% of represented labeled time.
+The corrected interval convention is standard half-open `[start, end)`. Under that convention the label accounting is:
 
-The V2 strict-containment join matched 4,812,641 movement segments, covering 40.52% of 11,878,198 valid post-consolidation segments from labeled users.
+- 14,583 unambiguous canonical windows;
+- 138 ambiguous windows;
+- 12,720.83 unambiguous labeled hours;
+- 76.345 ambiguous hours;
+- ambiguous share approximately 0.597%.
 
-Per-mode V2 speed summary:
+The earlier 14,537 / 1,886 window counts are superseded for reporting. See `docs/eda/14_label_interval_semantics_audit.md`.
+
+## Historical V2 benchmark under the earlier inclusive-end convention
+
+The earlier strict-containment V2 join matched 4,812,641 movement segments, covering 40.52% of 11,878,198 valid post-consolidation segments from labeled users.
+
+Per-mode speed summary from that historical V2 run:
 
 | mode | canonical windows | label users | segments | median km/h | p95 km/h | p99 km/h | max km/h | >100 | >200 | >500 | >1000 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -28,16 +39,18 @@ Per-mode V2 speed summary:
 
 ## Stability versus provisional benchmark
 
-Canonicalization barely changed the central or tail percentiles. The p99 deltas are all below 0.5 km/h in absolute value; airplane changes by +0.03 km/h, train by -0.02, car by +0.05, taxi by +0.13, bus by +0.12, bike by -0.02, and walk by -0.46. Therefore the broad transportation-speed shape is robust to the overlap correction.
+Under the earlier inclusive-end run, canonicalization barely changed central or tail percentiles: absolute p99 deltas versus the provisional benchmark were below 0.5 km/h for every mode.
+
+This remains useful qualitative evidence because the corrected audit shows that truly ambiguous time is still only about 0.6% of represented labeled time. It is therefore unlikely that the broad mode-speed shape is driven by label-overlap ambiguity.
 
 ## Decisions supported by the evidence
 
-A generic `speed > 100`, `>200`, or `>500 km/h => noise` rule is rejected. The first two would remove substantial legitimate train/airplane movement, and more than half of canonical airplane segments exceed 500 km/h.
+A generic `speed > 100`, `>200`, or `>500 km/h => noise` rule remains rejected. The first two conflict with legitimate train/airplane movement, and the historical benchmark places more than half of airplane segments above 500 km/h.
 
-At the same time, rare multi-thousand-km/h maxima appear even inside non-airplane labels, which proves that label membership does not guarantee clean GPS. Speed remains useful as a conservative corruption guard, but not as a mode-agnostic ordinary-motion filter.
+Rare multi-thousand-km/h maxima also appear inside non-airplane labels, so label membership does not guarantee clean GPS. Speed is therefore useful as a conservative corruption guard, not as a mode-agnostic ordinary-motion filter.
 
-For the stay-point preprocessing contract, the proposed hard speed guard is 1,200 km/h and is used only as a continuity boundary, not to delete either endpoint. This value sits above the maximum canonical airplane speed observed in the release (1,048.11 km/h) while catching clearly impossible corruption such as the repeated multi-million-km/h jumps in user 062. It is a conservative release-specific engineering guard, not a universal physical law.
+The proposed CP1 hard-speed guard remains `1,200 km/h` as a release-specific continuity boundary rather than endpoint deletion. This proposal is intentionally conservative and still requires contract review. Before treating the exact airplane maximum/share numbers as fully audited evidence for that threshold, rerun the strict-containment benchmark once under `[start, end)`.
 
 ## EDA stop condition
 
-Speed-focused EDA is now complete for CP1. The remaining work is implementation and stay-point threshold sensitivity, not additional open-ended data-quality exploration.
+Open-ended speed EDA is closed for CP1. One bounded audit rerun remains: recompute the V2 segment-label join and per-mode speed table under half-open label semantics. This is a correction/verification step, not a reopening of broad exploratory analysis.
