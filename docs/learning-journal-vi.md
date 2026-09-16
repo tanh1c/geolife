@@ -44,7 +44,7 @@ Ban đầu mình nghi ngờ field PLT `serial_date` có thể giữ sub-second t
 
 Phân tích 212,409 same-second groups cho thấy phần lớn rất compact về không gian: median max-radius quanh coordinate-wise median chỉ khoảng 0.47 m, p95 là 4.85 m, p99 là 7.06 m, và 99.61% nằm trong 10 m. Điều này tạo evidence tốt để thử representation một row cho mỗi timestamp bằng robust coordinate đối với các group compact. Phần tail rất xa phải được flag riêng, không được average hai location không tương thích.
 
-Phân tích SHA-256 thay đổi kế hoạch evaluation rõ hơn. Có 821 exact-duplicate hash groups chứa 1,677 files; khoảng 8.98% trajectory files nằm trong ít nhất một duplicate group, và nhiều group trải qua các user ID khác nhau. Vì vậy content identity không phải edge case hiếm. Khi split train/test về sau cần giữ nội dung byte-identical trong cùng fold, đồng thời tránh để duplicated content được weight quá mức trong benchmark.
+Phân tích SHA-256 thay đổi kế hoạch evaluation rõ hơn. Có 821 exact duplicate hash groups chứa 1,677 files; khoảng 8.98% trajectory files nằm trong ít nhất một duplicate group, và nhiều group trải qua các user ID khác nhau. Vì vậy content identity không phải edge case hiếm. Khi split train/test về sau cần giữ nội dung byte-identical trong cùng fold, đồng thời tránh để duplicated content được weight quá mức trong benchmark.
 
 ## 2026-09-16 — Cross-user duplication đủ lớn để ảnh hưởng evaluation
 
@@ -52,4 +52,12 @@ Cả 821 exact-duplicate hash groups đều trải qua nhiều user ID. 1,677 fi
 
 Điểm quan trọng là point-weighted exposure lớn hơn file-count exposure, nghĩa là các duplicate trajectories có xu hướng dài hơn trung bình và có thể ảnh hưởng metric theo point mạnh hơn tưởng tượng nếu chỉ nhìn số file. Dataset không giải thích vì sao cùng content lại nằm dưới nhiều user ID, nên không được suy diễn rằng các user ID đó là cùng một người. Tuy nhiên ở góc độ evaluation, content hash phải được dùng như grouping key để tránh identical traces rơi vào hai fold khác nhau.
 
-Mục tiêu tiếp theo: đo redundant point mass vượt quá một representative cho mỗi hash group, xem connected-components giữa user IDs do shared content tạo ra, rồi prototype same-second consolidation trước khi tính lại movement speed và temporal-gap distribution.
+## 2026-09-16 — Redundancy và connected components làm thay đổi split strategy
+
+Sau khi giữ lại một representative cho mỗi exact-content hash group, các bản copy dư vẫn chiếm 1,495,115 points, tương đương 6.01% toàn dataset. Điều này làm rõ hai khái niệm: 11.92% là số points nằm trong các duplicate groups, còn 6.01% mới là phần point mass dư thừa vượt quá một representative.
+
+User graph tạo bởi shared exact content có 52 users nằm trong 18 connected components; component lớn nhất chứa 15 user IDs. Vì vậy ngay cả user-level split cũng chưa đảm bảo content independence: các user ID khác nhau vẫn có thể được nối với nhau bằng byte-identical trajectories. Với strict evaluation, content-hash grouping là bắt buộc; connected-component grouping là candidate hợp lý nếu muốn đo user-level generalization nghiêm ngặt hơn.
+
+Một bài học khác là biết điểm dừng của EDA. Phần duplicate structure hiện đã đủ evidence cho CP1; tiếp tục đào sâu sẽ dễ biến EDA thành project riêng. Trọng tâm tiếp theo nên quay lại preprocessing phục vụ stay-point detection: same-second consolidation, temporal gaps và movement anomalies.
+
+Mục tiêu tiếp theo: prototype representation một row cho mỗi timestamp đối với same-second group compact, flag spatial conflict, rồi tính lại speed và temporal-gap distribution trước khi chọn cleaning threshold.
