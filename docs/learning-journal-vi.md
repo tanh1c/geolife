@@ -86,4 +86,12 @@ Vì vậy gap threshold không phải implementation detail nhỏ. Nó quyết �
 
 Parser transportation labels tạo ra 14,718 intervals trên 69 user folders. Walk chiếm nhiều interval nhất, sau đó là bus, bike, taxi, car, subway và train; airplane chỉ có 17 intervals. Các labels này hữu ích để kiểm tra speed tail hợp lý của movement thật, nhưng chỉ là auxiliary evidence, không phải ground truth Home/Office.
 
-Mục tiêu tiếp theo: join các movement segments sau consolidation với transportation intervals của cùng user, so sánh speed distribution theo mode và labeled coverage, sau đó freeze cleaning contract và chuyển sang implement stay-point detector.
+## 2026-09-16 — Transportation labels cho thấy shape của speed hợp lý nhưng labels có ambiguity
+
+Join strict-containment đầu tiên match được khoảng 4.85 triệu segments, tương đương 40.83% valid segments của nhóm users có labels. Distribution theo mode nhìn broadly hợp lý để làm auxiliary evidence: airplane có median/p99 khoảng 624/938 km/h, train khoảng 93/210, car khoảng 30/120, bus khoảng 17/90, walk khoảng 4/41 và bike khoảng 11/41.
+
+Kết quả này đủ để bác bỏ ngay rule global `speed > 500 km/h => noise`: hơn một nửa airplane segments đang match vượt 500 km/h. Ngược lại, các mode không phải airplane vẫn có một số max speed lên tới hàng nghìn km/h, nên việc segment nằm trong một transportation label không có nghĩa segment đó chắc chắn sạch.
+
+Finding quan trọng nhất là 1,903 label intervals overlap hoặc touch interval trước đó theo integrity check hiện tại, trong đó có những overlap thật giữa các mode khác nhau. Vì vậy `merge_asof` hiện tại có thể chọn một label trong khi đồng thời còn label khác cũng active. Các percentile theo mode hiện tại chỉ là provisional. Trước khi dùng chúng để freeze speed rule, cần canonicalize labels và chỉ benchmark các khoảng thời gian có đúng một distinct active mode.
+
+Mục tiêu tiếp theo: tạo các label windows không overlap và không ambiguous, tính lại speed summary, sau đó freeze cleaning contract và chuyển sang implement stay-point detector.
