@@ -100,4 +100,12 @@ The key comparison is duration rather than window count: unambiguous time totals
 
 Reprocessing all labeled users with canonical windows yields 4,812,641 matched segments, about 40.52% coverage. That is only 37,217 fewer segments than the provisional benchmark, a reduction of about 0.77%. This makes it unlikely that the broad mode-speed shape was created by overlap ambiguity alone, but I still need the final V2 per-mode summary before freezing exact speed-cleaning decisions.
 
-Next learning target: recompute the per-mode V2 table once, compare it with the provisional result, then stop EDA and formalize the cleaning/stay-point contract.
+## 2026-09-16 — Final speed benchmark closed the EDA loop
+
+The canonical V2 table is essentially identical to the provisional one: every mode's p99 changes by less than 0.5 km/h. Airplane remains around 625 km/h median and 938 km/h p99; train around 93/210; car around 30/120; bus around 17/91; bike around 11/41; and walk around 4/40.
+
+This is the evidence I needed to stop tuning by intuition. Generic 100, 200, or 500 km/h cleaning thresholds are wrong for this dataset because they would remove legitimate fast travel; 52.89% of canonical airplane segments are above 500 km/h. At the same time, rare multi-thousand-km/h values inside ordinary modes prove that a conservative corruption guard is still useful.
+
+The proposed compromise is a release-specific 1,200 km/h hard guard used only to break continuity, never to decide which endpoint to delete. It preserves all observed canonical airplane segments, whose maximum is about 1,048 km/h, while catching clearly extreme corruption. I also learned an important design principle: when evidence tells me a segment is untrustworthy but does not tell me which endpoint is wrong, breaking continuity is safer than inventing a repair.
+
+EDA is now closed for this cleaning decision. The next step is contract review, then RED tests before any production preprocessing or stay-point implementation.
