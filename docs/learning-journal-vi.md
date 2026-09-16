@@ -78,4 +78,12 @@ Kết quả quan trọng hơn là speed tail còn lại gần như không biến
 
 Temporal gap là một failure mode độc lập khác: median của trajectory max-gap là 325 giây, p90 khoảng 11,010 giây, còn maximum là 93,298 giây. Với stay-point detection, hai point gần nhau nhưng bị ngăn bởi một observation outage dài không thể tự động được hiểu là user đã dwell liên tục tại đó.
 
-Mục tiêu tiếp theo: dùng transportation-mode labels sẵn có để đo distribution của legitimate movement speed, phân tích sensitivity của temporal gap, rồi freeze một cleaning contract có evidence trước khi implement stay-point detection.
+## 2026-09-16 — Gap sensitivity cho thấy continuity phải được định nghĩa rõ
+
+Sensitivity table làm vấn đề temporal continuity cụ thể hơn. Hơn một nửa trajectories có ít nhất một gap dài hơn 5 phút, 41.74% có gap dài hơn 10 phút, và 29.66% có gap dài hơn 30 phút. Nếu dùng threshold rất chặt như 30–60 giây thì phần lớn trajectories sẽ bị split ít nhất một lần.
+
+Vì vậy gap threshold không phải implementation detail nhỏ. Nó quyết định observation nào được phép đóng góp vào cùng một dwell interval, nên cần được coi là sensitivity parameter và được justify bằng behavior của stay-point detector thay vì chọn theo convenience.
+
+Parser transportation labels tạo ra 14,718 intervals trên 69 user folders. Walk chiếm nhiều interval nhất, sau đó là bus, bike, taxi, car, subway và train; airplane chỉ có 17 intervals. Các labels này hữu ích để kiểm tra speed tail hợp lý của movement thật, nhưng chỉ là auxiliary evidence, không phải ground truth Home/Office.
+
+Mục tiêu tiếp theo: join các movement segments sau consolidation với transportation intervals của cùng user, so sánh speed distribution theo mode và labeled coverage, sau đó freeze cleaning contract và chuyển sang implement stay-point detector.
