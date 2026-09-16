@@ -40,4 +40,10 @@ Ban đầu mình nghi ngờ field PLT `serial_date` có thể giữ sub-second t
 
 Điều này thay đổi cách xử lý preprocessing: các observation cùng giây thực sự mơ hồ ở độ phân giải timestamp của release. Không thể tính within-second velocity hay tự ý gán thứ tự. Cần đo spatial spread của các same-second group trước rồi mới quyết định collapse hay giữ chúng như simultaneous observations.
 
-Mục tiêu tiếp theo: định lượng same-second spatial spread, prevalence của exact duplicate files, và pattern impossible jumps trước khi đề xuất cleaning hoặc stay-point thresholds.
+## 2026-09-16 — Same-second chủ yếu là jitter, nhưng exact duplicates là vấn đề cấu trúc
+
+Phân tích 212,409 same-second groups cho thấy phần lớn rất compact về không gian: median max-radius quanh coordinate-wise median chỉ khoảng 0.47 m, p95 là 4.85 m, p99 là 7.06 m, và 99.61% nằm trong 10 m. Điều này tạo evidence tốt để thử representation một row cho mỗi timestamp bằng robust coordinate đối với các group compact. Phần tail rất xa phải được flag riêng, không được average hai location không tương thích.
+
+Phân tích SHA-256 thay đổi kế hoạch evaluation rõ hơn. Có 821 exact-duplicate hash groups chứa 1,677 files; khoảng 8.98% trajectory files nằm trong ít nhất một duplicate group, và nhiều group trải qua các user ID khác nhau. Vì vậy content identity không phải edge case hiếm. Khi split train/test về sau cần giữ nội dung byte-identical trong cùng fold, đồng thời tránh để duplicated content được weight quá mức trong benchmark.
+
+Mục tiêu tiếp theo: đo riêng cross-user duplicate share và point-weighted impact, prototype same-second consolidation chỉ cho spatially compact groups, rồi tính lại segment speed và temporal gap trước khi đề xuất movement-noise threshold.
