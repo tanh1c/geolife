@@ -203,4 +203,27 @@ Despite that caveat, one conclusion is already robust enough for design: a globa
 
 Detailed evidence is recorded in `docs/eda/10_transport_speed_provisional.md`.
 
-Next evidence step: canonicalize transportation labels into non-overlapping unambiguous mode windows, exclude periods with simultaneous different modes, recompute coverage/per-mode speed distributions, then freeze the EDA-backed cleaning contract and move to stay-point implementation.
+## 2026-09-16 — Transportation-label canonicalization
+
+Overlapping mode intervals were converted into canonical windows with exactly one distinct active mode; periods with simultaneous different modes were excluded from the benchmark.
+
+Observed:
+
+- 14,537 unambiguous canonical windows;
+- 1,886 ambiguous windows;
+- 12,723.9 hours of unambiguous labeled time;
+- 76.9 hours of ambiguous labeled time;
+- ambiguity is only 0.60% of represented labeled time;
+- the most common ambiguous combinations are bus+walk, bike+walk, taxi+walk, subway+walk, car+walk and train+walk;
+- V2 strict-containment processing over all 69 labeled users produced 4,812,641 matched segments, about 40.52% of 11,878,198 valid segments from labeled users;
+- canonicalization removes 37,217 segments from the provisional benchmark, only about 0.77% of previously matched segments.
+
+Interpretation:
+
+- overlap looks large by window count but small by duration;
+- the broad transportation-speed shape is unlikely to be an artifact of overlapping labels alone;
+- exact per-mode percentiles still need one final recomputation from the V2 cache before the cleaning contract is frozen.
+
+Detailed evidence is recorded in `docs/eda/11_label_overlap_canonicalization.md`.
+
+Next evidence step: recompute the per-mode speed table from the canonical V2 cache, compare it with the provisional table, then stop EDA and move to the stay-point cleaning/design contract.
