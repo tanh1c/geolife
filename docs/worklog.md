@@ -57,4 +57,26 @@ Conclusion: duplicate-second observations are a property of the released timesta
 
 Detailed evidence is recorded in `docs/eda/03_phase2_quality_findings.md` and `docs/eda/04_timestamp_precision_and_duplicates.md`.
 
-Next evidence step: quantify same-second spatial spread, exact duplicate-file prevalence, and impossible-jump patterns before proposing cleaning/stay-point thresholds.
+## 2026-09-16 — Measured EDA Phase 3
+
+Same-second spatial spread and exact raw-file duplication were quantified.
+
+Observed:
+
+- 212,409 same-second groups;
+- group size is dominated by 5-point groups (160,534) and 2-point groups (48,838);
+- median max-radius from the coordinate-wise median is 0.47 m, p95 is 4.85 m, and p99 is 7.06 m;
+- 95.32% of same-second groups are within 5 m, 99.61% within 10 m, and 99.84% within 20 m;
+- a tiny corrupted tail reaches about 430 km radius and is concentrated in trajectories such as user 062 / `20080926000623`;
+- SHA-256 over all 18,670 raw trajectory files found 821 exact-duplicate hash groups and 1,677 participating files;
+- about 8.98% of trajectory files participate in an exact-duplicate group, with 856 extra copies beyond one representative per group (~4.58% of all trajectory files);
+- several exact duplicates span multiple user IDs.
+
+Interpretation:
+
+- most same-second groups are spatially compact and support a robust consolidation experiment, but spatially conflicting groups must be flagged rather than averaged blindly;
+- exact content identity must be considered in train/test splitting and evaluation weighting to avoid leakage/overcounting.
+
+Detailed evidence is recorded in `docs/eda/04_same_second_and_exact_duplicate_findings.md`.
+
+Next evidence step: quantify cross-user duplicate prevalence separately, measure point-weighted impact of duplicate files, and prototype an exploratory same-second consolidation transform before recomputing speed and temporal-gap distributions.
