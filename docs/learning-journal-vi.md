@@ -46,4 +46,10 @@ Phân tích 212,409 same-second groups cho thấy phần lớn rất compact v�
 
 Phân tích SHA-256 thay đổi kế hoạch evaluation rõ hơn. Có 821 exact-duplicate hash groups chứa 1,677 files; khoảng 8.98% trajectory files nằm trong ít nhất một duplicate group, và nhiều group trải qua các user ID khác nhau. Vì vậy content identity không phải edge case hiếm. Khi split train/test về sau cần giữ nội dung byte-identical trong cùng fold, đồng thời tránh để duplicated content được weight quá mức trong benchmark.
 
-Mục tiêu tiếp theo: đo riêng cross-user duplicate share và point-weighted impact, prototype same-second consolidation chỉ cho spatially compact groups, rồi tính lại segment speed và temporal gap trước khi đề xuất movement-noise threshold.
+## 2026-09-16 — Cross-user duplication đủ lớn để ảnh hưởng evaluation
+
+Cả 821 exact-duplicate hash groups đều trải qua nhiều user ID. 1,677 files bị ảnh hưởng chiếm 8.98% số trajectories nhưng chứa 2,965,977 GPS points, tương đương 11.92% toàn dataset.
+
+Điểm quan trọng là point-weighted exposure lớn hơn file-count exposure, nghĩa là các duplicate trajectories có xu hướng dài hơn trung bình và có thể ảnh hưởng metric theo point mạnh hơn tưởng tượng nếu chỉ nhìn số file. Dataset không giải thích vì sao cùng content lại nằm dưới nhiều user ID, nên không được suy diễn rằng các user ID đó là cùng một người. Tuy nhiên ở góc độ evaluation, content hash phải được dùng như grouping key để tránh identical traces rơi vào hai fold khác nhau.
+
+Mục tiêu tiếp theo: đo redundant point mass vượt quá một representative cho mỗi hash group, xem connected-components giữa user IDs do shared content tạo ra, rồi prototype same-second consolidation trước khi tính lại movement speed và temporal-gap distribution.
