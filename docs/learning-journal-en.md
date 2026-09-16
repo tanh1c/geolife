@@ -28,8 +28,14 @@ The full scan confirmed 24,876,978 points. It also showed why a simple `speed > 
 
 I found one malformed latitude (`400.166667`) that is clearly different from a repeated corruption pattern in another trajectory, where coordinates jump roughly 850–862 km in one second over and over. These are different failure modes and may need different handling.
 
-A bigger lesson came from the apparent 698,900 duplicate timestamps. The worst trajectories contain several distinct coordinates within the same second. Because the current parser uses the date/time text fields at one-second resolution, I may be creating duplicate timestamps by discarding sub-second information. The PLT serial-date field must be tested before deduplicating or trusting speed/sampling summaries.
-
 I also confirmed that one raw trajectory is byte-identical across three different user folders. This introduces a potential leakage/weighting concern for future evaluation and shows that file-level duplication should be measured explicitly.
 
-Next learning target: validate timestamp precision from `serial_date`, rerun timing/speed summaries with the correct timestamp semantics, then propose cleaning rules from measured failure modes rather than one global threshold.
+## 2026-09-16 — A hypothesis was tested and rejected
+
+I initially suspected that the PLT `serial_date` field might preserve hidden sub-second timing and that the apparent duplicate timestamps were created by parsing only the text date/time fields. The data did not support that hypothesis.
+
+In a trajectory with 45,215 duplicate text timestamps, the duplicate count stays exactly 45,215 when timestamps are reconstructed from `serial_date`. Several different coordinates inside the same recorded second also have the same serial-date value. The few-microsecond difference between serial and text timestamps is just floating-point conversion noise, not useful extra timing precision.
+
+This changes the preprocessing problem: same-second observations are genuinely ambiguous at the released timestamp resolution. I cannot estimate within-second velocity or impose an arbitrary order. I should first measure the spatial spread of these groups, then decide whether to collapse them or preserve them as simultaneous observations.
+
+Next learning target: quantify same-second spatial spread, exact duplicate-file prevalence, and impossible-jump patterns before proposing cleaning or stay-point thresholds.
