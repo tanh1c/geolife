@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+
+# GeoLife raw/intermediate/processed data
+# The Microsoft Research dataset must not be redistributed via this repo.
+data/raw/**
+data/interim/**
+data/processed/**
+!data/README.md
+
+# Local EDA outputs. Review licensing/privacy before publishing any derived artifact.
+reports/eda/generated/**
+!reports/eda/README.md
+
+# Local notebook exports
+*.html
