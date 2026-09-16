@@ -102,4 +102,12 @@ Sau khi canonicalize, chỉ giữ các window có đúng một mode active và l
 
 Khi process lại toàn bộ labeled users bằng canonical windows, V2 match được 4,812,641 segments, tương đương khoảng 40.52% coverage. So với benchmark provisional, chỉ mất 37,217 segments, khoảng 0.77% số segments từng match. Vì vậy broad speed shape khó có khả năng chỉ là artifact do label overlap, nhưng vẫn cần bảng per-mode V2 cuối cùng trước khi freeze decision về speed cleaning.
 
-Mục tiêu tiếp theo: tính lại per-mode V2 đúng một lần, compare với bảng provisional, rồi dừng EDA và formalize cleaning/stay-point contract.
+## 2026-09-16 — Benchmark speed cuối đã đóng vòng EDA
+
+Bảng canonical V2 gần như không thay đổi so với provisional: p99 của mọi mode chỉ thay đổi dưới 0.5 km/h. Airplane vẫn khoảng 625 km/h ở median và 938 km/h ở p99; train khoảng 93/210; car khoảng 30/120; bus khoảng 17/91; bike khoảng 11/41; walk khoảng 4/40.
+
+Đây là evidence đủ để dừng việc chọn threshold bằng intuition. Các rule global 100, 200 hay 500 km/h đều không phù hợp với dataset này vì sẽ loại legitimate fast travel; 52.89% canonical airplane segments vượt 500 km/h. Đồng thời những giá trị hàng nghìn km/h hiếm gặp trong các mode thông thường cho thấy vẫn cần một corruption guard bảo thủ.
+
+Compromise được đề xuất là hard guard 1,200 km/h riêng cho release này và chỉ dùng để break continuity, tuyệt đối không dùng để quyết định endpoint nào phải xóa. Guard này giữ toàn bộ canonical airplane segments đã quan sát, với max khoảng 1,048 km/h, đồng thời bắt các corruption cực đoan. Bài học thiết kế quan trọng là: khi evidence cho biết một segment không đáng tin nhưng không cho biết endpoint nào sai, break continuity an toàn hơn việc tự bịa ra một repair.
+
+EDA cho cleaning decision này đã đóng. Bước tiếp theo là review contract, rồi viết test RED trước khi implement preprocessing hoặc stay-point production code.
