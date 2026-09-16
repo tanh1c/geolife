@@ -30,8 +30,14 @@ Full scan xác nhận 24,876,978 GPS points. Kết quả cũng cho thấy tại 
 
 Có một malformed latitude `400.166667` nằm giữa các point `40.166...`, nhưng ở một trajectory khác lại có pattern lặp đi lặp lại các bước nhảy khoảng 850–862 km chỉ trong một giây. Đây là hai failure mode khác nhau, nên không nên gom chúng vào cùng một rule xử lý.
 
-Điểm quan trọng hơn là 698,900 apparent duplicate timestamps. Ở các trajectory bị ảnh hưởng nặng, trong cùng một giây có nhiều coordinate khác nhau. Vì parser hiện tại dựng timestamp từ date/time text chỉ có độ phân giải một giây, có khả năng EDA đang làm mất sub-second timing và tự tạo ra duplicate timestamp. Cần kiểm tra field `serial_date` trước khi deduplicate hoặc tin hoàn toàn vào speed/sampling summary hiện tại.
-
 Ngoài ra, đã xác nhận có ít nhất một raw trajectory byte-identical nằm trong ba user folders khác nhau. Điều này tạo nguy cơ weighting bias và train/test leakage nếu sau này split trajectory một cách ngây thơ.
 
-Mục tiêu tiếp theo: verify timestamp precision từ `serial_date`, chạy lại timing/speed summary với timestamp semantics đúng, rồi mới đề xuất cleaning rules dựa trên từng failure mode đã đo được thay vì chọn một global threshold ngay từ đầu.
+## 2026-09-16 — Một hypothesis đã được test và bị bác bỏ
+
+Ban đầu mình nghi ngờ field PLT `serial_date` có thể giữ sub-second timing, còn parser dùng `date + time` theo giây đã làm phát sinh duplicate timestamps giả. Kết quả đo không ủng hộ hypothesis đó.
+
+Ở trajectory có 45,215 duplicate text timestamps, khi dựng timestamp từ `serial_date` thì số duplicate vẫn chính xác 45,215. Nhiều coordinate khác nhau trong cùng một giây cũng có cùng `serial_date`. Sai khác vài microsecond giữa serial timestamp và text timestamp chỉ là floating-point conversion noise, không phải thông tin timing bổ sung có ý nghĩa.
+
+Điều này thay đổi cách xử lý preprocessing: các observation cùng giây thực sự mơ hồ ở độ phân giải timestamp của release. Không thể tính within-second velocity hay tự ý gán thứ tự. Cần đo spatial spread của các same-second group trước rồi mới quyết định collapse hay giữ chúng như simultaneous observations.
+
+Mục tiêu tiếp theo: định lượng same-second spatial spread, prevalence của exact duplicate files, và pattern impossible jumps trước khi đề xuất cleaning hoặc stay-point thresholds.
