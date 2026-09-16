@@ -169,4 +169,28 @@ Interpretation:
 
 Detailed evidence is recorded in `docs/eda/08_full_consolidation_findings.md`.
 
-Next evidence step: analyze post-consolidation segment speed by transportation-mode label where labels exist, characterize temporal-gap thresholds/sensitivity, then freeze an EDA-backed cleaning contract before implementing the stay-point detector.
+## 2026-09-16 — Temporal-gap sensitivity + transportation-label inventory
+
+Observed after consolidation:
+
+- 81.85% of trajectories contain at least one gap >30 s;
+- 75.83% contain at least one gap >60 s;
+- 65.92% contain at least one gap >120 s;
+- 50.95% contain at least one gap >5 min;
+- 41.74% contain at least one gap >10 min;
+- 29.66% contain at least one gap >30 min;
+- 22.89% contain at least one gap >1 h;
+- 15.87% contain at least one gap >2 h;
+- 6.28% contain at least one gap >4 h.
+
+Transportation label parsing produced 14,718 intervals across the 69 user folders that contain `labels.txt`. The largest interval counts are walk 6,460, bus 2,853, bike 2,089, taxi 1,179, car 993, subway 813, train 299 and airplane 17; rarer modes include boat, run and motorcycle.
+
+Interpretation:
+
+- temporal outages are common enough that a continuity threshold will materially affect stay-point detection and must be treated as a sensitivity parameter;
+- transportation labels provide auxiliary evidence for plausible movement-speed distributions but are not Home/Office ground truth;
+- the next and final movement-speed diagnostic is to join valid post-consolidation segments to same-user transportation intervals and compare speed percentiles by mode.
+
+Detailed evidence is recorded in `docs/eda/09_gap_and_label_inventory.md`.
+
+Next evidence step: build a midpoint-based segment-to-label join, measure per-mode speed distributions and labeled coverage, then freeze an EDA-backed cleaning contract and implement stay-point detection.
