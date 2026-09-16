@@ -24,4 +24,14 @@ Nhóm user có transportation-label file chỉ là 69/182 users nhưng chiếm 5
 
 Raw trajectory spot-check cũng cho thấy một bài học DS quan trọng: timestamp parse sạch sang UTC nhưng altitude có range rất rộng. Không nên thấy một giá trị lạ rồi biến ngay thành cleaning rule; cần nhìn distribution toàn dataset trước.
 
-Mục tiêu tiếp theo: đo sampling interval, trajectory duration/distance, timestamp anomaly, altitude missingness và segment-speed distribution trước khi đề xuất noise threshold.
+## 2026-09-16 — Data-quality diagnostics làm thay đổi kế hoạch cleaning
+
+Full scan xác nhận 24,876,978 GPS points. Kết quả cũng cho thấy tại sao rule đơn giản kiểu `speed > threshold => noise` là quá sớm.
+
+Có một malformed latitude `400.166667` nằm giữa các point `40.166...`, nhưng ở một trajectory khác lại có pattern lặp đi lặp lại các bước nhảy khoảng 850–862 km chỉ trong một giây. Đây là hai failure mode khác nhau, nên không nên gom chúng vào cùng một rule xử lý.
+
+Điểm quan trọng hơn là 698,900 apparent duplicate timestamps. Ở các trajectory bị ảnh hưởng nặng, trong cùng một giây có nhiều coordinate khác nhau. Vì parser hiện tại dựng timestamp từ date/time text chỉ có độ phân giải một giây, có khả năng EDA đang làm mất sub-second timing và tự tạo ra duplicate timestamp. Cần kiểm tra field `serial_date` trước khi deduplicate hoặc tin hoàn toàn vào speed/sampling summary hiện tại.
+
+Ngoài ra, đã xác nhận có ít nhất một raw trajectory byte-identical nằm trong ba user folders khác nhau. Điều này tạo nguy cơ weighting bias và train/test leakage nếu sau này split trajectory một cách ngây thơ.
+
+Mục tiêu tiếp theo: verify timestamp precision từ `serial_date`, chạy lại timing/speed summary với timestamp semantics đúng, rồi mới đề xuất cleaning rules dựa trên từng failure mode đã đo được thay vì chọn một global threshold ngay từ đầu.
