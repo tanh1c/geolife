@@ -44,4 +44,10 @@ The same-second analysis found 212,409 groups. Most are spatially compact: the m
 
 The raw-file hash scan changed the evaluation plan more substantially. There are 821 exact duplicate hash groups containing 1,677 files. About 8.98% of trajectory files participate in an exact duplicate group, and several groups span different user IDs. Therefore content identity is not a rare edge case. Future train/test splitting should keep byte-identical content in the same fold, and benchmark weighting should avoid giving duplicated content accidental extra influence.
 
-Next learning target: measure the cross-user duplicate share and point-weighted impact, prototype same-second consolidation only for spatially compact groups, then recompute segment speeds and temporal gaps before proposing movement-noise thresholds.
+## 2026-09-16 — Cross-user duplication is large enough to affect evaluation
+
+All 821 exact-duplicate hash groups were found to span multiple user IDs. The 1,677 affected files make up 8.98% of trajectories but contain 2,965,977 points, or 11.92% of the full dataset.
+
+This is important because the point-weighted exposure is larger than the file-count exposure. Duplicate traces are therefore longer than average and can have disproportionate influence on point-level metrics. The raw release does not explain why the same content is assigned to multiple users, so I should not infer that these user IDs represent the same person. For evaluation, however, content hashes need to act as grouping keys so identical traces cannot leak across folds.
+
+Next learning target: quantify the redundant point mass beyond one representative per hash group, inspect user connected-components linked by shared content, then prototype same-second consolidation before recomputing movement-speed and temporal-gap distributions.
