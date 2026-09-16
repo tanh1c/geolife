@@ -1,0 +1,164 @@
+# Cleaning + stay-point contract (proposal for review)
+
+Date: 2026-09-16
+Status: PROPOSED — do not implement in `src/` until reviewed/approved.
+
+## Goal
+
+Define the minimum production preprocessing contract needed before implementing the CP1 stay-point detector. The contract is intentionally conservative: it removes or breaks continuity only where EDA found concrete data-quality failure modes, while avoiding broad motion filters that would erase legitimate fast travel.
+
+## Input contract
+
+A trajectory is an ordered collection of observations with at least:
+
+- `timestamp`: timezone-aware UTC timestamp;
+- `latitude`: decimal degrees;
+- `longitude`: decimal degrees.
+
+Altitude is not required for stay-point detection.
+
+## Output contract
+
+Preprocessing returns timestamp-level observations grouped into independent `sequence_id` runs. A stay-point detector may operate only within one sequence; it must never bridge a sequence boundary.
+
+Each retained timestamp-level observation should expose at least:
+
+- `timestamp`;
+- `latitude`;
+- `longitude`;
+- `raw_point_count`;
+- `max_radius_m` for same-second groups;
+- `sequence_id`.
+
+Quality/boundary reasons should be observable for diagnostics, e.g. invalid coordinate, same-second spatial conflict, excessive temporal gap, or hard speed corruption guard.
+
+## Stage 1 — coordinate-domain validation
+
+Valid coordinates require:
+
+- latitude in `[-90, 90]`;
+- longitude in `[-180, 180]`.
+
+An invalid coordinate does not get repaired by guessing. It creates a continuity boundary so the points before and after it are not connected into an artificial movement segment.
+
+Evidence: the release contains one malformed latitude (`400.166667`) among otherwise plausible surrounding points.
+
+## Stage 2 — same-second consolidation
+
+All rows with the same timestamp are treated as simultaneous observations because the release does not expose recoverable sub-second ordering.
+
+For a timestamp group:
+
+1. compute coordinate-wise median latitude/longitude;
+2. compute each raw point's Haversine distance to that median center;
+3. let `max_radius_m` be the largest of those distances.
+
+If `max_radius_m <= 10 m`, emit one representative point using median latitude/longitude and preserve `raw_point_count`.
+
+If `max_radius_m > 10 m`, do not average incompatible locations. Mark that timestamp as a spatial conflict and create a continuity boundary.
+
+Evidence: 99.61% of measured same-second groups are within 10 m; the full-release transform reduced 698,901 rows while producing only 835 spatial-conflict timestamps.
+
+## Stage 3 — temporal continuity boundary
+
+A stay duration must not span an unobserved outage. If the positive gap between consecutive valid timestamp-level observations exceeds `max_gap_s`, split the sequence.
+
+`max_gap_s` is a stay-point sensitivity parameter, not a universal constant. Initial benchmark values to compare are:
+
+- 120 s;
+- 300 s;
+- 600 s.
+
+For the first baseline implementation, use 300 s (5 minutes) unless the review changes this choice. It is deliberately shorter than the initial 20-minute dwell threshold and therefore prevents a large unobserved interval from being counted as dwell time.
+
+Evidence: 65.92% of trajectories contain a gap >2 min, 50.95% contain a gap >5 min, and 41.74% contain a gap >10 min.
+
+## Stage 4 — conservative hard-speed corruption boundary
+
+Compute Haversine speed only between consecutive valid timestamp-level observations with positive `dt`.
+
+Do NOT apply generic `100`, `200`, or `500 km/h` removal rules. Canonical transportation labels show legitimate train and airplane movement inside those ranges, including airplane median/p99 around 625/938 km/h and 52.89% of airplane segments above 500 km/h.
+
+For CP1, use a release-specific hard guard:
+
+`hard_speed_guard_kmh = 1200`
+
+If a segment exceeds this value, break continuity at that segment. Do not automatically delete either endpoint because the data alone does not identify which endpoint is wrong.
+
+Rationale: the maximum canonical airplane segment observed in the release is about 1,048 km/h, while the dataset contains clearly corrupted segments from several thousand to millions of km/h. A 1,200 km/h guard preserves all observed canonical airplane segments while catching extreme corruption. This is an engineering guard for this release, not a universal physical limit.
+
+## Explicit non-goals in CP1 cleaning
+
+The cleaning stage will not:
+
+- interpolate across long gaps;
+- infer hidden sub-second ordering;
+- delete points merely because speed exceeds ordinary road/train speeds;
+- deduplicate identical files across users during inference;
+- infer transportation mode;
+- repair structurally interleaved trajectories by inventing a preferred branch.
+
+Exact-content hashes remain an evaluation/leakage-control concern rather than an inference-time cleaning rule.
+
+## Stay-point detector contract
+
+The detector runs independently per `sequence_id` using Haversine distance.
+
+Parameters:
+
+- `distance_threshold_m`;
+- `min_dwell_s`.
+
+Initial CP1 baseline values for sensitivity testing:
+
+- `distance_threshold_m = 200`;
+- `min_dwell_s = 1200` (20 minutes).
+
+These are baseline candidates, not EDA-proven final values. They must be compared with nearby alternatives after implementation.
+
+Baseline algorithm semantics:
+
+1. choose the current point `i` as anchor;
+2. advance `j` while points remain within `distance_threshold_m` of the anchor;
+3. when the first point outside the radius is found, evaluate dwell time from `i` through `j-1`;
+4. if dwell time >= `min_dwell_s`, emit one stay point for `i..j-1`, using median latitude/longitude and recording arrival, departure, duration, and point count;
+5. continue after the emitted stay; otherwise advance the anchor;
+6. if the sequence ends before an outside-radius point appears, still evaluate the terminal candidate and emit it when its duration satisfies the threshold.
+
+A stay point must never include observations from two different sequences.
+
+## Expected stay-point output
+
+Each stay point should contain at least:
+
+- `sequence_id`;
+- `arrival_time`;
+- `departure_time`;
+- `duration_s`;
+- representative `latitude`;
+- representative `longitude`;
+- `n_points`.
+
+## TDD acceptance cases
+
+Implementation starts only after this contract is approved. Tests should be written RED first for at least:
+
+1. invalid coordinate creates a boundary and is not bridged;
+2. compact same-second observations collapse to a median representative;
+3. same-second spatial conflict creates a boundary;
+4. temporal gap above `max_gap_s` prevents one stay from spanning the outage;
+5. speed above the hard guard creates a boundary without guessing which endpoint is wrong;
+6. a cluster inside the distance threshold but shorter than `min_dwell_s` is not a stay;
+7. a cluster inside the threshold for long enough is emitted as a stay;
+8. a valid stay at the end of a sequence is not lost;
+9. no stay crosses a sequence boundary.
+
+## Sensitivity after GREEN
+
+After the baseline passes tests, run a small sensitivity grid rather than reopening broad EDA:
+
+- continuity gap: 120 / 300 / 600 s;
+- stay distance: 100 / 200 / 300 m;
+- dwell: 10 / 20 / 30 min.
+
+Compare stay counts, duration distributions, repeated-location stability, and downstream Home/Office heuristic behavior. Threshold tuning belongs here, after the semantics are fixed and tested.
