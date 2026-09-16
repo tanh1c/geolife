@@ -79,4 +79,23 @@ Interpretation:
 
 Detailed evidence is recorded in `docs/eda/04_same_second_and_exact_duplicate_findings.md`.
 
-Next evidence step: quantify cross-user duplicate prevalence separately, measure point-weighted impact of duplicate files, and prototype an exploratory same-second consolidation transform before recomputing speed and temporal-gap distributions.
+## 2026-09-16 — Measured EDA Phase 4
+
+Cross-user exact duplication was measured separately.
+
+Observed:
+
+- all 821 exact-duplicate hash groups span more than one user ID;
+- 1,677 trajectory files are in cross-user duplicate groups, or 8.98% of all files;
+- those files contain 2,965,977 GPS points;
+- point-weighted exposure is 11.92% of all 24,876,978 GPS points.
+
+Interpretation:
+
+- the duplicate phenomenon is entirely cross-user in this release;
+- duplicated trajectories are longer than average because their point-weighted share (11.92%) exceeds their file-count share (8.98%);
+- evaluation must group by content hash to prevent byte-identical traces crossing folds, and point/trajectory-weighted metrics need duplicate-aware interpretation.
+
+Detailed evidence is recorded in `docs/eda/05_cross_user_duplication.md`.
+
+Next evidence step: quantify redundant point mass beyond one representative per hash group and inspect user connected-components induced by shared content hashes, then prototype same-second consolidation before recomputing movement-speed and temporal-gap distributions.
