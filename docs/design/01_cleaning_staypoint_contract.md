@@ -1,7 +1,7 @@
 # Cleaning + stay-point contract (proposal for review)
 
 Date: 2026-09-16
-Status: PROPOSED — do not implement in `src/` until reviewed/approved.
+Status: PROPOSED — do not implement in `src/` until reviewed/approved. One bounded transport-label audit rerun under half-open interval semantics remains before final approval cites exact V2 speed numbers.
 
 ## Goal
 
@@ -77,7 +77,7 @@ Evidence: 65.92% of trajectories contain a gap >2 min, 50.95% contain a gap >5 m
 
 Compute Haversine speed only between consecutive valid timestamp-level observations with positive `dt`.
 
-Do NOT apply generic `100`, `200`, or `500 km/h` removal rules. Canonical transportation labels show legitimate train and airplane movement inside those ranges, including airplane median/p99 around 625/938 km/h and 52.89% of airplane segments above 500 km/h.
+Do NOT apply generic `100`, `200`, or `500 km/h` removal rules. Transportation-mode evidence shows legitimate train and airplane movement inside those ranges, so ordinary fast movement cannot be treated as corruption solely from a low global speed threshold.
 
 For CP1, use a release-specific hard guard:
 
@@ -85,7 +85,9 @@ For CP1, use a release-specific hard guard:
 
 If a segment exceeds this value, break continuity at that segment. Do not automatically delete either endpoint because the data alone does not identify which endpoint is wrong.
 
-Rationale: the maximum canonical airplane segment observed in the release is about 1,048 km/h, while the dataset contains clearly corrupted segments from several thousand to millions of km/h. A 1,200 km/h guard preserves all observed canonical airplane segments while catching extreme corruption. This is an engineering guard for this release, not a universal physical limit.
+Rationale: the historical V2 benchmark placed canonical airplane movement around 625 km/h median, about 938 km/h p99, with an observed maximum around 1,048 km/h, while the dataset contains clearly corrupted segments from several thousand to millions of km/h. A 1,200 km/h guard is therefore a conservative release-specific engineering proposal rather than a universal physical limit.
+
+Audit caveat: an independent review found that the label canonicalization used for the historical V2 table treated endpoints as inclusive and therefore counted many endpoint touches as one-second ambiguities. Under corrected `[start, end)` semantics, ambiguous labeled time remains only about 0.597%, so the broad argument against 100/200/500 km/h global filters is unchanged. Exact V2 segment counts and per-mode percentiles should nevertheless be rerun once under half-open semantics before final contract approval relies on the exact airplane share/max values. See `docs/eda/14_label_interval_semantics_audit.md`.
 
 ## Explicit non-goals in CP1 cleaning
 
