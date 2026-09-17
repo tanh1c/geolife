@@ -155,7 +155,9 @@ def clean_trajectory(
             latest_boundary_position[carries_boundary]
         ]
 
-    timestamp_index = pd.DatetimeIndex(summary.index[retained_positions])
+    timestamp_index = pd.DatetimeIndex(summary.index[retained_positions]).astype(
+        "datetime64[ns, UTC]"
+    )
     timestamp_ns = timestamp_index.asi8.astype(np.int64, copy=False)
     retained_lat = summary["latitude"].to_numpy(dtype=float)[retained_positions]
     retained_lon = summary["longitude"].to_numpy(dtype=float)[retained_positions]
