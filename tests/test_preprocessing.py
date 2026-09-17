@@ -5,13 +5,20 @@ import pandas as pd
 from geolife.staypoints.cleaning import clean_trajectory
 
 
-UTC = "UTC"
-
-
 def _df(rows: list[tuple[str, float, float]]) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["timestamp", "latitude", "longitude"]).assign(
         timestamp=lambda x: pd.to_datetime(x["timestamp"], utc=True)
     )
+
+
+def _assert_boundary_reasons(actual: pd.Series, expected: list[str | None]) -> None:
+    values = actual.tolist()
+    assert len(values) == len(expected)
+    for value, expected_value in zip(values, expected, strict=True):
+        if expected_value is None:
+            assert pd.isna(value)
+        else:
+            assert value == expected_value
 
 
 def test_invalid_coordinate_creates_boundary_and_is_not_bridged() -> None:
@@ -29,7 +36,10 @@ def test_invalid_coordinate_creates_boundary_and_is_not_bridged() -> None:
 
     assert len(out) == 4
     assert out["sequence_id"].tolist() == [0, 0, 1, 1]
-    assert out["boundary_before_reason"].tolist() == [None, None, "invalid_coordinate", None]
+    _assert_boundary_reasons(
+        out["boundary_before_reason"],
+        [None, None, "invalid_coordinate", None],
+    )
 
 
 def test_compact_same_second_observations_collapse_to_median_representative() -> None:
@@ -66,7 +76,10 @@ def test_same_second_spatial_conflict_creates_boundary() -> None:
 
     assert len(out) == 2
     assert out["sequence_id"].tolist() == [0, 1]
-    assert out["boundary_before_reason"].tolist() == [None, "same_second_spatial_conflict"]
+    _assert_boundary_reasons(
+        out["boundary_before_reason"],
+        [None, "same_second_spatial_conflict"],
+    )
 
 
 def test_temporal_gap_above_max_gap_creates_boundary() -> None:
@@ -82,7 +95,10 @@ def test_temporal_gap_above_max_gap_creates_boundary() -> None:
     out = clean_trajectory(raw, max_gap_s=300)
 
     assert out["sequence_id"].tolist() == [0, 0, 1, 1]
-    assert out["boundary_before_reason"].tolist() == [None, None, "temporal_gap", None]
+    _assert_boundary_reasons(
+        out["boundary_before_reason"],
+        [None, None, "temporal_gap", None],
+    )
 
 
 def test_hard_speed_guard_splits_without_deleting_either_endpoint() -> None:
@@ -99,4 +115,7 @@ def test_hard_speed_guard_splits_without_deleting_either_endpoint() -> None:
 
     assert len(out) == 4
     assert out["sequence_id"].tolist() == [0, 0, 1, 1]
-    assert out["boundary_before_reason"].tolist() == [None, None, "hard_speed_guard", None]
+    _assert_boundary_reasons(
+        out["boundary_before_reason"],
+        [None, None, "hard_speed_guard", None],
+    )
