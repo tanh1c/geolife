@@ -59,7 +59,12 @@ def detect_staypoints(
             continue
 
         timestamps = sequence["timestamp"].tolist()
-        timestamp_ns = sequence["timestamp"].astype("int64").to_numpy(dtype=np.int64)
+        timestamp_ns = (
+            sequence["timestamp"]
+            .astype("datetime64[ns, UTC]")
+            .astype("int64")
+            .to_numpy(dtype=np.int64)
+        )
         latitudes = sequence["latitude"].to_numpy(dtype=float)
         longitudes = sequence["longitude"].to_numpy(dtype=float)
 
