@@ -94,20 +94,20 @@ Kết quả này đủ để bác bỏ ngay rule global `speed > 500 km/h => noi
 
 Finding quan trọng nhất là 1,903 label intervals overlap hoặc touch interval trước đó theo integrity check hiện tại, trong đó có những overlap thật giữa các mode khác nhau. Vì vậy `merge_asof` hiện tại có thể chọn một label trong khi đồng thời còn label khác cũng active. Các percentile theo mode hiện tại chỉ là provisional. Trước khi dùng chúng để freeze speed rule, cần canonicalize labels và chỉ benchmark các khoảng thời gian có đúng một distinct active mode.
 
-## 2026-09-16 — Canonicalize labels cho thấy overlap nhỏ nếu đo theo duration
+## 2026-09-16 — Canonicalize labels theo inclusive-end (lịch sử)
 
-Sau khi canonicalize, chỉ giữ các window có đúng một mode active và loại những khoảng có nhiều mode khác nhau cùng active. Kết quả có 14,537 unambiguous windows và 1,886 ambiguous windows.
+Run canonicalization đầu tiên dùng inclusive-end semantics, tạo ra 14,537 unambiguous windows và 1,886 ambiguous windows; V2 strict-containment match 4,812,641 segments, khoảng 40.52% coverage. Kết quả này được giữ lại như lịch sử reasoning, không còn là số report cuối.
 
-Điểm cần nhìn là thời lượng chứ không phải số window: unambiguous time là 12,723.9 giờ, ambiguous time chỉ 76.9 giờ, tức 0.60% represented labeled time. Các conflict phổ biến nhất là bus+walk, bike+walk, taxi+walk và subway+walk. Nhiều ambiguous window chỉ dài một giây, dù vẫn có một số overlap dài đáng kể.
+Broad speed shape của V2 vẫn đủ để đặt câu hỏi đúng về global speed cutoff, nhưng exact interval accounting sau đó đã được audit lại.
 
-Khi process lại toàn bộ labeled users bằng canonical windows, V2 match được 4,812,641 segments, tương đương khoảng 40.52% coverage. So với benchmark provisional, chỉ mất 37,217 segments, khoảng 0.77% số segments từng match. Vì vậy broad speed shape khó có khả năng chỉ là artifact do label overlap, nhưng vẫn cần bảng per-mode V2 cuối cùng trước khi freeze decision về speed cleaning.
+## 2026-09-17 — Interval semantics là một phần của data contract
 
-## 2026-09-16 — Benchmark speed cuối đã đóng vòng EDA
+Independent audit chỉ ra một lỗi semantics nhỏ nhưng quan trọng: nếu coi transportation labels có end-time inclusive thì nhiều cặp chỉ chạm endpoint bị biến thành overlap 1 giây. Convention cuối cùng được chốt là half-open `[start, end)`.
 
-Bảng canonical V2 gần như không thay đổi so với provisional: p99 của mọi mode chỉ thay đổi dưới 0.5 km/h. Airplane vẫn khoảng 625 km/h ở median và 938 km/h ở p99; train khoảng 93/210; car khoảng 30/120; bus khoảng 17/91; bike khoảng 11/41; walk khoảng 4/40.
+Final rerun cho kết quả: 1,742 cặp khác mode chỉ chạm endpoint, 146 cặp overlap thật, 14,583 unambiguous canonical windows, 149 atomic ambiguous sweep slices và 138 report-level ambiguous windows. Tổng unambiguous time là 12,720.833 giờ, ambiguous time là 76.345 giờ, tương đương 0.597% represented labeled time.
 
-Đây là evidence đủ để dừng việc chọn threshold bằng intuition. Các rule global 100, 200 hay 500 km/h đều không phù hợp với dataset này vì sẽ loại legitimate fast travel; 52.89% canonical airplane segments vượt 500 km/h. Đồng thời những giá trị hàng nghìn km/h hiếm gặp trong các mode thông thường cho thấy vẫn cần một corruption guard bảo thủ.
+V3 strict-containment match 4,807,087 / 11,878,198 valid segments của labeled users, coverage 40.47%. Speed distribution gần như không đổi: airplane p99 937.99 km/h, train 210.34, car 119.63, bus 90.59, bike 40.63 và walk 40.39. Airplane max vẫn 1,048.11 km/h và 52.92% canonical airplane segments vượt 500 km/h.
 
-Compromise được đề xuất là hard guard 1,200 km/h riêng cho release này và chỉ dùng để break continuity, tuyệt đối không dùng để quyết định endpoint nào phải xóa. Guard này giữ toàn bộ canonical airplane segments đã quan sát, với max khoảng 1,048 km/h, đồng thời bắt các corruption cực đoan. Bài học thiết kế quan trọng là: khi evidence cho biết một segment không đáng tin nhưng không cho biết endpoint nào sai, break continuity an toàn hơn việc tự bịa ra một repair.
+Bài học chính không chỉ dành cho GeoLife: boundary semantics như `[start, end)` hay `[start, end]` phải được coi là một phần của data contract. Chỉ một khác biệt nhỏ ở boundary cũng có thể làm event/window counts thay đổi mạnh, dù kết luận theo duration vẫn ổn định.
 
-EDA cho cleaning decision này đã đóng. Bước tiếp theo là review contract, rồi viết test RED trước khi implement preprocessing hoặc stay-point production code.
+Audit này cũng cho thấy cách dừng EDA đúng lúc: correction đã được independently reproduce, rerun bounded và không làm đổi design decision. Vì vậy EDA cho CP1 được đóng tại đây. Bước tiếp theo là review/approve cleaning + stay-point contract, sau đó viết RED tests trước khi implement production preprocessing/stay-point code.
