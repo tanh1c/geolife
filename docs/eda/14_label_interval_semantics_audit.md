@@ -1,52 +1,59 @@
 # Label-interval semantics audit correction
 
-Date: 2026-09-16
+Date: 2026-09-17
+Status: CLOSED.
 
 ## Why this correction exists
 
-An independent re-audit of the original GeoLife 1.3 ZIP reproduced the repository's core dataset and quality findings, including user/trajectory/point counts, duplicate timestamps, the malformed latitude, cross-user SHA-256 duplication structure, and the two representative trajectory case studies.
+An independent re-audit of the original GeoLife 1.3 ZIP reproduced the repository's core dataset and quality findings but identified one reporting issue in transportation-label canonicalization. The earlier analysis treated label ends as inclusive by internally converting intervals to `[start, end + 1 second)`, which turned different-mode endpoint touches into one-second ambiguities.
 
-The audit identified one reporting issue in the transportation-label canonicalization step: the previous analysis treated label end times as inclusive by internally converting each interval to `[start, end + 1 second)`. That convention makes two different-mode labels that only meet at the same endpoint appear ambiguous for one second.
-
-For interval algebra and segment-label matching, this project will use the standard half-open convention `[start, end)` unless a source contract explicitly requires otherwise. Under this convention, endpoint touching is not temporal overlap.
+The project now uses standard half-open `[start, end)` semantics. Under this convention, endpoint touching is not temporal overlap.
 
 ## Corrected overlap accounting
 
-Re-auditing the raw ZIP under `[start, end)` produced:
+The final rerun reproduced the independent audit:
 
+- 1,742 different-mode pairs touch only at an endpoint;
+- 146 different-mode pairs have true positive-duration overlap;
 - 14,583 unambiguous canonical windows;
-- 138 ambiguous windows;
-- 12,720.83 hours of unambiguous labeled time;
+- 149 atomic ambiguous sweep slices;
+- 138 report-level ambiguous windows after merging adjacent slices only when the distinct active-mode set is unchanged;
+- 12,720.833 hours of unambiguous labeled time;
 - 76.345 hours of ambiguous labeled time;
-- ambiguous share of represented labeled time: approximately 0.597%.
+- ambiguous share: 0.597%.
 
-The external audit also reported:
+The distinction between the 149 atomic slices and 138 report-level windows is intentional. Sweep-line event boundaries may split one stable ambiguity combination into several adjacent atomic slices. Reporting merges only adjacent slices with the same active mode set; it does not merge different ambiguity combinations merely because they are temporally contiguous.
 
-- 1,742 different-mode pairs that only touch at an endpoint and therefore should not be counted as overlapping under `[start, end)`;
-- 146 different-mode pairs with true temporal overlap.
+The earlier 14,537 unambiguous / 1,886 ambiguous counts are superseded for reporting.
 
-These pair counts are not directly interchangeable with the prior `1,903 overlapping/touching intervals` integrity statistic because that earlier metric was based on adjacency to the immediately previous interval and mixed touching with overlap. The corrected report should therefore distinguish `touching`, `true overlap`, and `canonical ambiguous windows` rather than present them as one quantity.
+## Final V3 speed rerun
+
+Using corrected half-open canonical windows, the strict-containment segment-label join matched 4,807,087 of 11,878,198 valid post-consolidation segments from labeled users, for 40.47% coverage.
+
+The corrected speed distribution is effectively unchanged in shape from the earlier benchmark:
+
+- airplane: median 625.91 km/h, p99 937.99, max 1,048.11; 52.92% of segments exceed 500 km/h;
+- train: median 93.14, p99 210.34;
+- car: median 30.05, p99 119.63;
+- bus: median 16.91, p99 90.59;
+- bike: median 11.19, p99 40.63;
+- walk: median 4.08, p99 40.39.
+
+Coverage moves from 40.52% in the earlier inclusive-end V2 run to 40.47% in V3, about 0.05 percentage point.
 
 ## What changes and what does not
 
-The previous wording that overlap was "common when counted as windows" was misleading because most of the inflated ambiguous-window count came from endpoint-touch handling, not from true simultaneous labels.
+The previous wording that overlap was 'common when counted as windows' was misleading because most inflation came from endpoint-touch handling. True ambiguous time is small, at about 0.6% of represented labeled time.
 
-The main methodological conclusion remains: ambiguous transportation-label time is small by duration, at about 0.6%, and overlapping labels should be excluded from speed benchmarking rather than assigned arbitrarily.
-
-The broader CP1 findings remain unaffected by this correction:
+The main CP1 conclusions remain unchanged and are now supported by the corrected V3 rerun:
 
 - same-second GPS ambiguity is separate from inter-timestamp corruption;
 - movement-noise reasoning should use segment-level evidence rather than trajectory maxima;
 - generic 100/200/500 km/h global filters are not justified;
 - exact-content hashes are required for evaluation leakage control;
-- temporal continuity must be explicit for stay-point detection.
-
-## Status of the V2 speed table
-
-The existing V2 per-mode speed table was computed from the earlier inclusive-end canonicalization. Its broad shape was stable against the provisional benchmark, and the audit did not identify evidence that changes the design conclusion about ordinary global speed cutoffs.
-
-However, exact V2 matched-segment counts and per-mode percentiles should be recomputed once using `[start, end)` before those exact values are treated as the final audited benchmark. Until that bounded rerun is completed, the existing V2 table is retained as historical evidence but is marked as based on the earlier inclusive-end convention.
+- temporal continuity must be explicit for stay-point detection;
+- the proposed 1,200 km/h release-specific hard guard remains a conservative continuity boundary rather than endpoint deletion.
 
 ## Reporting rule going forward
 
-Mentor-facing reports should use the corrected half-open overlap counts above, clearly state the interval convention, and avoid describing endpoint touching as true overlap. The remaining rerun is a bounded audit correction, not a reopening of broad EDA.
+Mentor-facing reports use half-open `[start, end)` semantics, distinguish endpoint touching from true overlap, and use the V3 speed benchmark as the final audited transportation-mode diagnostic for CP1.
