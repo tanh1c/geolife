@@ -92,20 +92,20 @@ This immediately rules out a naive global 500 km/h filter: more than half of the
 
 The important quality finding is that 1,903 label intervals overlap or touch the previous interval under the current check, and examples include genuine overlap between different modes. That means the current `merge_asof` join can choose one active label when several are valid. The exact per-mode percentiles are therefore provisional. Before using them to freeze a speed rule, overlapping labels should be canonicalized so only periods with one distinct active mode are benchmarked.
 
-## 2026-09-16 — Canonicalizing labels showed overlap is small by duration
+## 2026-09-16 — Historical inclusive-end canonicalization
 
-Canonicalization converted overlapping intervals into windows with exactly one active mode and excluded periods where different modes were simultaneously active. It produced 14,537 unambiguous windows and 1,886 ambiguous windows.
+The first canonicalization run produced 14,537 unambiguous windows and 1,886 ambiguous windows and a V2 strict-containment join of 4,812,641 segments (40.52% coverage). That run used inclusive-end semantics and is retained as historical evidence only.
 
-The key comparison is duration rather than window count: unambiguous time totals 12,723.9 hours, while ambiguous time totals only 76.9 hours, or 0.60% of represented labeled time. The most common conflicts are bus+walk, bike+walk, taxi+walk and subway+walk. Many ambiguous windows are one-second boundaries, although a few are much longer.
+Its broad per-mode speed shape was already stable enough to reject naive 100/200/500 km/h filters, but the exact interval accounting was later re-audited.
 
-Reprocessing all labeled users with canonical windows yields 4,812,641 matched segments, about 40.52% coverage. That is only 37,217 fewer segments than the provisional benchmark, a reduction of about 0.77%. This makes it unlikely that the broad mode-speed shape was created by overlap ambiguity alone, but I still need the final V2 per-mode summary before freezing exact speed-cleaning decisions.
+## 2026-09-17 — Interval semantics can change counts without changing the scientific conclusion
 
-## 2026-09-16 — Final speed benchmark closed the EDA loop
+An independent audit exposed a subtle but important contract issue: treating transportation labels as inclusive-end intervals turns many endpoint touches into one-second overlaps. The corrected convention is half-open `[start, end)`.
 
-The canonical V2 table is essentially identical to the provisional one: every mode's p99 changes by less than 0.5 km/h. Airplane remains around 625 km/h median and 938 km/h p99; train around 93/210; car around 30/120; bus around 17/91; bike around 11/41; and walk around 4/40.
+The final rerun measured 1,742 different-mode endpoint touches, 146 true-overlap pairs, 14,583 unambiguous windows, 149 atomic ambiguous sweep slices, and 138 report-level ambiguous windows. Unambiguous time is 12,720.833 hours, ambiguous time is 76.345 hours, or 0.597% of represented labeled time.
 
-This is the evidence I needed to stop tuning by intuition. Generic 100, 200, or 500 km/h cleaning thresholds are wrong for this dataset because they would remove legitimate fast travel; 52.89% of canonical airplane segments are above 500 km/h. At the same time, rare multi-thousand-km/h values inside ordinary modes prove that a conservative corruption guard is still useful.
+The corrected V3 strict-containment join matched 4,807,087 of 11,878,198 valid labeled-user segments (40.47%). The speed distribution stayed effectively unchanged: airplane p99 is 937.99 km/h, train 210.34, car 119.63, bus 90.59, bike 40.63 and walk 40.39. Airplane max is 1,048.11 km/h and 52.92% of canonical airplane segments exceed 500 km/h.
 
-The proposed compromise is a release-specific 1,200 km/h hard guard used only to break continuity, never to decide which endpoint to delete. It preserves all observed canonical airplane segments, whose maximum is about 1,048 km/h, while catching clearly extreme corruption. I also learned an important design principle: when evidence tells me a segment is untrustworthy but does not tell me which endpoint is wrong, breaking continuity is safer than inventing a repair.
+The lesson is broader than this dataset: interval boundary semantics are part of the data contract. A small definition error can substantially distort event/window counts even when duration-weighted conclusions stay stable. I should specify `[start, end)` or another convention explicitly before joining temporal labels.
 
-EDA is now closed for this cleaning decision. The next step is contract review, then RED tests before any production preprocessing or stay-point implementation.
+This audit also demonstrates a useful stopping rule for EDA. The correction was bounded, reproduced independently, and did not change the design decision. EDA is therefore closed for CP1. The next step is contract review and RED tests before production preprocessing/stay-point code.
