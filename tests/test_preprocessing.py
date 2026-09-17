@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import pandas as pd
 
 from geolife.staypoints.cleaning import (
@@ -139,3 +141,25 @@ def test_hard_speed_guard_splits_without_deleting_either_endpoint() -> None:
         out["boundary_before_reason"],
         [None, None, "hard_speed_guard", None],
     )
+
+
+def test_audit_append_does_not_emit_pandas_futurewarning() -> None:
+    raw = _df(
+        [
+            ("2026-01-01T10:00:00Z", 39.0, 116.0),
+            ("2026-01-01T10:20:00Z", 39.0, 116.0),
+            ("2026-01-01T10:21:00Z", 40.0, 116.0),
+        ]
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _, audit = clean_trajectory_with_audit(
+            raw,
+            max_gap_s=300,
+            hard_speed_guard_kmh=1200,
+        )
+
+    assert set(audit["reason"]) == {"temporal_gap", "hard_speed_guard"}
+    future_warnings = [w for w in caught if issubclass(w.category, FutureWarning)]
+    assert future_warnings == []
