@@ -162,15 +162,22 @@ def clean_trajectory(
         rows.append(point)
         previous = point
 
-    return pd.DataFrame(
-        rows,
-        columns=[
-            "timestamp",
-            "latitude",
-            "longitude",
-            "raw_point_count",
-            "max_radius_m",
-            "sequence_id",
-            "boundary_before_reason",
-        ],
+    columns = [
+        "timestamp",
+        "latitude",
+        "longitude",
+        "raw_point_count",
+        "max_radius_m",
+        "sequence_id",
+        "boundary_before_reason",
+    ]
+    result = pd.DataFrame(rows, columns=columns)
+
+    # Pandas 3 may coerce missing values in a mixed string/None column to NaN.
+    # The contract intentionally uses Python None for "no boundary before this row",
+    # so restore the diagnostic field as an explicit object array.
+    result["boundary_before_reason"] = np.array(
+        [row["boundary_before_reason"] for row in rows],
+        dtype=object,
     )
+    return result
