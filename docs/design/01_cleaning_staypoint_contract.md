@@ -1,7 +1,7 @@
-# Cleaning + stay-point contract (proposal for review)
+# Cleaning + stay-point contract
 
 Date: 2026-09-17
-Status: PROPOSED — transport-label audit is closed; do not implement in `src/` until the contract itself is reviewed/approved.
+Status: APPROVED — reviewed before implementation; production code may now proceed TDD-first in `src/`.
 
 ## Goal
 
@@ -28,9 +28,17 @@ Each retained timestamp-level observation should expose at least:
 - `longitude`;
 - `raw_point_count`;
 - `max_radius_m` for same-second groups;
-- `sequence_id`.
+- `sequence_id`;
+- `boundary_before_reason` for diagnostics.
 
-Quality/boundary reasons should be observable for diagnostics, e.g. invalid coordinate, same-second spatial conflict, excessive temporal gap, or hard speed corruption guard.
+`boundary_before_reason` is attached to the first retained observation of a new sequence. The first sequence uses `None`. Initial reason values are:
+
+- `invalid_coordinate`;
+- `same_second_spatial_conflict`;
+- `temporal_gap`;
+- `hard_speed_guard`.
+
+This field is diagnostic metadata; the hard semantic constraint for downstream stay detection is still `sequence_id`.
 
 ## Stage 1 — coordinate-domain validation
 
@@ -39,7 +47,7 @@ Valid coordinates require:
 - latitude in `[-90, 90]`;
 - longitude in `[-180, 180]`.
 
-An invalid coordinate does not get repaired by guessing. It creates a continuity boundary so points before and after it are not connected into an artificial movement segment.
+An invalid coordinate does not get repaired by guessing. It is not retained as a valid timestamp-level observation and it creates a continuity boundary so points before and after it are not connected into an artificial movement segment.
 
 Evidence: the release contains one malformed latitude (`400.166667`) among otherwise plausible surrounding points.
 
@@ -63,19 +71,19 @@ Evidence: 99.61% of measured same-second groups are within 10 m; the full-releas
 
 A stay duration must not span an unobserved outage. If the positive gap between consecutive valid timestamp-level observations exceeds `max_gap_s`, split the sequence.
 
-`max_gap_s` is a stay-point sensitivity parameter, not a universal constant. Initial benchmark values to compare are:
+`max_gap_s` is a sensitivity parameter, not a universal constant. Initial benchmark values to compare are:
 
 - 120 s;
 - 300 s;
 - 600 s.
 
-For the first baseline implementation, use 300 s (5 minutes) unless review changes this choice. It is deliberately shorter than the initial 20-minute dwell threshold and prevents a large unobserved interval from being counted as dwell time.
+For the first baseline implementation, use 300 s (5 minutes). It is deliberately shorter than the initial 20-minute dwell threshold and prevents a large unobserved interval from being counted as dwell time.
 
 Evidence: 65.92% of trajectories contain a gap >2 min, 50.95% contain a gap >5 min, and 41.74% contain a gap >10 min.
 
 ## Stage 4 — conservative hard-speed corruption boundary
 
-Compute Haversine speed only between consecutive valid timestamp-level observations with positive `dt`.
+Compute Haversine speed only between consecutive valid timestamp-level observations with positive `dt` and within a continuity candidate not already split by an earlier cleaning rule.
 
 Do NOT apply generic `100`, `200`, or `500 km/h` removal rules. The final half-open V3 transportation benchmark shows legitimate train and airplane movement in those ranges.
 
@@ -95,7 +103,7 @@ Rationale from the final audited V3 benchmark:
 
 The 1,200 km/h guard therefore preserves all observed canonical airplane segments while catching extreme release-specific corruption. It is an engineering guard for GeoLife 1.3, not a universal physical limit.
 
-Transportation-label interval semantics are now explicitly `[start, end)`. The final audit found 14,583 unambiguous windows, 138 report-level ambiguous windows, 0.597% ambiguous labeled time, and V3 coverage of 40.47%. See `docs/eda/14_label_interval_semantics_audit.md` and `docs/eda/12_transport_speed_final.md`.
+Transportation-label interval semantics are explicitly `[start, end)`. The final audit found 14,583 unambiguous windows, 138 report-level ambiguous windows, 0.597% ambiguous labeled time, and V3 coverage of 40.47%. See `docs/eda/14_label_interval_semantics_audit.md` and `docs/eda/12_transport_speed_final.md`.
 
 ## Explicit non-goals in CP1 cleaning
 
@@ -114,28 +122,31 @@ Exact-content hashes remain an evaluation/leakage-control concern rather than an
 
 The detector runs independently per `sequence_id` using Haversine distance.
 
-Parameters:
+The algorithm semantics are parameterized by:
 
 - `distance_threshold_m`;
 - `min_dwell_s`.
 
-Initial CP1 baseline values for sensitivity testing:
+Initial CP1 baseline configuration for sensitivity testing:
 
 - `distance_threshold_m = 200`;
 - `min_dwell_s = 1200` (20 minutes).
 
-These are baseline candidates, not EDA-proven final values. They must be compared with nearby alternatives after implementation.
+These values are baseline candidates, not part of the immutable algorithm semantics and not EDA-proven final values. Sensitivity analysis may change the baseline values without changing the algorithm definition.
 
-Baseline algorithm semantics:
+Algorithm semantics:
 
 1. choose the current point `i` as anchor;
 2. advance `j` while points remain within `distance_threshold_m` of the anchor;
-3. when the first point outside the radius is found, evaluate dwell time from `i` through `j-1`;
+3. when the first point outside the radius is found, close the current candidate and evaluate dwell time from `i` through `j-1`;
 4. if dwell time >= `min_dwell_s`, emit one stay point for `i..j-1`, using median latitude/longitude and recording arrival, departure, duration, and point count;
 5. continue after the emitted stay; otherwise advance the anchor;
-6. if the sequence ends before an outside-radius point appears, still evaluate the terminal candidate and emit it when its duration satisfies the threshold.
+6. if the sequence ends before an outside-radius point appears, still evaluate the terminal candidate and emit it when its duration satisfies the threshold;
+7. a later return inside the original anchor radius must not be merged back across the first outside-radius observation.
 
 A stay point must never include observations from two different sequences.
+
+Changing a parameter value (for example `200 m -> 300 m` or `20 min -> 10 min`) changes detector behavior but does not change these semantics. Changing the distance reference from anchor-based to centroid-based, skipping outside-radius observations, or changing the dwell definition would be semantic changes and require a new contract review.
 
 ## Expected stay-point output
 
@@ -151,7 +162,7 @@ Each stay point should contain at least:
 
 ## TDD acceptance cases
 
-Implementation starts only after this contract is approved. Tests should be written RED first for at least:
+Implementation starts RED-first from these reviewed semantics:
 
 1. invalid coordinate creates a boundary and is not bridged;
 2. compact same-second observations collapse to a median representative;
@@ -161,7 +172,8 @@ Implementation starts only after this contract is approved. Tests should be writ
 6. a cluster inside the distance threshold but shorter than `min_dwell_s` is not a stay;
 7. a cluster inside the threshold for long enough is emitted as a stay;
 8. a valid stay at the end of a sequence is not lost;
-9. no stay crosses a sequence boundary.
+9. no stay crosses a sequence boundary;
+10. the first outside-radius observation closes the current stay candidate; a later return inside the original anchor radius cannot be merged back into that candidate.
 
 ## Sensitivity after GREEN
 
