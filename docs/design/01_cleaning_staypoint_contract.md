@@ -1,7 +1,7 @@
 # Cleaning + stay-point contract
 
 Date: 2026-09-17
-Status: APPROVED — reviewed before implementation; production code may now proceed TDD-first in `src/`.
+Status: APPROVED — semantics reviewed and implemented; CP1 engineering baseline frozen after full-release audit and user-stratified sensitivity validation.
 
 ## Goal
 
@@ -78,13 +78,13 @@ Evidence: 99.61% of measured same-second groups are within 10 m; the full-releas
 
 A stay duration must not span an unobserved outage. If the positive gap between consecutive valid timestamp-level observations exceeds `max_gap_s`, split the sequence.
 
-`max_gap_s` is a sensitivity parameter, not a universal constant. Initial benchmark values to compare are:
+`max_gap_s` is a model/configuration parameter, not a universal constant. Sensitivity values evaluated for CP1 were:
 
 - 120 s;
 - 300 s;
 - 600 s.
 
-For the first baseline implementation, use 300 s (5 minutes). It is deliberately shorter than the initial 20-minute dwell threshold and prevents a large unobserved interval from being counted as dwell time.
+The frozen CP1 engineering baseline uses `max_gap_s = 300` (5 minutes). It is deliberately shorter than the 20-minute dwell threshold and prevents a large unobserved interval from being counted as dwell time.
 
 Evidence: 65.92% of trajectories contain a gap >2 min, 50.95% contain a gap >5 min, and 41.74% contain a gap >10 min.
 
@@ -134,12 +134,12 @@ The algorithm semantics are parameterized by:
 - `distance_threshold_m`;
 - `min_dwell_s`.
 
-Initial CP1 baseline configuration for sensitivity testing:
+The frozen CP1 engineering baseline is:
 
 - `distance_threshold_m = 200`;
 - `min_dwell_s = 1200` (20 minutes).
 
-These values are baseline candidates, not part of the immutable algorithm semantics and not EDA-proven final values. Sensitivity analysis may change the baseline values without changing the algorithm definition.
+These values are frozen for the first CP1 Home/Office implementation after sensitivity validation. They are not part of the immutable algorithm semantics and are not claimed to be accuracy-optimal because GeoLife does not provide direct Home/Office ground truth. A later parameter revision may change them without changing the detector definition, but it must be compared against this baseline.
 
 Algorithm semantics:
 
@@ -169,7 +169,7 @@ Each stay point should contain at least:
 
 ## TDD acceptance cases
 
-Implementation starts RED-first from these reviewed semantics:
+Implementation is locked by these reviewed semantics:
 
 1. invalid coordinate creates a boundary and is not bridged;
 2. compact same-second observations collapse to a median representative;
@@ -183,16 +183,47 @@ Implementation starts RED-first from these reviewed semantics:
 10. the first outside-radius observation closes the current stay candidate; a later return inside the original anchor radius cannot be merged back into that candidate;
 11. a discarded quality event at the end of a trajectory remains observable in the audit-event stream even when no retained observation exists to carry `boundary_before_reason`.
 
-## Sensitivity after GREEN
+## Sensitivity validation — complete
 
-After the baseline passes tests, run a small sensitivity grid rather than reopening broad EDA:
+The final grid evaluated:
 
 - continuity gap: 120 / 300 / 600 s;
 - stay distance: 100 / 200 / 300 m;
 - dwell: 10 / 20 / 30 min.
 
-Sensitivity sampling must not use a path-ordered prefix such as `files[:N]`. Use a deterministic user-balanced/capped sample so heavy users do not dominate merely because they own more trajectory files. For users with more files than the cap, sample trajectories across their sorted history rather than taking only the earliest prefix.
+Sampling used a deterministic user-balanced/capped design rather than a path-ordered prefix:
 
-Compare stay counts, duration distributions, user coverage, repeated-location stability, and downstream Home/Office heuristic behavior. A simple recurring-location proxy may count whether a user with at least two stays has any pair of representative stay coordinates within a fixed comparison radius; this proxy is for sensitivity stability, not ground-truth Home/Office accuracy.
+- 182 users covered;
+- 851 trajectory files sampled;
+- at most 5 trajectories per user;
+- heavy-user samples spread across sorted trajectory history.
 
-Threshold tuning belongs here, after the semantics are fixed and tested.
+The frozen `300 s / 200 m / 1200 s` configuration produced, on this sensitivity sample:
+
+- 478 stays;
+- 89 users with at least one stay;
+- mean 2.626374 stays per user;
+- median 4 stays per active user;
+- 69 users with at least two stays;
+- 52 users with at least one repeated location under the 200 m recurrence proxy;
+- repeat-location user rate 0.753623;
+- median stay duration 1621.5 s;
+- p90 stay duration 3202.9 s.
+
+Neighboring configurations changed coverage in expected directions without showing an instability that justified replacing the reviewed baseline. In particular, `200 m` had a stronger recurrence proxy than its immediate `100 m` and `300 m` neighbors at `300 s / 20 min`; `300 s` preserved a more conservative continuity rule than `600 s`; and `20 min` remained a middle dwell setting between broad short-stop coverage at 10 minutes and substantial coverage loss at 30 minutes.
+
+This sensitivity analysis is evidence of behavioral stability, not proof of Home/Office classification accuracy. See `docs/design/02_staypoint_baseline_validation.md` for the recorded results and rationale.
+
+## Frozen CP1 configuration
+
+The first Home/Office implementation must use:
+
+```text
+same_second_radius_m   = 10
+max_gap_s              = 300
+hard_speed_guard_kmh   = 1200
+distance_threshold_m   = 200
+min_dwell_s            = 1200
+```
+
+Any future parameter change is a configuration/model revision and should be measured against this baseline. Any semantic change to sequence boundaries, anchor-based membership, outside-radius handling, or dwell definition requires contract review.
