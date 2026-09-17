@@ -203,35 +203,29 @@ Despite that caveat, one conclusion is already robust enough for design: a globa
 
 Detailed evidence is recorded in `docs/eda/10_transport_speed_provisional.md`.
 
-## 2026-09-16 — Transportation-label canonicalization
+## 2026-09-16 — Transportation-label canonicalization (historical inclusive-end run)
 
-Overlapping mode intervals were converted into canonical windows with exactly one distinct active mode; periods with simultaneous different modes were excluded from the benchmark.
+The first canonicalization run treated label ends as inclusive. It produced 14,537 unambiguous windows and 1,886 ambiguous windows, with 12,723.9 / 76.9 hours of unambiguous / ambiguous time. These counts are retained only as historical evidence because a later audit found that endpoint touching was being converted into one-second ambiguity.
 
-Observed:
+The historical V2 strict-containment run produced 4,812,641 matched segments (40.52% coverage) and a stable broad speed shape.
 
-- 14,537 unambiguous canonical windows;
-- 1,886 ambiguous windows;
-- 12,723.9 hours of unambiguous labeled time;
-- 76.9 hours of ambiguous labeled time;
-- ambiguity is only 0.60% of represented labeled time;
-- the most common ambiguous combinations are bus+walk, bike+walk, taxi+walk, subway+walk, car+walk and train+walk;
-- V2 strict-containment processing over all 69 labeled users produced 4,812,641 matched segments, about 40.52% of 11,878,198 valid segments from labeled users;
-- canonicalization removes 37,217 segments from the provisional benchmark, only about 0.77% of previously matched segments.
+## 2026-09-17 — Half-open label semantics audit + final V3 benchmark
 
-Interpretation:
+The transportation-label analysis was rerun under standard half-open `[start, end)` semantics, where endpoint touching is not overlap.
 
-- overlap looks large by window count but small by duration;
-- the broad transportation-speed shape is unlikely to be an artifact of overlapping labels alone;
-- exact per-mode percentiles still need one final recomputation from the V2 cache before the cleaning contract is frozen.
+Final audited label accounting:
 
-Detailed evidence is recorded in `docs/eda/11_label_overlap_canonicalization.md`.
+- 1,742 different-mode endpoint-touching pairs;
+- 146 different-mode true-overlap pairs;
+- 14,583 unambiguous canonical windows;
+- 149 atomic ambiguous sweep slices;
+- 138 report-level ambiguous windows with a stable active-mode set;
+- 12,720.833 unambiguous labeled hours;
+- 76.345 ambiguous labeled hours;
+- ambiguous share 0.597%.
 
-## 2026-09-16 — Final transportation-speed benchmark + contract proposal
+The final V3 strict-containment benchmark matched 4,807,087 of 11,878,198 valid labeled-user segments (40.47%). Key p99 values remain essentially unchanged: airplane 937.99 km/h, train 210.34, car 119.63, bus 90.59, bike 40.63 and walk 40.39. Airplane max is 1,048.11 km/h and 52.92% of canonical airplane segments exceed 500 km/h.
 
-Canonical V2 per-mode percentiles are effectively unchanged from the provisional benchmark: absolute p99 deltas are below 0.5 km/h for every mode. Airplane remains about 625 km/h median and 938 km/h p99, train about 93/210, car about 30/120, bus about 17/91, bike about 11/41 and walk about 4/40.
+Conclusion: the interval-semantics correction changes the overlap-count narrative but does not change the broad movement-speed decision. Generic 100/200/500 km/h filters remain rejected, and the proposed release-specific 1,200 km/h continuity guard remains a conservative candidate.
 
-This closes speed-focused EDA for CP1. Generic 100/200/500 km/h removal thresholds are rejected because they would erase legitimate fast travel; 52.89% of canonical airplane segments exceed 500 km/h. A conservative release-specific 1,200 km/h hard guard is proposed only as a continuity boundary, not as endpoint deletion, because all observed canonical airplane segments remain below about 1,048 km/h while clear corruptions extend into the thousands or millions.
-
-A proposed production contract is now documented in `docs/design/01_cleaning_staypoint_contract.md`: coordinate validation, 10 m same-second consolidation, explicit temporal continuity boundaries, a conservative hard-speed boundary, and sequence-scoped stay-point detection. No production implementation should begin until this contract is reviewed and approved.
-
-Detailed final speed evidence is recorded in `docs/eda/12_transport_speed_final.md`.
+EDA and the transportation-label audit are now closed for CP1. Next step: review/approve the cleaning + stay-point contract, then begin RED tests before production implementation.
