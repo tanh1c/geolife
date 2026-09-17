@@ -40,6 +40,13 @@ Each retained timestamp-level observation should expose at least:
 
 This field is diagnostic metadata; the hard semantic constraint for downstream stay detection is still `sequence_id`.
 
+Because a discarded invalid/conflict timestamp may occur at the end of a file or several quality events may occur before the next retained point, `boundary_before_reason` is **not** a complete event counter. Production cleaning therefore also exposes a separate audit-event stream with at least:
+
+- `timestamp`;
+- `reason`.
+
+The audit stream records every observed quality/boundary event, including discarded terminal timestamps. This keeps event observability separate from the retained-row schema used by the stay detector.
+
 ## Stage 1 — coordinate-domain validation
 
 Valid coordinates require:
@@ -173,7 +180,8 @@ Implementation starts RED-first from these reviewed semantics:
 7. a cluster inside the threshold for long enough is emitted as a stay;
 8. a valid stay at the end of a sequence is not lost;
 9. no stay crosses a sequence boundary;
-10. the first outside-radius observation closes the current stay candidate; a later return inside the original anchor radius cannot be merged back into that candidate.
+10. the first outside-radius observation closes the current stay candidate; a later return inside the original anchor radius cannot be merged back into that candidate;
+11. a discarded quality event at the end of a trajectory remains observable in the audit-event stream even when no retained observation exists to carry `boundary_before_reason`.
 
 ## Sensitivity after GREEN
 
@@ -183,4 +191,8 @@ After the baseline passes tests, run a small sensitivity grid rather than reopen
 - stay distance: 100 / 200 / 300 m;
 - dwell: 10 / 20 / 30 min.
 
-Compare stay counts, duration distributions, repeated-location stability, and downstream Home/Office heuristic behavior. Threshold tuning belongs here, after the semantics are fixed and tested.
+Sensitivity sampling must not use a path-ordered prefix such as `files[:N]`. Use a deterministic user-balanced/capped sample so heavy users do not dominate merely because they own more trajectory files. For users with more files than the cap, sample trajectories across their sorted history rather than taking only the earliest prefix.
+
+Compare stay counts, duration distributions, user coverage, repeated-location stability, and downstream Home/Office heuristic behavior. A simple recurring-location proxy may count whether a user with at least two stays has any pair of representative stay coordinates within a fixed comparison radius; this proxy is for sensitivity stability, not ground-truth Home/Office accuracy.
+
+Threshold tuning belongs here, after the semantics are fixed and tested.
