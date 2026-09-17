@@ -1,7 +1,7 @@
 # Cleaning + stay-point contract (proposal for review)
 
-Date: 2026-09-16
-Status: PROPOSED — do not implement in `src/` until reviewed/approved.
+Date: 2026-09-17
+Status: PROPOSED — transport-label audit is closed; do not implement in `src/` until the contract itself is reviewed/approved.
 
 ## Goal
 
@@ -39,7 +39,7 @@ Valid coordinates require:
 - latitude in `[-90, 90]`;
 - longitude in `[-180, 180]`.
 
-An invalid coordinate does not get repaired by guessing. It creates a continuity boundary so the points before and after it are not connected into an artificial movement segment.
+An invalid coordinate does not get repaired by guessing. It creates a continuity boundary so points before and after it are not connected into an artificial movement segment.
 
 Evidence: the release contains one malformed latitude (`400.166667`) among otherwise plausible surrounding points.
 
@@ -69,7 +69,7 @@ A stay duration must not span an unobserved outage. If the positive gap between 
 - 300 s;
 - 600 s.
 
-For the first baseline implementation, use 300 s (5 minutes) unless the review changes this choice. It is deliberately shorter than the initial 20-minute dwell threshold and therefore prevents a large unobserved interval from being counted as dwell time.
+For the first baseline implementation, use 300 s (5 minutes) unless review changes this choice. It is deliberately shorter than the initial 20-minute dwell threshold and prevents a large unobserved interval from being counted as dwell time.
 
 Evidence: 65.92% of trajectories contain a gap >2 min, 50.95% contain a gap >5 min, and 41.74% contain a gap >10 min.
 
@@ -77,7 +77,7 @@ Evidence: 65.92% of trajectories contain a gap >2 min, 50.95% contain a gap >5 m
 
 Compute Haversine speed only between consecutive valid timestamp-level observations with positive `dt`.
 
-Do NOT apply generic `100`, `200`, or `500 km/h` removal rules. Canonical transportation labels show legitimate train and airplane movement inside those ranges, including airplane median/p99 around 625/938 km/h and 52.89% of airplane segments above 500 km/h.
+Do NOT apply generic `100`, `200`, or `500 km/h` removal rules. The final half-open V3 transportation benchmark shows legitimate train and airplane movement in those ranges.
 
 For CP1, use a release-specific hard guard:
 
@@ -85,7 +85,17 @@ For CP1, use a release-specific hard guard:
 
 If a segment exceeds this value, break continuity at that segment. Do not automatically delete either endpoint because the data alone does not identify which endpoint is wrong.
 
-Rationale: the maximum canonical airplane segment observed in the release is about 1,048 km/h, while the dataset contains clearly corrupted segments from several thousand to millions of km/h. A 1,200 km/h guard preserves all observed canonical airplane segments while catching extreme corruption. This is an engineering guard for this release, not a universal physical limit.
+Rationale from the final audited V3 benchmark:
+
+- airplane median: 625.91 km/h;
+- airplane p99: 937.99 km/h;
+- airplane max: 1,048.11 km/h;
+- 52.92% of canonical airplane segments exceed 500 km/h;
+- clear corruptions elsewhere extend into thousands or millions of km/h.
+
+The 1,200 km/h guard therefore preserves all observed canonical airplane segments while catching extreme release-specific corruption. It is an engineering guard for GeoLife 1.3, not a universal physical limit.
+
+Transportation-label interval semantics are now explicitly `[start, end)`. The final audit found 14,583 unambiguous windows, 138 report-level ambiguous windows, 0.597% ambiguous labeled time, and V3 coverage of 40.47%. See `docs/eda/14_label_interval_semantics_audit.md` and `docs/eda/12_transport_speed_final.md`.
 
 ## Explicit non-goals in CP1 cleaning
 

@@ -1,15 +1,15 @@
 # CP1 EDA summary for mentor
 
-Date: 2026-09-16
-Status: EDA CLOSED for the CP1 cleaning decision. Remaining work is contract review, TDD implementation, and stay-point threshold sensitivity rather than open-ended EDA.
+Date: 2026-09-17
+Status: EDA CLOSED for the CP1 cleaning decision. Transportation-label interval semantics and the speed benchmark have been re-audited under half-open `[start, end)` semantics.
 
 ## 1. Objective
 
-The EDA was designed to support concrete CP1 decisions for GeoLife preprocessing, stay-point detection, Home/Office inference, evaluation, and privacy. The process deliberately followed:
+The EDA was designed to support concrete CP1 decisions for GeoLife preprocessing, stay-point detection, Home/Office inference, evaluation, and privacy. The process followed:
 
 `observe distributions -> form hypotheses -> inspect anomalies -> test hypotheses -> quantify impact -> derive candidate rules`
 
-rather than copying cleaning or stay-point thresholds from tutorials.
+rather than copying thresholds from tutorials.
 
 ## 2. Dataset verification
 
@@ -20,9 +20,9 @@ Measured from the mounted GeoLife 1.3 release:
 - 24,876,978 GPS points;
 - 69 user folders with `labels.txt`.
 
-The actual file counts resolve documentation ambiguity: the v1.3 table's 18,670 trajectories and 24,876,978 points match the release, while the guide text that mentions 73 labeled users does not match the 69 label folders present in the mounted release.
+The actual file counts match the v1.3 comparison table. The guide text mentions 73 labeled users, but the mounted release contains 69 folders with `labels.txt`; the reason for that discrepancy is not established.
 
-User history is strongly long-tailed. The median user has 27.5 trajectories, the maximum is 2,153, and the top 10 users contribute 47.4% of all trajectories. Therefore later evaluation should not rely only on point- or trajectory-weighted global metrics.
+User history is strongly long-tailed: median 27.5 trajectories/user, maximum 2,153, and the top 10 users contribute about 47.4% of all trajectories. Later evaluation should therefore include user-aware views rather than relying only on global point/trajectory-weighted metrics.
 
 ## 3. Raw quality findings
 
@@ -31,20 +31,20 @@ A full scan over all 18,670 trajectories found:
 - 0 null timestamps;
 - 0 non-monotonic trajectories under the current parser;
 - 698,900 duplicate-timestamp rows (2.81% of all points), affecting 441 trajectories;
-- one invalid latitude (`400.166667`), surrounded by plausible `40.166...` values;
-- severe movement outliers, including repeated roughly 850-862 km jumps in one second in user 062 trajectory `20080926000623`.
+- one invalid latitude (`400.166667`) surrounded by plausible `40.166...` values;
+- severe movement corruption, including repeated roughly 850-862 km jumps in one second in user 062 trajectory `20080926000623`.
 
-The invalid coordinate and the repeated impossible-jump pattern were treated as different failure modes rather than collapsed into one generic speed rule.
+These were treated as different failure modes rather than collapsed into one generic speed rule.
 
-## 4. Rejected timestamp hypothesis
+## 4. Timestamp precision hypothesis
 
-Hypothesis: PLT `serial_date` might preserve hidden sub-second timing and the duplicate-second rows might be a parser artifact.
+Hypothesis: PLT `serial_date` might preserve hidden sub-second timing and duplicate-second rows might be a parser artifact.
 
-Test result: rejected.
+Result: rejected.
 
-For a trajectory with 45,215 duplicate text timestamps, reconstructing timestamps from `serial_date` produced the same 45,215 duplicates. Same-second rows had identical serial-date values; microsecond differences versus text timestamps were floating-point conversion noise.
+For a trajectory with 45,215 duplicate text timestamps, reconstructing timestamps from `serial_date` produced the same 45,215 duplicates. Same-second rows shared the same serial-date value; microsecond differences versus text timestamps were floating-point conversion noise.
 
-Decision: within-second order and speed are not recoverable from this release. Same-second rows must be handled as simultaneous observations.
+Decision: within-second order and velocity are not recoverable from this release. Same-second rows must be handled as simultaneous observations.
 
 ## 5. Same-second spatial structure
 
@@ -59,43 +59,43 @@ Across 212,409 same-second groups:
 
 A tiny corrupted tail reaches roughly 430 km radius.
 
-This supported a 10 m same-second consolidation experiment: compact groups are replaced by one median coordinate, while spatially conflicting groups are treated as continuity boundaries rather than averaged into fake locations.
+This supports a 10 m same-second consolidation rule for the first implementation: compact groups collapse to one median coordinate, while spatial conflicts create continuity boundaries rather than fake averaged locations.
 
-## 6. Exact duplicate content and evaluation leakage
+## 6. Exact duplicate content and leakage risk
 
 SHA-256 over all 18,670 trajectory files found:
 
 - 821 exact-duplicate hash groups;
 - 1,677 participating files (8.98% of trajectories);
 - all observed duplicate groups span multiple user IDs;
-- those files contain 2,965,977 points, or 11.92% of all points;
-- after keeping one representative per hash group, extra copies still account for 1,495,115 points, or 6.01% of the dataset.
+- participating files contain 2,965,977 points, or 11.92% of all points;
+- extra copies beyond one representative account for 1,495,115 points, or 6.01% of the dataset.
 
-Shared-content links involve 52 users in 18 connected components; the largest component contains 15 user IDs.
+Shared-content links involve 52 users across 18 connected components; the largest component contains 15 user IDs.
 
 Decision: content hashes are required for leakage control. A user-only split does not guarantee content independence. This is an evaluation concern, not an inference-time deduplication rule.
 
 ## 7. Same-second consolidation experiment
 
-Prototype tests separated two failure modes clearly.
+Representative cases separated two failure modes clearly.
 
-Duplicate-heavy user 141 trajectory `20111022031803`:
+User 141 trajectory `20111022031803`:
 
 - 56,780 raw points -> 11,565 timestamp rows;
 - only 3 spatial conflicts;
 - dominant duplicate bursts collapsed cleanly.
 
-Corrupted user 062 trajectory `20080926000623`:
+User 062 trajectory `20080926000623`:
 
 - 8,117 raw points -> 8,091 timestamp rows;
 - 26 same-second conflicts;
 - repeated cross-region jumps between different timestamps remained, still producing multi-million-km/h speeds.
 
-Conclusion: same-second ambiguity and inter-timestamp movement corruption are separate preprocessing stages.
+Conclusion: same-second ambiguity and impossible inter-timestamp movement are independent preprocessing problems.
 
 ## 8. Full-release consolidation result
 
-Applying the exploratory 10 m rule to the full release produced:
+Applying the exploratory 10 m rule across the release produced:
 
 - 24,876,978 raw points -> 24,178,077 timestamp rows;
 - 698,901 rows reduced (2.81%);
@@ -103,9 +103,7 @@ Applying the exploratory 10 m rule to the full release produced:
 - 1 invalid coordinate point;
 - 24,157,908 valid inter-timestamp movement segments.
 
-The row accounting is consistent with the known 698,900 duplicate-timestamp rows plus the single invalid coordinate.
-
-## 9. Segment speed distribution
+## 9. Segment-speed distribution
 
 After same-second consolidation:
 
@@ -115,9 +113,9 @@ After same-second consolidation:
 - >500 km/h: 0.2030%;
 - >1,000 km/h: 0.0070%.
 
-Trajectory-level max-speed counts are much larger because one bad segment marks an entire trajectory. For example, 46.96% of trajectories have max speed >100 km/h while only 5.40% of segments exceed 100 km/h.
+Trajectory-level max-speed prevalence is much larger because one extreme segment marks an entire trajectory; for example, 46.96% of trajectories have max speed >100 km/h while only 5.40% of valid segments exceed 100 km/h.
 
-Decision: movement cleaning should reason primarily at segment level, not from trajectory maxima.
+Decision: movement-noise reasoning should be performed primarily at segment level.
 
 ## 10. Temporal-gap sensitivity
 
@@ -129,50 +127,56 @@ Trajectory-level max-gap sensitivity after consolidation:
 - >30 min: 29.66%;
 - >1 h: 22.89%.
 
-Decision: stay duration must not bridge arbitrary observation outages. `max_gap_s` is a sensitivity parameter rather than a hidden implementation detail. Candidate values for the first stay-point benchmark are 120 / 300 / 600 seconds.
+Decision: stay duration must not bridge arbitrary observation outages. `max_gap_s` is a sensitivity parameter; first benchmark values are 120 / 300 / 600 seconds.
 
-## 11. Transportation-label validation of plausible speed
+## 11. Transportation-label audit and final V3 speed benchmark
 
-The release contains 14,718 transportation-label intervals over 69 labeled users. Labels are auxiliary movement evidence, not Home/Office ground truth.
+The release contains 14,718 transportation-label intervals over 69 labeled users. These are auxiliary movement labels, not Home/Office ground truth.
 
-A first strict-containment segment/label join matched 4,849,858 segments (40.83% coverage among valid segments of labeled users), but label overlaps were found. Labels were then canonicalized so only windows with exactly one distinct active mode remained.
+An independent audit exposed an interval-semantics issue in the earlier analysis: treating label ends as inclusive converted many endpoint touches into one-second ambiguities. The project therefore adopted standard half-open `[start, end)` semantics.
 
-Canonicalization produced:
+Final audited accounting:
 
-- 14,537 unambiguous windows;
-- 1,886 ambiguous windows;
-- 12,723.9 unambiguous labeled hours;
-- 76.9 ambiguous hours (0.60% of represented labeled time).
+- 1,742 different-mode endpoint-touching pairs;
+- 146 different-mode true-overlap pairs;
+- 14,583 unambiguous canonical windows;
+- 149 atomic ambiguous sweep slices;
+- 138 report-level ambiguous windows with a stable active-mode set;
+- 12,720.833 unambiguous labeled hours;
+- 76.345 ambiguous labeled hours;
+- ambiguous share: 0.597%.
 
-The V2 strict-containment join matched 4,812,641 segments (40.52% coverage). Per-mode p99 values changed by less than 0.5 km/h versus the provisional benchmark, showing the broad speed shape is stable.
+The corrected V3 strict-containment join matched 4,807,087 of 11,878,198 valid segments from labeled users, for 40.47% coverage.
 
-Key canonical V2 values:
+Key V3 speed values:
 
-- airplane: median 624.54 km/h, p99 937.92, max 1,048.11; 52.89% of segments exceed 500 km/h;
-- train: median 93.14, p99 210.33;
-- car: median 29.99, p99 119.62;
-- bus: median 16.89, p99 90.60;
+- airplane: 9,169 segments, median 625.91 km/h, p99 937.99, max 1,048.11; 52.92% exceed 500 km/h;
+- train: median 93.14, p99 210.34;
+- car: median 30.05, p99 119.63;
+- taxi: median 31.64, p99 104.75;
+- subway: median 49.63, p99 94.32;
+- bus: median 16.91, p99 90.59;
 - bike: median 11.19, p99 40.63;
-- walk: median 4.08, p99 40.42.
+- walk: median 4.08, p99 40.39.
 
-Decision: generic `speed > 100`, `>200`, or `>500 km/h => noise` rules are rejected because they would delete legitimate fast transport. Rare multi-thousand-km/h values still appear inside ordinary modes, so speed remains useful only as a conservative corruption guard.
+The corrected V3 distribution is effectively unchanged in shape from the earlier benchmark. Therefore generic `speed > 100`, `>200`, or `>500 km/h => noise` rules are rejected: they would remove legitimate fast transportation. Rare multi-thousand-km/h maxima inside ordinary modes also show that label membership does not guarantee clean GPS.
 
 ## 12. EDA-backed cleaning proposal
 
-The EDA supports this proposed preprocessing sequence, pending review before production implementation:
+The EDA supports this proposed preprocessing sequence, pending explicit contract approval before production code:
 
 1. coordinate-domain validation;
-2. same-second consolidation with a 10 m compact-group rule;
-3. spatial-conflict timestamps become continuity boundaries;
+2. same-second consolidation using a 10 m compact-group rule;
+3. same-second spatial conflicts become continuity boundaries;
 4. temporal gaps above configurable `max_gap_s` become continuity boundaries;
 5. a release-specific hard speed guard of 1,200 km/h becomes a continuity boundary only, not endpoint deletion;
 6. stay-point detection runs independently inside each resulting sequence.
 
-The 1,200 km/h value sits above the maximum observed canonical airplane segment (~1,048 km/h) while catching clearly extreme corruption. It is a release-specific engineering guard, not a universal physical limit.
+The 1,200 km/h proposal sits above the audited airplane maximum of 1,048.11 km/h while catching clearly extreme corruption. It is a release-specific engineering guard, not a universal physical limit.
 
 ## 13. What is finished versus what remains
 
-EDA is complete for the CP1 cleaning decision. The remaining work is not open-ended EDA:
+EDA and its transportation-label audit are closed for CP1. Remaining work is implementation-oriented:
 
 - review/approve the cleaning + stay-point contract;
 - write RED tests;
@@ -182,24 +186,6 @@ EDA is complete for the CP1 cleaning decision. The remaining work is not open-en
 
 ## 14. Traceability / supporting documents
 
-Chronological evidence is retained in:
+Detailed chronological evidence is retained in `docs/eda/00..14_*.md`. The mentor-facing reproducible notebook is `notebooks/02_geolife_eda_mentor_vi.ipynb`. Project chronology is in `docs/worklog.md`; reasoning and lessons are recorded in the EN/VI learning journals.
 
-- `docs/eda/00_source_profile.md` — source-guide expectations and discrepancies;
-- `docs/eda/01_eda_plan.md` — questions and method;
-- `docs/eda/02_initial_findings.md` — measured inventory and user imbalance;
-- `docs/eda/03_phase2_quality_findings.md` — full-scan quality and anomalies;
-- `docs/eda/04_timestamp_precision_and_duplicates.md` — rejected serial-date hypothesis;
-- `docs/eda/04_same_second_and_exact_duplicate_findings.md` — same-second spread and hash duplication;
-- `docs/eda/05_cross_user_duplication.md` — duplicate prevalence and point exposure;
-- `docs/eda/06_duplicate_redundancy_and_user_components.md` — redundant point mass and connected components;
-- `docs/eda/07_same_second_consolidation_prototype.md` — prototype behavior on representative trajectories;
-- `docs/eda/08_full_consolidation_findings.md` — full-release consolidation and segment speed;
-- `docs/eda/09_gap_and_label_inventory.md` — temporal-gap sensitivity and transport labels;
-- `docs/eda/10_transport_speed_provisional.md` — first speed-by-mode benchmark and overlap issue;
-- `docs/eda/11_label_overlap_canonicalization.md` — unambiguous label windows and V2 coverage;
-- `docs/eda/12_transport_speed_final.md` — final canonical speed benchmark and EDA stop condition;
-- `docs/design/01_cleaning_staypoint_contract.md` — proposed implementation contract derived from EDA;
-- `docs/worklog.md` — chronological project milestones;
-- `docs/learning-journal-en.md` and `docs/learning-journal-vi.md` — learning narrative and decision evolution.
-
-Raw trajectory data, user-level generated artifacts, and runtime caches are intentionally not committed because of the GeoLife license/privacy constraints. The reportable aggregate evidence and decision history are committed instead.
+Raw trajectory data, user-level generated artifacts, and runtime caches are intentionally not committed because of dataset license/privacy constraints. Reportable aggregate evidence and the decision history are committed instead.
