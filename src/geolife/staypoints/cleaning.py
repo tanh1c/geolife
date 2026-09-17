@@ -25,6 +25,8 @@ OUTPUT_COLUMNS = [
     "boundary_before_reason",
 ]
 
+AUDIT_COLUMNS = ["timestamp", "reason"]
+
 
 @dataclass(frozen=True)
 class CleaningConfig:
@@ -52,30 +54,11 @@ def _empty_cleaned() -> pd.DataFrame:
     return pd.DataFrame(columns=OUTPUT_COLUMNS)
 
 
-def clean_trajectory(
-    df: pd.DataFrame,
-    *,
-    same_second_radius_m: float = 10.0,
-    max_gap_s: float = 300.0,
-    hard_speed_guard_kmh: float = 1200.0,
-) -> pd.DataFrame:
-    """Clean one ordered trajectory into independent timestamp-level sequences.
+def _empty_audit() -> pd.DataFrame:
+    return pd.DataFrame(columns=AUDIT_COLUMNS)
 
-    Semantics follow the approved CP1 contract. Same-second consolidation and
-    pairwise boundary checks are vectorized so full-release validation does not
-    execute a Python loop for every raw timestamp.
-    """
-    if same_second_radius_m < 0:
-        raise ValueError("same_second_radius_m must be non-negative")
-    if max_gap_s <= 0:
-        raise ValueError("max_gap_s must be positive")
-    if hard_speed_guard_kmh <= 0:
-        raise ValueError("hard_speed_guard_kmh must be positive")
 
-    raw = _validate_input(df)
-    if raw.empty:
-        return _empty_cleaned()
-
+def _timestamp_summary(raw: pd.DataFrame) -> pd.DataFrame:
     lat = raw["latitude"].to_numpy(dtype=float)
     lon = raw["longitude"].to_numpy(dtype=float)
     valid_coordinate = (
@@ -88,13 +71,16 @@ def clean_trajectory(
     )
 
     all_counts = raw.groupby("timestamp", sort=True).size()
-    valid = raw.loc[valid_coordinate, ["timestamp", "latitude", "longitude"]]
-
     summary = pd.DataFrame(index=all_counts.index)
     summary["all_count"] = all_counts.astype(np.int64)
 
+    valid = raw.loc[valid_coordinate, ["timestamp", "latitude", "longitude"]]
     if valid.empty:
-        return _empty_cleaned()
+        summary["valid_count"] = 0
+        summary["latitude"] = np.nan
+        summary["longitude"] = np.nan
+        summary["max_radius_m"] = np.nan
+        return summary
 
     grouped = valid.groupby("timestamp", sort=True)
     valid_counts = grouped.size()
@@ -111,46 +97,131 @@ def clean_trajectory(
         ),
         dtype=float,
     )
-    max_radii = pd.Series(radii_m, index=valid.index).groupby(valid["timestamp"], sort=True).max()
+    max_radii = (
+        pd.Series(radii_m, index=valid.index)
+        .groupby(valid["timestamp"], sort=True)
+        .max()
+    )
 
-    summary["valid_count"] = valid_counts.reindex(summary.index, fill_value=0).astype(np.int64)
+    summary["valid_count"] = (
+        valid_counts.reindex(summary.index, fill_value=0).astype(np.int64)
+    )
     summary["latitude"] = centers["latitude"].reindex(summary.index)
     summary["longitude"] = centers["longitude"].reindex(summary.index)
     summary["max_radius_m"] = max_radii.reindex(summary.index)
+    return summary
 
+
+def _explicit_audit_events(
+    summary: pd.DataFrame,
+    *,
+    same_second_radius_m: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
     all_count_arr = summary["all_count"].to_numpy(dtype=np.int64)
     valid_count_arr = summary["valid_count"].to_numpy(dtype=np.int64)
     max_radius_arr = summary["max_radius_m"].to_numpy(dtype=float)
 
     invalid_present = all_count_arr > valid_count_arr
-    spatial_conflict = (valid_count_arr > 0) & (max_radius_arr > same_second_radius_m)
+    spatial_conflict = (valid_count_arr > 0) & (
+        max_radius_arr > same_second_radius_m
+    )
     retained = (valid_count_arr > 0) & ~spatial_conflict
 
-    # One diagnostic reason per timestamp. Spatial conflict wins over an invalid
-    # row at the same timestamp, matching the original event-order semantics.
+    audit_frames: list[pd.DataFrame] = []
+    timestamp_index = pd.DatetimeIndex(summary.index)
+
+    if np.any(invalid_present):
+        audit_frames.append(
+            pd.DataFrame(
+                {
+                    "timestamp": timestamp_index[invalid_present],
+                    "reason": "invalid_coordinate",
+                }
+            )
+        )
+    if np.any(spatial_conflict):
+        audit_frames.append(
+            pd.DataFrame(
+                {
+                    "timestamp": timestamp_index[spatial_conflict],
+                    "reason": "same_second_spatial_conflict",
+                }
+            )
+        )
+
+    audit = (
+        pd.concat(audit_frames, ignore_index=True)
+        if audit_frames
+        else _empty_audit()
+    )
+    return invalid_present, spatial_conflict, retained, audit
+
+
+def _clean_trajectory_impl(
+    df: pd.DataFrame,
+    *,
+    same_second_radius_m: float,
+    max_gap_s: float,
+    hard_speed_guard_kmh: float,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if same_second_radius_m < 0:
+        raise ValueError("same_second_radius_m must be non-negative")
+    if max_gap_s <= 0:
+        raise ValueError("max_gap_s must be positive")
+    if hard_speed_guard_kmh <= 0:
+        raise ValueError("hard_speed_guard_kmh must be positive")
+
+    raw = _validate_input(df)
+    if raw.empty:
+        return _empty_cleaned(), _empty_audit()
+
+    summary = _timestamp_summary(raw)
+    (
+        invalid_present,
+        spatial_conflict,
+        retained,
+        audit,
+    ) = _explicit_audit_events(
+        summary,
+        same_second_radius_m=same_second_radius_m,
+    )
+
+    valid_count_arr = summary["valid_count"].to_numpy(dtype=np.int64)
+    max_radius_arr = summary["max_radius_m"].to_numpy(dtype=float)
+
+    # boundary_before_reason is retained-row metadata. The separate audit table is
+    # the complete event stream, including discarded terminal timestamps.
     reason_at_timestamp = np.full(len(summary), None, dtype=object)
     reason_at_timestamp[invalid_present] = "invalid_coordinate"
     reason_at_timestamp[spatial_conflict] = "same_second_spatial_conflict"
 
     retained_positions = np.flatnonzero(retained)
     if retained_positions.size == 0:
-        return _empty_cleaned()
+        return _empty_cleaned(), audit.sort_values("timestamp", kind="stable").reset_index(
+            drop=True
+        )
 
-    # Carry the most recent explicit invalid/conflict boundary since the
-    # previous retained observation onto the next retained row.
     explicit_reason = np.full(retained_positions.size, None, dtype=object)
     boundary_positions = np.flatnonzero(
         np.fromiter((reason is not None for reason in reason_at_timestamp), dtype=bool)
     )
     if boundary_positions.size:
-        lookup = np.searchsorted(boundary_positions, retained_positions, side="right") - 1
+        lookup = (
+            np.searchsorted(boundary_positions, retained_positions, side="right") - 1
+        )
         has_boundary = lookup >= 0
-        latest_boundary_position = np.full(retained_positions.size, -1, dtype=np.int64)
-        latest_boundary_position[has_boundary] = boundary_positions[lookup[has_boundary]]
+        latest_boundary_position = np.full(
+            retained_positions.size, -1, dtype=np.int64
+        )
+        latest_boundary_position[has_boundary] = boundary_positions[
+            lookup[has_boundary]
+        ]
         previous_retained_position = np.concatenate(
             (np.array([-1], dtype=np.int64), retained_positions[:-1])
         )
-        carries_boundary = has_boundary & (latest_boundary_position > previous_retained_position)
+        carries_boundary = has_boundary & (
+            latest_boundary_position > previous_retained_position
+        )
         explicit_reason[carries_boundary] = reason_at_timestamp[
             latest_boundary_position[carries_boundary]
         ]
@@ -175,7 +246,20 @@ def clean_trajectory(
 
         temporal_gap = no_explicit_boundary & (dt_s > max_gap_s)
         if np.any(temporal_gap):
-            final_reason[np.flatnonzero(temporal_gap) + 1] = "temporal_gap"
+            gap_positions = np.flatnonzero(temporal_gap) + 1
+            final_reason[gap_positions] = "temporal_gap"
+            audit = pd.concat(
+                [
+                    audit,
+                    pd.DataFrame(
+                        {
+                            "timestamp": timestamp_index[gap_positions],
+                            "reason": "temporal_gap",
+                        }
+                    ),
+                ],
+                ignore_index=True,
+            )
 
         distances_m = np.asarray(
             haversine_m(
@@ -188,7 +272,9 @@ def clean_trajectory(
         )
         positive_dt = dt_s > 0
         speed_kmh = np.full(dt_s.shape, np.nan, dtype=float)
-        speed_kmh[positive_dt] = distances_m[positive_dt] / dt_s[positive_dt] * 3.6
+        speed_kmh[positive_dt] = (
+            distances_m[positive_dt] / dt_s[positive_dt] * 3.6
+        )
 
         hard_speed = (
             no_explicit_boundary
@@ -197,9 +283,24 @@ def clean_trajectory(
             & (speed_kmh > hard_speed_guard_kmh)
         )
         if np.any(hard_speed):
-            final_reason[np.flatnonzero(hard_speed) + 1] = "hard_speed_guard"
+            speed_positions = np.flatnonzero(hard_speed) + 1
+            final_reason[speed_positions] = "hard_speed_guard"
+            audit = pd.concat(
+                [
+                    audit,
+                    pd.DataFrame(
+                        {
+                            "timestamp": timestamp_index[speed_positions],
+                            "reason": "hard_speed_guard",
+                        }
+                    ),
+                ],
+                ignore_index=True,
+            )
 
-    boundary_mask = np.fromiter((reason is not None for reason in final_reason), dtype=bool)
+    boundary_mask = np.fromiter(
+        (reason is not None for reason in final_reason), dtype=bool
+    )
     increments = np.zeros(n_retained, dtype=np.int64)
     if n_retained > 1:
         increments[1:] = boundary_mask[1:].astype(np.int64)
@@ -216,4 +317,49 @@ def clean_trajectory(
         }
     )
     result["boundary_before_reason"] = final_reason
-    return result.loc[:, OUTPUT_COLUMNS]
+
+    audit = audit.loc[:, AUDIT_COLUMNS]
+    if not audit.empty:
+        audit["timestamp"] = pd.to_datetime(audit["timestamp"], utc=True)
+        audit = audit.sort_values(["timestamp", "reason"], kind="stable").reset_index(
+            drop=True
+        )
+    return result.loc[:, OUTPUT_COLUMNS], audit
+
+
+def clean_trajectory(
+    df: pd.DataFrame,
+    *,
+    same_second_radius_m: float = 10.0,
+    max_gap_s: float = 300.0,
+    hard_speed_guard_kmh: float = 1200.0,
+) -> pd.DataFrame:
+    """Clean one ordered trajectory into independent timestamp-level sequences."""
+    cleaned, _ = _clean_trajectory_impl(
+        df,
+        same_second_radius_m=same_second_radius_m,
+        max_gap_s=max_gap_s,
+        hard_speed_guard_kmh=hard_speed_guard_kmh,
+    )
+    return cleaned
+
+
+def clean_trajectory_with_audit(
+    df: pd.DataFrame,
+    *,
+    same_second_radius_m: float = 10.0,
+    max_gap_s: float = 300.0,
+    hard_speed_guard_kmh: float = 1200.0,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return cleaned observations plus a complete boundary/quality event table.
+
+    The audit table contains one row per observed quality/boundary event. Unlike
+    ``boundary_before_reason`` it also preserves events whose timestamp is
+    discarded and has no later retained observation to carry the reason.
+    """
+    return _clean_trajectory_impl(
+        df,
+        same_second_radius_m=same_second_radius_m,
+        max_gap_s=max_gap_s,
+        hard_speed_guard_kmh=hard_speed_guard_kmh,
+    )
