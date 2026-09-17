@@ -58,6 +58,32 @@ def _empty_audit() -> pd.DataFrame:
     return pd.DataFrame(columns=AUDIT_COLUMNS)
 
 
+def _append_audit_events(
+    audit: pd.DataFrame,
+    timestamps: pd.DatetimeIndex,
+    reason: BoundaryReason,
+) -> pd.DataFrame:
+    """Append homogeneous audit events without concatenating an empty frame.
+
+    Avoiding ``pd.concat`` with an empty/all-NA frame keeps dtype behavior
+    stable across pandas releases and prevents the pandas FutureWarning that
+    otherwise floods full sensitivity runs.
+    """
+    if len(timestamps) == 0:
+        return audit
+
+    events = pd.DataFrame(
+        {
+            "timestamp": pd.DatetimeIndex(timestamps).astype("datetime64[ns, UTC]"),
+            "reason": np.full(len(timestamps), reason, dtype=object),
+        },
+        columns=AUDIT_COLUMNS,
+    )
+    if audit.empty:
+        return events.reset_index(drop=True)
+    return pd.concat([audit, events], ignore_index=True)
+
+
 def _timestamp_summary(raw: pd.DataFrame) -> pd.DataFrame:
     lat = raw["latitude"].to_numpy(dtype=float)
     lon = raw["longitude"].to_numpy(dtype=float)
@@ -248,17 +274,10 @@ def _clean_trajectory_impl(
         if np.any(temporal_gap):
             gap_positions = np.flatnonzero(temporal_gap) + 1
             final_reason[gap_positions] = "temporal_gap"
-            audit = pd.concat(
-                [
-                    audit,
-                    pd.DataFrame(
-                        {
-                            "timestamp": timestamp_index[gap_positions],
-                            "reason": "temporal_gap",
-                        }
-                    ),
-                ],
-                ignore_index=True,
+            audit = _append_audit_events(
+                audit,
+                timestamp_index[gap_positions],
+                "temporal_gap",
             )
 
         distances_m = np.asarray(
@@ -285,17 +304,10 @@ def _clean_trajectory_impl(
         if np.any(hard_speed):
             speed_positions = np.flatnonzero(hard_speed) + 1
             final_reason[speed_positions] = "hard_speed_guard"
-            audit = pd.concat(
-                [
-                    audit,
-                    pd.DataFrame(
-                        {
-                            "timestamp": timestamp_index[speed_positions],
-                            "reason": "hard_speed_guard",
-                        }
-                    ),
-                ],
-                ignore_index=True,
+            audit = _append_audit_events(
+                audit,
+                timestamp_index[speed_positions],
+                "hard_speed_guard",
             )
 
     boundary_mask = np.fromiter(
