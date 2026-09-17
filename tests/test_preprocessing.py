@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-from geolife.staypoints.cleaning import clean_trajectory
+from geolife.staypoints.cleaning import (
+    clean_trajectory,
+    clean_trajectory_with_audit,
+)
 
 
 def _df(rows: list[tuple[str, float, float]]) -> pd.DataFrame:
@@ -80,6 +83,23 @@ def test_same_second_spatial_conflict_creates_boundary() -> None:
         out["boundary_before_reason"],
         [None, "same_second_spatial_conflict"],
     )
+
+
+def test_terminal_spatial_conflict_remains_observable_in_audit_events() -> None:
+    raw = _df(
+        [
+            ("2026-01-01T09:59:00Z", 39.0, 116.0),
+            ("2026-01-01T10:00:00Z", 39.0, 116.0),
+            ("2026-01-01T10:00:00Z", 39.02, 116.0),
+        ]
+    )
+
+    cleaned, audit = clean_trajectory_with_audit(raw)
+
+    assert len(cleaned) == 1
+    conflicts = audit.loc[audit["reason"] == "same_second_spatial_conflict"]
+    assert len(conflicts) == 1
+    assert conflicts.iloc[0]["timestamp"] == pd.Timestamp("2026-01-01T10:00:00Z")
 
 
 def test_temporal_gap_above_max_gap_creates_boundary() -> None:
