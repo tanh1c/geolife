@@ -223,3 +223,27 @@ A reproducible notebook that contains only executable code is still a weak long-
 This matters here because several initial assumptions changed through evidence: blanket UTC+8 became an explicit geography/timezone cohort; DBSCAN 200 m was replaced by a complete-link diameter contract; and same-second >10 m was reinterpreted as unresolved spatial ambiguity rather than automatic corruption.
 
 A strong notebook is therefore an executable decision record, not merely a scratchpad with plots.
+
+## 2026-09-18 — Abstention belongs in the model response, not the HTTP error model
+
+The first API-serving contract forced a useful separation between invalid requests and valid uncertainty.
+
+A malformed timestamp, impossible coordinate or reversed interval is a transport/schema problem and should return HTTP 422. A user who is outside the Beijing semantic cohort, has no recurring location, or has weak Home/Office evidence has supplied a perfectly valid request. Those cases should therefore return HTTP 200 with an explicit model abstention reason.
+
+This keeps serving semantics aligned with the conservative CP2 model: uncertainty is a first-class output rather than an operational failure.
+
+The API contract also omits precise inferred Home/Office coordinates even though the internal model computes them. Returning only a request-local `location_id` plus evidence fields gives downstream systems enough traceability for v1 while reducing accidental semantic-location disclosure.
+
+A second lesson is that request-time configuration is part of the model contract. Allowing clients to submit thresholds such as `home_min_share` would silently turn one frozen CP2 model into many per-request variants, so v1 explicitly forbids extra tuning fields.
+
+## 2026-09-18 — Full HTTP replay validates adapter semantics, not only route availability
+
+The CP3 release notebook replayed all 136 users from the private 5,821-stay cache through the FastAPI endpoint and compared the response to direct `infer_home_office()` output.
+
+The aggregate counts matched exactly: 27 HOME and 16 OFFICE labels, 43 emitted rows across 36 users. More importantly, the notebook also checked the exact emitted `(user_id, label)` keys, location ids, relevant dates and numerical evidence fields.
+
+This is stronger than checking only aggregate counts. Two serving layers could both produce 27/16 while disagreeing about which users were labeled.
+
+The replay also produced useful abstention observability. HOME abstained for 39 geography cases, 24 recurring-history cases and 46 semantic-evidence cases; OFFICE had the same first two counts and 57 semantic-evidence abstentions. These are model outcomes, not error rates.
+
+A pandas FutureWarning appeared repeatedly for partial emissions because the model concatenated one non-empty frame with one empty frame. The values were correct, but the warning exposed a future dtype-risk. The production code now concatenates only non-empty frames and has a regression test for that case.

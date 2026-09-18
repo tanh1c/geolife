@@ -2,7 +2,7 @@
 
 A 6-week MLE learning project built around the Microsoft GeoLife GPS trajectory dataset.
 
-Current focus: **Checkpoint 2 — user-level recurring locations, timezone policy, and interpretable Home / Office / POI baseline inference on top of the merged CP1 cleaning + stay-point pipeline**.
+Current focus: **Checkpoint 3 — OpenAPI contract and FastAPI serving for the merged CP2 Home / Office inference baseline**.
 
 ## Workflow
 
@@ -24,9 +24,11 @@ Home / Office / POI heuristic
 OpenAPI contract review
     ↓
 FastAPI implementation
+    ↓
+HTTP ↔ production-model parity
 ```
 
-Production implementation starts only after the relevant design/contract is reviewed. CP1 cleaning/stay-point code is now merged; CP2 Home/Office logic remains notebook/design work until timezone, recurring-location and scoring semantics are reviewed and covered by RED tests. Exploratory code under `notebooks/` is not silently promoted into `src/`.
+Production implementation follows contract-first TDD. CP1 cleaning/stay-point and CP2 Home/Office inference are merged and validated, including full-release production parity. CP3 now adds a thin HTTP/OpenAPI layer without changing frozen CP2 model semantics. Exploratory code under `notebooks/` is not silently promoted into `src/`.
 
 ## Repository structure
 
@@ -77,3 +79,55 @@ python -m pip install -e '.[dev]'
 ```
 
 Python 3.11–3.13 is supported by the project configuration.
+
+
+## CP2 baseline status
+
+The merged CP2 v1 production baseline is intentionally conservative:
+
+- Beijing-focused semantic cohort with explicit abstention;
+- per-user complete-link recurring locations with 200 m maximum diameter;
+- interval-overlap Home / Office evidence;
+- separate Home and Office emission gates;
+- heuristic evidence strength, not a calibrated probability;
+- full-release parity: 27 HOME / 16 OFFICE emissions.
+
+See `docs/design/03_home_office_baseline_contract.md`.
+
+## CP3 API scope
+
+The first API accepts **CP1 stay events for one user per request** and calls the frozen CP2 production model.
+
+It does not accept raw GPS in v1 and does not return precise inferred Home/Office coordinates.
+
+See `docs/design/04_api_contract.md`.
+
+
+## Run the CP3 API
+
+Install the project and start the local server:
+
+```bash
+python -m pip install -e '.[dev]'
+uvicorn geolife.api.app:app --host 127.0.0.1 --port 8000
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Interactive OpenAPI docs are available at `/docs` while the server is running.
+
+The v1 inference endpoint is:
+
+```text
+POST /v1/home-office/infer
+```
+
+It accepts one user's CP1 stay events. Valid but weak/out-of-scope evidence returns HTTP 200 with explicit abstention. Malformed input returns HTTP 422.
+
+Precise inferred Home/Office coordinates are intentionally omitted from the response contract.
+
+Full-release HTTP parity is validated in `notebooks/04_api_contract_validation.ipynb`.

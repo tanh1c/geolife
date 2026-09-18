@@ -580,10 +580,11 @@ def infer_home_office(
         support_saturation_dates=cfg.support_saturation_dates,
     )
 
-    if home.empty and office.empty:
+    emitted_frames = [frame for frame in (home, office) if not frame.empty]
+    if not emitted_frames:
         return _empty_output()
 
-    out = pd.concat([home, office], ignore_index=True)
+    out = pd.concat(emitted_frames, ignore_index=True)
     label_order = pd.Categorical(out["label"], categories=["HOME", "OFFICE"], ordered=True)
     out = (
         out.assign(_label_order=label_order)

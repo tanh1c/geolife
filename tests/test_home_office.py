@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 
 import pandas as pd
 import pytest
@@ -228,3 +229,19 @@ def test_evidence_strength_is_not_reported_as_probability() -> None:
     assert config.office_min_share == 0.30
     assert config.office_min_margin == 0.10
     assert config.support_saturation_dates == 5
+
+
+
+def test_partial_emission_does_not_warn_on_empty_frame_concat() -> None:
+    rows = [
+        ("u", "2026-01-05 21:00", "2026-01-05 22:00", BEIJING_LAT, BEIJING_LON),
+        ("u", "2026-01-06 21:00", "2026-01-06 22:00", BEIJING_LAT, BEIJING_LON),
+        ("u", "2026-01-07 21:00", "2026-01-07 22:00", BEIJING_LAT, BEIJING_LON),
+    ]
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        out = infer_home_office(_stays(rows))
+
+    assert set(out["label"]) == {"HOME"}
+    assert not [w for w in caught if issubclass(w.category, FutureWarning)]

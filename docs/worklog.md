@@ -487,3 +487,89 @@ Stale assumptions were also corrected in the explanatory text:
 - notebook 02 prefix sensitivity is explicitly separated from the final user-stratified sensitivity in notebook 02b.
 
 No production algorithm or frozen parameter changed in this pass.
+
+## 2026-09-18 — CP3 API serving kickoff and implementation
+
+Checkpoint 3 starts from the merged CP2 v1 Home/Office production baseline.
+
+The API contract was written before implementation in `docs/design/04_api_contract.md`.
+
+Frozen v1 serving boundary:
+
+- one user per request;
+- input is CP1 stay events, not raw GPS;
+- the HTTP layer uses frozen CP2 defaults only;
+- valid weak/out-of-scope evidence returns HTTP 200 with explicit abstention;
+- malformed schema/time/coordinates return HTTP 422;
+- precise inferred Home/Office coordinates are omitted from the response;
+- POI semantics remain out of scope until separately defined.
+
+RED API tests were added first and then the implementation was added under:
+
+- `src/geolife/api/schemas.py`;
+- `src/geolife/api/service.py`;
+- `src/geolife/api/app.py`.
+
+The service adapter derives `duration_s` from arrival/departure timestamps instead of accepting a second potentially inconsistent duration field.
+
+Stable abstention reasons:
+
+- `out_of_scope_geography`;
+- `insufficient_recurring_history`;
+- `insufficient_semantic_evidence`.
+
+The FastAPI validation handler strips rejected input values from validation responses so precise stay coordinates are not echoed back by default.
+
+The API tests also lock that clients cannot override frozen CP2 thresholds in v1 and that emitted response/OpenAPI schemas do not expose precise inferred coordinates.
+
+A dedicated release-level notebook, `notebooks/04_api_contract_validation.ipynb`, reuses the private 5,821-stay CP2 cache and is designed to compare all 136 per-user HTTP requests against direct production inference. The remaining CP3 release gate is to run that notebook and verify full-release HTTP ↔ direct-model parity.
+
+## 2026-09-18 — CP3 API CI GREEN
+
+CI #168 passed on the CP3 API implementation head.
+
+Validated:
+
+- **36 tests** passed;
+- Python source compilation passed;
+- notebook JSON validation includes `notebooks/04_api_contract_validation.ipynb`;
+- CP1 production API imports passed;
+- CP2 model API imports passed;
+- CP3 FastAPI imports passed.
+
+The test suite includes privacy assertions that validation responses do not echo rejected coordinate values, OpenAPI emitted-result schema omits precise coordinates, and request-time model-threshold overrides are rejected.
+
+A Starlette/FastAPI test-client deprecation warning is currently emitted by the installed dependency stack, but it does not affect test correctness. This is dependency/tooling noise rather than a model/API contract failure and can be handled separately from the CP3 semantic gate.
+
+The only remaining CP3 release-level gate is the private-data full-release HTTP parity run in notebook 04.
+
+## 2026-09-18 — CP3 full-release HTTP parity passed
+
+Notebook 04 replayed all **136 users** from the private 5,821-stay cache through the FastAPI endpoint, one user per request.
+
+Direct production output:
+
+- HOME 27;
+- OFFICE 16;
+- 43 emitted rows;
+- 36 unique emitted users.
+
+HTTP output matched exactly:
+
+- HOME 27;
+- OFFICE 16;
+- 43 emitted rows;
+- 36 unique emitted users.
+
+The notebook also passed exact emitted-key parity, location-id parity, evidence-field parity, and validation/privacy smoke checks.
+
+Observed abstention counts:
+
+- HOME: geography 39, recurring-history 24, semantic-evidence 46;
+- OFFICE: geography 39, recurring-history 24, semantic-evidence 57.
+
+These counts are valid model outcomes, not failures.
+
+The replay also surfaced repeated pandas `FutureWarning` messages for partial-emission users because the model concatenated an emitted frame with an empty frame. Production output was unchanged, but the implementation was cleaned up to concatenate only non-empty frames. A regression test now locks that partial emission does not produce this FutureWarning.
+
+With that warning fix and final CI, CP3 has no remaining semantic/release-level parity gate.
