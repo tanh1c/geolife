@@ -365,3 +365,31 @@ The notebook now proceeds to a first Home/Office scoring audit:
 - no share/margin emission threshold or confidence formula is frozen yet.
 
 Detailed plan: `docs/eda/18_cp2_home_office_scoring_audit.md`.
+
+## 2026-09-18 — First Home/Office evidence measured; emission sensitivity added
+
+The first interval-overlap scoring run on the frozen 97-user Beijing semantic cohort produced:
+
+- 73 users with recurring semantic locations;
+- 47 users with a supported Home candidate;
+- 40 users with a supported Office candidate;
+- 27 users with both;
+- 7/27 both-candidate users with the same leading location for Home and Office.
+
+Home evidence was stronger than Office evidence:
+
+- Home median relevant-dwell share / top-two margin: 0.635 / 0.513;
+- Office median relevant-dwell share / top-two margin: 0.357 / 0.243.
+
+The low tail also shows that ranking alone is insufficient: the weakest supported candidates can have shares around 0.09 and near-zero margins under the current two-date support rule.
+
+Therefore no emission threshold is frozen yet. The notebook now runs separate Home and Office sensitivity grids over:
+
+- nearby behavioral-time windows;
+- minimum relevant dates;
+- minimum relevant-dwell share;
+- minimum top-two share margin.
+
+The sensitivity also reports whether the top location remains stable when time windows shift.
+
+Detailed plan: `docs/eda/19_cp2_home_office_sensitivity.md`.
