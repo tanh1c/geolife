@@ -164,3 +164,11 @@ That is not a DBSCAN bug; density connectivity can chain many local links into a
 For Home/Office inference, I want the spatial threshold to have a direct semantic meaning: a recurring location should not contain points whose pairwise separation exceeds the threshold. Complete-linkage clustering provides that property more directly because each merge is governed by the maximum pairwise distance between groups.
 
 The next audit therefore compares complete linkage at 100/200/300 m and verifies the resulting cluster diameter explicitly before freezing the recurring-location contract.
+
+## 2026-09-18 — Behavioral-time features should use interval overlap, not arrival-hour labels
+
+The first Home/Office scoring audit uses the full stay interval when measuring behavioral evidence. A stay from 20:50 to 21:30 should contribute only 21:00–21:30 to the night window. Labeling the whole stay from its arrival hour would create a boundary artifact.
+
+The same principle matters for office evidence and for stays crossing midnight. Behavioral-time features are interval-overlap problems, not point-in-time classification problems.
+
+I also avoid turning the first score into a probability. Without Home/Office ground truth, relevant-dwell share, support dates, and top-1 versus top-2 margin are interpretable evidence components, but they are not calibrated confidence probabilities. The next step is to inspect their distributions and define abstention rules before productionizing the heuristic.
