@@ -1,7 +1,7 @@
 # CP2 Home / Office / POI baseline contract
 
 Date: 2026-09-18  
-Status: DRAFT — full-release stay materialization and CP2 v1 timezone/geography policy are resolved; recurring-location representation remains under review. No Home/Office scoring heuristic is frozen yet.
+Status: DRAFT — stay materialization, CP2 v1 timezone/geography policy, and recurring-location representation are resolved. Home/Office scoring semantics remain under review.
 
 ## Goal
 
@@ -91,16 +91,15 @@ The first notebook compares two representations:
 1. individual stay representatives;
 2. user-scoped spatial clustering of stay representatives.
 
-A candidate spatial clustering baseline may use Haversine DBSCAN with an interpretable radius near the already reviewed 200 m recurrence scale, but the clustering configuration is **not frozen by this document**.
+The frozen CP2 v1 recurring-location representation uses **per-user complete-linkage clustering with a 200 m maximum cluster-diameter threshold**.
 
-Any clustering review should inspect:
+Measured sensitivity on the frozen Beijing semantic cohort:
 
-- number of locations per user;
-- stays per location;
-- active dates per location;
-- within-cluster spatial spread/diameter;
-- sensitivity to the clustering radius;
-- chaining/pathological clusters.
+- 100 m: 1,320 locations, 499 recurring locations, 67 users with recurrence;
+- 200 m: 1,111 locations, 486 recurring locations, 73 users with recurrence;
+- 300 m: 1,007 locations, 473 recurring locations, 73 users with recurrence.
+
+The 200 m candidate verified a maximum cluster diameter of 199.23 m. Complete linkage replaces the earlier DBSCAN prototype because DBSCAN chaining produced clusters much wider than its 200 m neighbor epsilon.
 
 The semantic label must be assigned to a recurring location, not to a raw GPS point.
 
