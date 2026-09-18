@@ -208,3 +208,20 @@ Production API `infer_home_office()` được chạy trên đúng cache 5,821 st
 Parity check này khác unit tests: tests bảo vệ local semantics và edge cases, còn parity xác nhận assembled production path reproduce đúng quyết định notebook trên materialized dataset thật.
 
 Khi cả hai cùng pass, handoff từ exploratory evidence sang production code của CP2 v1 mới thật sự kín.
+
+## 2026-09-18 — Notebook nên lưu reasoning contract, không chỉ lưu code và output
+
+Sau khi production parity đã pass, mình quay lại 02 / 02b / 02c / 03 để bổ sung narrative theo style mentor audit.
+
+Một notebook reproducible nhưng chỉ có code vẫn chưa đủ cho handoff dài hạn. Người đọc cần biết:
+
+- câu hỏi nào cell đang trả lời;
+- vì sao metric đó tồn tại;
+- output phải đọc theo denominator nào;
+- conclusion nào được support;
+- conclusion nào không được support;
+- decision nào đã bị supersede bởi audit sau.
+
+Điều này đặc biệt quan trọng với project này vì một số assumption ban đầu đã được sửa bằng evidence: blanket UTC+8 bị thay bằng geography/timezone cohort; DBSCAN 200 m bị thay bằng complete-link diameter contract; >10 m same-second không còn bị gọi là corruption.
+
+Bài học: notebook tốt nên đóng vai trò decision record có thể chạy lại, không chỉ là scratchpad có biểu đồ.
