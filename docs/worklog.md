@@ -487,3 +487,39 @@ Stale assumptions were also corrected in the explanatory text:
 - notebook 02 prefix sensitivity is explicitly separated from the final user-stratified sensitivity in notebook 02b.
 
 No production algorithm or frozen parameter changed in this pass.
+
+## 2026-09-18 — CP3 API serving kickoff and implementation
+
+Checkpoint 3 starts from the merged CP2 v1 Home/Office production baseline.
+
+The API contract was written before implementation in `docs/design/04_api_contract.md`.
+
+Frozen v1 serving boundary:
+
+- one user per request;
+- input is CP1 stay events, not raw GPS;
+- the HTTP layer uses frozen CP2 defaults only;
+- valid weak/out-of-scope evidence returns HTTP 200 with explicit abstention;
+- malformed schema/time/coordinates return HTTP 422;
+- precise inferred Home/Office coordinates are omitted from the response;
+- POI semantics remain out of scope until separately defined.
+
+RED API tests were added first and then the implementation was added under:
+
+- `src/geolife/api/schemas.py`;
+- `src/geolife/api/service.py`;
+- `src/geolife/api/app.py`.
+
+The service adapter derives `duration_s` from arrival/departure timestamps instead of accepting a second potentially inconsistent duration field.
+
+Stable abstention reasons:
+
+- `out_of_scope_geography`;
+- `insufficient_recurring_history`;
+- `insufficient_semantic_evidence`.
+
+The FastAPI validation handler strips rejected input values from validation responses so precise stay coordinates are not echoed back by default.
+
+The API tests also lock that clients cannot override frozen CP2 thresholds in v1 and that emitted response/OpenAPI schemas do not expose precise inferred coordinates.
+
+A dedicated release-level notebook, `notebooks/04_api_contract_validation.ipynb`, reuses the private 5,821-stay CP2 cache and is designed to compare all 136 per-user HTTP requests against direct production inference. The remaining CP3 release gate is to run that notebook and verify full-release HTTP ↔ direct-model parity.
