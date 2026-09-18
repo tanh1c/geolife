@@ -331,3 +331,15 @@ Candidate v1 approach:
 This policy is not frozen yet. The next notebook run should review threshold sensitivity and cohort coverage before Home/Office scoring is implemented.
 
 Detailed plan: `docs/eda/16_cp2_timezone_geography_audit.md`.
+
+## 2026-09-18 — CP2 recurring-location audit moved from DBSCAN to complete linkage
+
+The first 200 m DBSCAN experiment produced useful recurrence structure but exposed chaining: a cluster member could be ~526.7 m from the median representative even though epsilon was 200 m.
+
+The next CP2 gate now compares per-user complete-linkage clustering at 100 / 200 / 300 m on the frozen Beijing semantic cohort.
+
+Complete linkage is preferred for this audit because the threshold has a direct compactness interpretation: the final cluster diameter should not exceed the threshold.
+
+The 200 m value remains a candidate engineering choice until sensitivity and exact diameter outputs are reviewed. Home/Office scoring stays blocked until this gate is resolved.
+
+Detailed plan: `docs/eda/17_cp2_recurring_location_audit.md`.
