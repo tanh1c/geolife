@@ -443,3 +443,20 @@ CI #138 then passed all **20 tests**, notebook JSON validation, CP1 imports, and
 Production APIs now live under `src/geolife/model/home_office.py`.
 
 One release-level gate remains: run the notebook production parity cell on the cached 5,821 stays and verify the production defaults emit 27 HOME and 16 OFFICE labels.
+
+## 2026-09-18 — CP2 full-release production parity passed
+
+The final CP2 release-level gate was run on the cached 5,821-stay full-release table using the production `infer_home_office()` default config.
+
+Observed:
+
+- HOME: 27;
+- OFFICE: 16;
+- total emitted rows: 43;
+- unique users with at least one emitted label: 36.
+
+The expected 27/16 emission counts exactly match the frozen notebook sensitivity decision.
+
+Production parity check: PASS.
+
+Together with the GREEN CI test suite, this closes the CP2 v1 implementation gate. PR #4 is ready for normal review/merge consideration.
