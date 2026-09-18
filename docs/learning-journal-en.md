@@ -198,3 +198,11 @@ The notebook's full-release data had enough mixed Home/Office evidence that this
 The fix was not to special-case the test. The production feature builder now coerces dwell columns to numeric and uses `np.divide(..., where=denominator > 0)`, making zero-evidence users a first-class abstention case.
 
 This is exactly why the notebook-to-production transition needs acceptance tests even when the exploratory output looks correct.
+
+## 2026-09-18 — Full-release parity is the final notebook-to-production contract check
+
+The production `infer_home_office()` API was run against the same cached 5,821 stays used by the CP2 notebook. It reproduced the frozen emission counts exactly: 27 HOME and 16 OFFICE labels, totaling 43 rows across 36 users.
+
+This final parity check is different from unit tests: tests protect local semantics and edge cases, while parity verifies that the assembled production path reproduces the full-release notebook decision on the actual materialized dataset.
+
+With both checks passing, CP2 v1 has a much stronger handoff from exploratory evidence to production code.
