@@ -188,3 +188,13 @@ The bounded scoring sensitivity made the stopping rule concrete. The baseline Ho
 Without Home/Office ground truth, I cannot pick a threshold by maximizing accuracy. Instead CP2 v1 freezes the middle support/share/margin settings: Home uses 3 dates / 0.50 share / 0.20 margin, while Office uses 3 dates / 0.30 share / 0.10 margin. These emit 27 and 16 users respectively from the 97-user semantic cohort.
 
 The confidence output is also intentionally framed as evidence strength rather than probability. It averages dwell share, top-two margin, and a date-support factor capped at five dates, while exposing all raw components next to the aggregate.
+
+## 2026-09-18 — RED tests caught a zero-evidence dtype bug that notebook data did not
+
+The first production Home/Office implementation passed compilation but failed RED tests when one semantic evidence family had no overlap at all. After merging an empty feature table, pandas kept an object-typed zero column; the eager division inside `np.where` then raised `ZeroDivisionError`.
+
+The notebook's full-release data had enough mixed Home/Office evidence that this edge case did not appear naturally.
+
+The fix was not to special-case the test. The production feature builder now coerces dwell columns to numeric and uses `np.divide(..., where=denominator > 0)`, making zero-evidence users a first-class abstention case.
+
+This is exactly why the notebook-to-production transition needs acceptance tests even when the exploratory output looks correct.
