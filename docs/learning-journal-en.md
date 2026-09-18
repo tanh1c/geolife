@@ -109,3 +109,23 @@ The corrected V3 strict-containment join matched 4,807,087 of 11,878,198 valid l
 The lesson is broader than this dataset: interval boundary semantics are part of the data contract. A small definition error can substantially distort event/window counts even when duration-weighted conclusions stay stable. I should specify `[start, end)` or another convention explicitly before joining temporal labels.
 
 This audit also demonstrates a useful stopping rule for EDA. The correction was bounded, reproduced independently, and did not change the design decision. EDA is therefore closed for CP1. The next step is contract review and RED tests before production preprocessing/stay-point code.
+
+## 2026-09-18 — A threshold can mean “safe to transform” without meaning “valid versus corrupt”
+
+The mentor same-second question exposed an important modeling distinction. The 10 m rule was originally easy to describe as a conflict/corruption threshold, but the transportation audit showed that this interpretation was too strong.
+
+Train and many subway cases above 10 m were compatible with movement at the scale already observed in the audited transportation-speed benchmark, while most walk/bike cases were not. The same >10 m population therefore mixes several possible causes.
+
+The robust conclusion is narrower: 10 m is the radius below which a same-second group is compact enough to collapse safely. Above 10 m, within-second ordering is unidentifiable, so the conservative action is still to break continuity, but the diagnostic should describe spatial ambiguity rather than claim corruption.
+
+This is a general data-engineering lesson: a threshold can define when a transformation is safe without classifying the underlying data as good or bad.
+
+## 2026-09-18 — CP2 starts with abstention and timezone semantics, not with a Home/Office formula
+
+The next tempting shortcut would be to take stays, add eight hours, and call nighttime locations Home and weekday daytime locations Office. The earlier EDA already showed why that is unsafe: GeoLife contains trajectories outside Beijing, while the timestamps are UTC/GMT.
+
+The CP2 scaffold therefore puts a timezone/geography gate before semantic scoring. It also treats insufficient user history as a valid abstention case instead of forcing a Home or Office label.
+
+Another lesson is that Home/Office is a user-level recurring-location problem, not a trajectory-file problem. The first CP2 notebook materializes the frozen 5,821 stays, audits history sufficiency, then explores per-user spatial clustering before defining semantic scores.
+
+Because Home and Office are sensitive inferred locations, privacy now becomes part of the artifact contract: precise user-level inferred coordinates should remain in private caches, while the repository keeps aggregate diagnostics and decision records.
