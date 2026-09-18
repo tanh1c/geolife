@@ -1,7 +1,7 @@
 # CP2 Home / Office / POI baseline contract
 
 Date: 2026-09-18  
-Status: IMPLEMENTED — CP2 v1 contract is covered by tests and production code; final full-release production-parity smoke check remains before PR readiness.
+Status: VALIDATED — CP2 v1 contract is covered by tests, production code, CI, and a full-release production-parity smoke check.
 
 ## Goal
 
@@ -259,6 +259,21 @@ Production logic now lives in `src/geolife/model/home_office.py` and exports:
 The production path is covered by acceptance tests for geography/travel exclusion, complete-link compactness, interval-overlap semantics, separate Home/Office gates, same-location Home/Office behavior, abstention, and heuristic evidence strength.
 
 The remaining release-level gate is a parity run over the cached 5,821 stays, expected to reproduce 27 HOME and 16 OFFICE emissions under the frozen default config.
+
+## Full-release production parity
+
+The production API was run against the cached full-release table of 5,821 CP1 stays.
+
+Observed default-config output:
+
+- HOME labels: `27`;
+- OFFICE labels: `16`;
+- total emitted rows: `43`;
+- unique users with at least one emitted label: `36`.
+
+This exactly matches the notebook sensitivity decision for HOME/OFFICE emission counts.
+
+The production parity smoke check therefore closes the final release-level gate for CP2 v1.
 
 ## Initial review gates
 
