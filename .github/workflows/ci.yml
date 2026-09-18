@@ -27,6 +27,7 @@ jobs:
               'notebooks/01_geolife_eda.ipynb',
               'notebooks/02_cleaning_staypoint_validation.ipynb',
               'notebooks/02b_staypoint_sensitivity_validation.ipynb',
+              'notebooks/02c_same_second_transport_audit.ipynb',
           ]:
               json.load(open(path, encoding='utf-8'))
               print(path, 'json ok')
