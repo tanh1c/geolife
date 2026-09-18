@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 
 import pandas as pd
 import pytest
@@ -238,7 +239,8 @@ def test_partial_emission_does_not_warn_on_empty_frame_concat() -> None:
         ("u", "2026-01-07 21:00", "2026-01-07 22:00", BEIJING_LAT, BEIJING_LON),
     ]
 
-    with pytest.warns(None) as caught:
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         out = infer_home_office(_stays(rows))
 
     assert set(out["label"]) == {"HOME"}
