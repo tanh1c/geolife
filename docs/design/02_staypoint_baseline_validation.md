@@ -1,7 +1,7 @@
 # CP1 stay-point baseline validation
 
-Date: 2026-09-17
-Status: COMPLETE — CP1 engineering baseline frozen after full-release audit and user-stratified sensitivity.
+Date: 2026-09-18
+Status: COMPLETE — CP1 engineering baseline frozen after full-release audit, user-stratified sensitivity, and same-second transportation audit.
 
 ## Decision
 
@@ -28,6 +28,43 @@ Observed baseline totals:
 - quality-event counting is separated from retained-row `boundary_before_reason` diagnostics through `clean_trajectory_with_audit()`.
 
 The largest hard-speed outlier trajectory contained `593` hard-speed boundaries. The corruption was strongly concentrated rather than broadly distributed, which supports the conservative rule of breaking continuity at extreme segments without applying ordinary transport-speed deletion thresholds globally.
+
+## Same-second transportation audit
+
+A mentor review questioned whether the 10 m same-second rule was being interpreted too strongly. GeoLife exposes only whole-second timestamps, so two observations recorded in the same second can have unknown within-second order. Fast transportation can therefore create non-trivial spatial spread without proving corruption.
+
+The dedicated audit in `notebooks/02c_same_second_transport_audit.ipynb` evaluated all `835` same-second groups with `max_radius_m > 10 m`.
+
+Label accounting:
+
+- unambiguous transportation mode: `403` groups;
+- labeled user but timestamp outside label intervals: `349`;
+- unlabeled user: `83`;
+- no unambiguous airplane cases occurred in this subset.
+
+Observed mode evidence:
+
+| mode | groups | median diameter (m) | within one-second reference |
+| --- | ---: | ---: | ---: |
+| train | 3 | 30.08 | 3/3 (100%) |
+| subway | 25 | 19.07 | 20/25 (80%) |
+| taxi | 10 | 17.78 | 7/10 (70%) |
+| bus | 19 | 22.95 | 10/19 (52.6%) |
+| car | 7 | 35.82 | 3/7 (42.9%) |
+| bike | 145 | 22.51 | 2/145 (1.4%) |
+| walk | 194 | 19.89 | 4/194 (2.1%) |
+
+Across all 835 groups, `747` (89.46%) had diameter <=333.3 m, while `68` had diameter >1 km. The broad 333.3 m figure is only a diagnostic envelope derived from 1200 km/h in one second; it is **not** a proposed consolidation threshold.
+
+The audit conclusion is semantic rather than behavioral:
+
+- `10 m` is a **safe-to-collapse threshold**;
+- a group above 10 m is not automatically corrupt;
+- because within-second order is not identifiable, groups above 10 m remain unsafe to collapse and continue to create continuity boundaries;
+- the diagnostic reason is renamed to `same_second_spatial_ambiguity`;
+- transportation mode remains audit evidence only and is not a runtime cleaning dependency.
+
+Because the retained/boundary behavior is unchanged, the full-release baseline and stay-point sensitivity results do not need to be rerun.
 
 ## Sensitivity design
 
