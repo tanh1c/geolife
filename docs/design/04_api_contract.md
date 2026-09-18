@@ -1,7 +1,7 @@
 # CP3 API contract — Home / Office inference
 
 Date: 2026-09-18  
-Status: DRAFT FOR TDD — contract first, RED tests before FastAPI implementation.
+Status: IMPLEMENTED — contract, FastAPI layer, RED/acceptance tests, and CI are in place; full-release HTTP parity notebook remains the release-level gate.
 
 ## Goal
 
@@ -234,3 +234,42 @@ Before implementation, RED tests should lock:
 11. HTTP/direct-model parity on a deterministic fixture.
 
 Only then implement `src/geolife/api/`.
+
+
+## Implementation status
+
+Implemented production files:
+
+- `src/geolife/api/schemas.py`;
+- `src/geolife/api/service.py`;
+- `src/geolife/api/app.py`;
+- `src/geolife/api/__init__.py`.
+
+The API package exposes:
+
+- `GET /health`;
+- `POST /v1/home-office/infer`;
+- OpenAPI at `/openapi.json`;
+- interactive docs at `/docs`.
+
+Acceptance tests cover:
+
+- health schema;
+- partial Home/Office emission;
+- explicit geography abstention;
+- explicit recurring-history abstention;
+- same-location Home/Office preservation;
+- timezone-naive rejection;
+- invalid interval/coordinate rejection;
+- empty request rejection;
+- OpenAPI route presence;
+- direct-model ↔ HTTP parity on a deterministic fixture;
+- omission of precise inferred coordinates;
+- validation-error input scrubbing;
+- rejection of request-time threshold overrides.
+
+The release-level validation notebook is:
+
+`notebooks/04_api_contract_validation.ipynb`
+
+It reuses the private 5,821-stay CP2 cache and replays all 136 users through the API one user at a time. The final gate is exact emitted-key/evidence parity with direct production inference and aggregate counts of 27 HOME / 16 OFFICE.
