@@ -1,7 +1,7 @@
 # CP2 Home / Office scoring sensitivity
 
 Date: 2026-09-18  
-Status: OPEN — bounded sensitivity implemented; measured output pending review.
+Status: COMPLETE — CP2 v1 behavioral windows and separate Home/Office emission gates frozen as engineering baselines.
 
 ## Motivation
 
@@ -91,3 +91,72 @@ Candidate ingredients:
 The exact combination should be frozen only after sensitivity review.
 
 Notebook: `notebooks/03_home_office_baseline.ipynb`.
+
+
+## Measured behavioral-window stability
+
+Home:
+
+| window | supported users | shared with 21–06 baseline | same top location |
+| --- | ---: | ---: | ---: |
+| 20–06 | 51 | 47 | 93.6% |
+| 21–06 | 47 | 47 | 100% |
+| 22–06 | 42 | 42 | 90.5% |
+
+Office:
+
+| window | supported users | shared with 09–17 baseline | same top location |
+| --- | ---: | ---: | ---: |
+| 08–17 | 44 | 40 | 95.0% |
+| 09–17 | 40 | 40 | 100% |
+| 09–18 | 40 | 40 | 92.5% |
+
+The baseline windows remain reasonably stable under the bounded neighboring choices, so CP2 v1 keeps the original interpretable windows rather than expanding or narrowing them.
+
+## Measured emission sensitivity and decision
+
+The grid shows monotonic coverage reduction as support/share/margin requirements tighten.
+
+CP2 v1 freezes the **middle sensitivity setting** for each semantic label:
+
+### Home
+
+- local window: 21:00–06:00;
+- minimum relevant dates: 3;
+- minimum night-dwell share: 0.50;
+- minimum top-two share margin: 0.20.
+
+Measured emission: **27 / 97 semantic-cohort users** (27.84%), or 27 / 73 users with recurring locations (36.99%).
+
+### Office
+
+- local weekday window: 09:00–17:00;
+- minimum relevant dates: 3;
+- minimum office-dwell share: 0.30;
+- minimum top-two share margin: 0.10.
+
+Measured emission: **16 / 97 semantic-cohort users** (16.49%), or 16 / 73 users with recurring locations (21.92%).
+
+The thresholds are deliberately different because the measured Office evidence distribution is weaker and more diffuse than Home. They are engineering abstention gates, not supervised-optimal cutoffs.
+
+## Heuristic evidence strength
+
+For an emitted label, expose a non-probabilistic evidence-strength score:
+
+```text
+support_factor = min(relevant_dates / 5, 1)
+evidence_strength = (relevant_dwell_share + top_two_share_margin + support_factor) / 3
+```
+
+Properties:
+
+- bounded to [0, 1];
+- monotonic in each included evidence component;
+- support saturates at 5 relevant dates, matching the strongest support point reviewed in sensitivity;
+- not calibrated to semantic correctness probability.
+
+The raw components must remain available alongside the aggregate score.
+
+## CP2 v1 scoring decision
+
+The scoring gate is resolved. The next step is RED acceptance tests followed by production implementation under `src/geolife/model/`.
