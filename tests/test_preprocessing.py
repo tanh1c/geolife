@@ -67,7 +67,7 @@ def test_compact_same_second_observations_collapse_to_median_representative() ->
     assert row["sequence_id"] == 0
 
 
-def test_same_second_spatial_conflict_creates_boundary() -> None:
+def test_same_second_spatial_ambiguity_creates_boundary() -> None:
     raw = _df(
         [
             ("2026-01-01T09:59:00Z", 39.0, 116.0),
@@ -83,11 +83,11 @@ def test_same_second_spatial_conflict_creates_boundary() -> None:
     assert out["sequence_id"].tolist() == [0, 1]
     _assert_boundary_reasons(
         out["boundary_before_reason"],
-        [None, "same_second_spatial_conflict"],
+        [None, "same_second_spatial_ambiguity"],
     )
 
 
-def test_terminal_spatial_conflict_remains_observable_in_audit_events() -> None:
+def test_terminal_same_second_spatial_ambiguity_remains_observable_in_audit_events() -> None:
     raw = _df(
         [
             ("2026-01-01T09:59:00Z", 39.0, 116.0),
@@ -99,9 +99,9 @@ def test_terminal_spatial_conflict_remains_observable_in_audit_events() -> None:
     cleaned, audit = clean_trajectory_with_audit(raw)
 
     assert len(cleaned) == 1
-    conflicts = audit.loc[audit["reason"] == "same_second_spatial_conflict"]
-    assert len(conflicts) == 1
-    assert conflicts.iloc[0]["timestamp"] == pd.Timestamp("2026-01-01T10:00:00Z")
+    ambiguities = audit.loc[audit["reason"] == "same_second_spatial_ambiguity"]
+    assert len(ambiguities) == 1
+    assert ambiguities.iloc[0]["timestamp"] == pd.Timestamp("2026-01-01T10:00:00Z")
 
 
 def test_temporal_gap_above_max_gap_creates_boundary() -> None:
