@@ -10,7 +10,7 @@ from geolife.geo.distance import haversine_m
 
 BoundaryReason = Literal[
     "invalid_coordinate",
-    "same_second_spatial_conflict",
+    "same_second_spatial_ambiguity",
     "temporal_gap",
     "hard_speed_guard",
 ]
@@ -148,10 +148,10 @@ def _explicit_audit_events(
     max_radius_arr = summary["max_radius_m"].to_numpy(dtype=float)
 
     invalid_present = all_count_arr > valid_count_arr
-    spatial_conflict = (valid_count_arr > 0) & (
+    spatial_ambiguity = (valid_count_arr > 0) & (
         max_radius_arr > same_second_radius_m
     )
-    retained = (valid_count_arr > 0) & ~spatial_conflict
+    retained = (valid_count_arr > 0) & ~spatial_ambiguity
 
     audit_frames: list[pd.DataFrame] = []
     timestamp_index = pd.DatetimeIndex(summary.index)
@@ -165,12 +165,12 @@ def _explicit_audit_events(
                 }
             )
         )
-    if np.any(spatial_conflict):
+    if np.any(spatial_ambiguity):
         audit_frames.append(
             pd.DataFrame(
                 {
-                    "timestamp": timestamp_index[spatial_conflict],
-                    "reason": "same_second_spatial_conflict",
+                    "timestamp": timestamp_index[spatial_ambiguity],
+                    "reason": "same_second_spatial_ambiguity",
                 }
             )
         )
@@ -180,7 +180,7 @@ def _explicit_audit_events(
         if audit_frames
         else _empty_audit()
     )
-    return invalid_present, spatial_conflict, retained, audit
+    return invalid_present, spatial_ambiguity, retained, audit
 
 
 def _clean_trajectory_impl(
@@ -204,7 +204,7 @@ def _clean_trajectory_impl(
     summary = _timestamp_summary(raw)
     (
         invalid_present,
-        spatial_conflict,
+        spatial_ambiguity,
         retained,
         audit,
     ) = _explicit_audit_events(
@@ -219,7 +219,7 @@ def _clean_trajectory_impl(
     # the complete event stream, including discarded terminal timestamps.
     reason_at_timestamp = np.full(len(summary), None, dtype=object)
     reason_at_timestamp[invalid_present] = "invalid_coordinate"
-    reason_at_timestamp[spatial_conflict] = "same_second_spatial_conflict"
+    reason_at_timestamp[spatial_ambiguity] = "same_second_spatial_ambiguity"
 
     retained_positions = np.flatnonzero(retained)
     if retained_positions.size == 0:
