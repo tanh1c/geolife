@@ -154,3 +154,13 @@ The safer v1 design is two-stage:
 Out-of-region travel stays are excluded rather than silently converted.
 
 This is a useful general lesson for spatiotemporal systems: metadata such as timezone may need observation-level scope even when eligibility is decided at the user level.
+
+## 2026-09-18 — Recurring-location clustering needs a diameter contract, not only a neighbor radius
+
+The first DBSCAN representation exposed a useful mismatch between parameter intuition and actual geometry. With epsilon 200 m, one cluster still had a member about 527 m from its median representative.
+
+That is not a DBSCAN bug; density connectivity can chain many local links into a much wider component.
+
+For Home/Office inference, I want the spatial threshold to have a direct semantic meaning: a recurring location should not contain points whose pairwise separation exceeds the threshold. Complete-linkage clustering provides that property more directly because each merge is governed by the maximum pairwise distance between groups.
+
+The next audit therefore compares complete linkage at 100/200/300 m and verifies the resulting cluster diameter explicitly before freezing the recurring-location contract.
