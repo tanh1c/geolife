@@ -156,3 +156,13 @@ Thiết kế v1 an toàn hơn là hai tầng:
 Travel stays ngoài region bị exclude thay vì bị silently convert.
 
 Bài học tổng quát cho spatiotemporal systems: metadata như timezone có thể cần scope ở cấp observation dù eligibility được quyết định ở cấp user.
+
+## 2026-09-18 — Recurring-location clustering cần diameter contract, không chỉ neighbor radius
+
+DBSCAN experiment đầu tiên cho thấy một mismatch quan trọng giữa trực giác về parameter và geometry thật. Dù epsilon là 200 m, một cluster vẫn có member cách median representative khoảng 527 m.
+
+Đây không phải bug của DBSCAN; density connectivity có thể chain nhiều local links thành một component rộng hơn nhiều.
+
+Với Home/Office inference, mình muốn spatial threshold có semantic trực tiếp: một recurring location không nên chứa các point có pairwise separation vượt threshold. Complete-linkage clustering phù hợp hơn vì mỗi merge được quyết định bởi maximum pairwise distance giữa hai nhóm.
+
+Audit tiếp theo vì vậy so sánh complete linkage ở 100/200/300 m và verify exact cluster diameter trước khi freeze recurring-location contract.
