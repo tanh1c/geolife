@@ -343,3 +343,25 @@ Complete linkage is preferred for this audit because the threshold has a direct 
 The 200 m value remains a candidate engineering choice until sensitivity and exact diameter outputs are reviewed. Home/Office scoring stays blocked until this gate is resolved.
 
 Detailed plan: `docs/eda/17_cp2_recurring_location_audit.md`.
+
+## 2026-09-18 — CP2 recurring-location gate resolved; Home/Office scoring audit started
+
+Complete-link sensitivity on the frozen Beijing semantic cohort produced:
+
+- 100 m: 1,320 locations, 499 recurring, 67 users with recurrence;
+- 200 m: 1,111 locations, 486 recurring, 73 users with recurrence;
+- 300 m: 1,007 locations, 473 recurring, 73 users with recurrence.
+
+The 200 m configuration verified a maximum cluster diameter of 199.23 m. It is now frozen as the CP2 v1 recurring-location engineering baseline because it avoids DBSCAN chaining, preserves the same recurring-user coverage as 300 m, and remains a middle sensitivity choice.
+
+The notebook now proceeds to a first Home/Office scoring audit:
+
+- Home candidate window: 21:00–06:00 local;
+- Office candidate window: weekdays 09:00–17:00 local;
+- stays contribute by exact interval overlap, not arrival hour;
+- candidates require recurrence plus at least two relevant dates;
+- ranking uses relevant-dwell share with date/dwell support and top-1 vs top-2 margin;
+- Home and Office may resolve to the same location and that ambiguity is surfaced explicitly;
+- no share/margin emission threshold or confidence formula is frozen yet.
+
+Detailed plan: `docs/eda/18_cp2_home_office_scoring_audit.md`.
