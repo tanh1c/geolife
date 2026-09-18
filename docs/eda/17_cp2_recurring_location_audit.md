@@ -1,7 +1,7 @@
 # CP2 recurring-location representation audit
 
 Date: 2026-09-18  
-Status: OPEN — complete-link sensitivity added to notebook; measured results pending review.
+Status: COMPLETE — CP2 v1 recurring-location representation frozen at 200 m complete linkage after measured sensitivity review.
 
 ## Why this audit exists
 
@@ -46,8 +46,32 @@ Freeze 200 m complete linkage only if:
 - exact cluster diameters satisfy the intended bound;
 - user-level recurring-location coverage remains adequate for Home/Office inference.
 
+## Measured sensitivity
+
+| threshold | locations | recurring locations | users with recurring location | median locations/user | p95 diameter m | max diameter m |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 m | 1,320 | 499 | 67 | 9 | 83.26 | 99.95 |
+| 200 m | 1,111 | 486 | 73 | 7 | 159.69 | 199.23 |
+| 300 m | 1,007 | 473 | 73 | 6 | 247.46 | 297.42 |
+
+The 200 m setting is a middle sensitivity point. Moving from 100 to 200 m increases recurring-location user coverage from 67 to 73; moving from 200 to 300 m does not add users with recurring locations, while continuing to merge locations.
+
+The exact diameter assertion passed for the 200 m candidate: maximum observed cluster diameter was 199.23 m.
+
+## CP2 v1 decision
+
+Freeze per-user complete-linkage clustering at **200 m maximum cluster diameter** as the recurring-location engineering baseline.
+
+This is not claimed to be an accuracy-optimal spatial threshold. It is selected because:
+
+- it has a direct compactness contract;
+- it avoids DBSCAN chaining;
+- it preserves recurring-location user coverage relative to 300 m;
+- it sits between the 100 and 300 m sensitivity settings;
+- it aligns with the already reviewed 200 m CP1 stay/recurrence scale without assuming those semantics are identical.
+
 ## Downstream consequence
 
-Home/Office scoring remains blocked until this representation is reviewed.
+The recurring-location gate is resolved. CP2 can proceed to Home/Office scoring audit, with scoring semantics still considered exploratory until reviewed.
 
 Notebook: `notebooks/03_home_office_baseline.ipynb`.
