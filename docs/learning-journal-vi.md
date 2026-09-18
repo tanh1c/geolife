@@ -131,3 +131,15 @@ Vì vậy scaffold CP2 đặt timezone/geography gate trước semantic scoring.
 Một bài học khác là Home/Office là bài toán recurring location ở cấp user, không phải bài toán theo từng trajectory file. Notebook CP2 đầu tiên materialize 5,821 stays đã freeze, audit history sufficiency, rồi mới thử spatial clustering theo user trước khi định nghĩa score.
 
 Home và Office cũng là inferred locations rất nhạy cảm. Vì vậy privacy trở thành một phần của artifact contract: precise user-level inferred coordinates chỉ nên nằm trong private cache; repo chỉ giữ aggregate diagnostics và decision records.
+
+## 2026-09-18 — Materialization CP2 đầu tiên cho thấy vì sao cần abstention và cluster diagnostics
+
+Run CP2 full-release đầu tiên reproduce chính xác frozen CP1 total: 5,821 stays trên 136 users. Đây là contract check quan trọng vì semantic stage giờ đã chứng minh là đang consume đúng behavior mà CP1 đã validate.
+
+History support theo user rất không đều. Dù 120 users có ít nhất hai stays, chỉ 62 users có stays trên ít nhất mười ngày UTC khác nhau. Vì vậy Home/Office system phải có abstention và evidence threshold; ép label cho mọi user sẽ đánh đồng pipeline coverage với semantic certainty.
+
+Thử nghiệm DBSCAN theo user cũng lộ ra một vấn đề clustering quan trọng. Với epsilon 200 m, khoảng cách lớn nhất từ median representative của cluster tới member stay đạt khoảng 527 m. DBSCAN epsilon giới hạn neighbor links theo density, không giới hạn total cluster diameter, nên chaining có thể tạo một “location” rộng hơn nhiều so với trực giác 200 m.
+
+Điều này nghĩa là recurring-location contract cần compactness diagnostic rõ ràng hoặc một clustering rule khác trước khi freeze production semantics.
+
+Spatial distribution của stays vẫn tập trung mạnh quanh Beijing nhưng có geographic outliers lớn. Kết quả thực nghiệm này xác nhận warning trước đó: không thể tạo local behavioral time bằng cách cộng 8 giờ cho mọi UTC timestamp.
