@@ -251,3 +251,29 @@ Decision:
 - boundary behavior is unchanged, so the full baseline and sensitivity grid do not need to be rerun.
 
 Detailed evidence: `docs/eda/15_same_second_transport_audit.md`.
+
+## 2026-09-18 — CP2 Home/Office baseline kickoff
+
+PR #3 merged the CP1 cleaning + stay-point baseline into `main`. CP2 now starts from frozen production stay-point semantics instead of raw GPS.
+
+New branch: `cp2-home-office-baseline`.
+
+Scaffolded:
+
+- `docs/design/03_home_office_baseline_contract.md`;
+- `notebooks/03_home_office_baseline.ipynb`;
+- full-release stay-event materialization with resumable cache;
+- user-level history sufficiency audit;
+- candidate per-user Haversine DBSCAN recurring-location representation;
+- explicit timezone/geography review gate before any Home/Office time-of-day scoring.
+
+Important design constraints:
+
+- reconcile CP2 materialized stays to the CP1 total of 5,821;
+- do not reimplement cleaning/stay detection in notebook code;
+- do not blindly apply UTC+8 to the full release;
+- do not force Home/Office labels for users with weak history;
+- do not commit precise user-level inferred Home/Office locations;
+- treat heuristic confidence as evidence strength, not calibrated probability.
+
+Production Home/Office logic under `src/geolife/model/` remains intentionally unimplemented until timezone policy, recurring-location representation, scoring semantics and RED acceptance tests are reviewed.
