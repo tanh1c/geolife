@@ -182,3 +182,11 @@ Run scoring theo interval overlap đầu tiên cho thấy distribution evidence 
 Khác biệt này quan trọng. Một rule chung như “share >= 0.5” sẽ chỉ moderately selective với Home nhưng lại aggressive hơn nhiều với Office. Khi không có semantic ground truth, không có lý do để giả vờ rằng hai evidence family đã được calibrate trên cùng một scale.
 
 Vì vậy bước tiếp theo là sensitivity riêng cho Home và Office. Ngoài coverage, mình cũng sẽ đo top location có giữ nguyên khi dịch time window một chút hay không; coverage ổn nhưng top location đổi liên tục vẫn là heuristic không ổn định.
+
+## 2026-09-18 — Abstention gate cuối của CP2 đến từ stability + middle sensitivity, không phải pseudo-accuracy
+
+Bounded scoring sensitivity giúp chốt stopping rule rõ ràng. Home window baseline 21–06 giữ nguyên top location cho 93.6% shared users khi so với 20–06 và 90.5% khi so với 22–06. Office baseline 09–17 cũng ổn định tương tự: 95.0% so với 08–17 và 92.5% so với 09–18.
+
+Không có Home/Office ground truth nên không thể chọn threshold bằng cách “maximize accuracy”. CP2 v1 vì vậy freeze middle setting của support/share/margin: Home dùng 3 dates / 0.50 share / 0.20 margin; Office dùng 3 dates / 0.30 share / 0.10 margin. Hai gate này emit lần lượt 27 và 16 users trên semantic cohort 97 users.
+
+Confidence cũng được gọi đúng nghĩa là evidence strength, không phải probability. Nó lấy trung bình dwell share, top-two margin và date-support factor saturate ở 5 dates, đồng thời vẫn expose toàn bộ raw components bên cạnh aggregate score.
