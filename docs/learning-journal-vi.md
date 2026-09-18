@@ -174,3 +174,11 @@ Scoring audit Home/Office đầu tiên dùng toàn bộ stay interval để đo 
 Nguyên tắc này cũng áp dụng cho office evidence và các stay đi qua midnight. Behavioral-time feature là bài toán interval overlap, không phải point-in-time classification.
 
 Mình cũng chưa biến score đầu tiên thành “probability”. Khi không có Home/Office ground truth, relevant-dwell share, số ngày support và margin top-1 so với top-2 là các evidence component dễ giải thích, nhưng không phải calibrated confidence probability. Bước tiếp theo là xem distribution và định nghĩa abstention rule trước khi productionize heuristic.
+
+## 2026-09-18 — Home và Office không nên mặc định dùng chung threshold
+
+Run scoring theo interval overlap đầu tiên cho thấy distribution evidence của Home và Office khác nhau khá rõ. Home candidate có median relevant-dwell share khoảng 0.635 và median top-two margin khoảng 0.513, trong khi Office chỉ khoảng 0.357 và 0.243.
+
+Khác biệt này quan trọng. Một rule chung như “share >= 0.5” sẽ chỉ moderately selective với Home nhưng lại aggressive hơn nhiều với Office. Khi không có semantic ground truth, không có lý do để giả vờ rằng hai evidence family đã được calibrate trên cùng một scale.
+
+Vì vậy bước tiếp theo là sensitivity riêng cho Home và Office. Ngoài coverage, mình cũng sẽ đo top location có giữ nguyên khi dịch time window một chút hay không; coverage ổn nhưng top location đổi liên tục vẫn là heuristic không ổn định.
