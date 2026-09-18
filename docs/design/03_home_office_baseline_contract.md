@@ -113,7 +113,7 @@ A candidate per-user Haversine DBSCAN run with `eps=200 m` and `min_samples=1` p
 
 The largest observed distance from a cluster's median representative to a member stay was about `526.7 m`, which is substantially larger than the 200 m DBSCAN epsilon. This is expected under density-connectivity chaining and demonstrates why `eps=200 m` must not be interpreted as a hard cluster-radius guarantee.
 
-Therefore the recurring-location representation remains a review gate. CP2 should compare alternatives or add a compactness constraint before freezing production clustering semantics.
+This DBSCAN result is retained as historical audit evidence. The chaining issue was resolved by the frozen 200 m complete-linkage representation described above.
 
 ## Stage D — timezone policy gate
 
@@ -161,6 +161,19 @@ After the timezone gate is resolved, candidate location-level features include:
 - fraction of a user's weekday daytime dwell captured by the location.
 
 Candidate time windows such as night and 09:00–17:00 are **parameters for sensitivity review**, not universal truths.
+
+## First Home / Office scoring audit
+
+Using interval-overlap evidence with candidate windows 21:00–06:00 for Home and weekdays 09:00–17:00 for Office:
+
+- supported Home candidates: 47 / 97 semantic-cohort users;
+- supported Office candidates: 40 / 97;
+- both candidates: 27 / 97;
+- 7 / 27 both-candidate users had the same leading location.
+
+Home evidence is stronger in the first run than Office evidence. Median Home dwell share / top-two margin are 0.635 / 0.513, while median Office values are 0.357 / 0.243.
+
+Therefore Home and Office emission thresholds are reviewed separately rather than forcing one shared threshold. No scoring/emission threshold is frozen yet.
 
 ## Stage F — candidate labeling semantics
 
