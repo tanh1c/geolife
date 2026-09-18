@@ -200,3 +200,11 @@ Full-release notebook có đủ mixture Home/Office evidence nên edge case này
 Fix đúng không phải special-case test. Feature builder production giờ coercion dwell columns sang numeric và dùng `np.divide(..., where=denominator > 0)`, nhờ đó zero-evidence user trở thành abstention case bình thường.
 
 Đây là ví dụ rất rõ vì sao chuyển từ notebook sang production vẫn cần acceptance tests dù exploratory output nhìn hoàn toàn hợp lý.
+
+## 2026-09-18 — Full-release parity là contract check cuối giữa notebook và production
+
+Production API `infer_home_office()` được chạy trên đúng cache 5,821 stays đã dùng trong CP2 notebook. Kết quả reproduce chính xác frozen emission counts: 27 HOME và 16 OFFICE, tổng 43 rows trên 36 users.
+
+Parity check này khác unit tests: tests bảo vệ local semantics và edge cases, còn parity xác nhận assembled production path reproduce đúng quyết định notebook trên materialized dataset thật.
+
+Khi cả hai cùng pass, handoff từ exploratory evidence sang production code của CP2 v1 mới thật sự kín.
