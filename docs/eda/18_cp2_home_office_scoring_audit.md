@@ -1,7 +1,7 @@
 # CP2 Home / Office scoring audit
 
 Date: 2026-09-18  
-Status: OPEN — first scoring implementation added to notebook; measured output pending review.
+Status: OPEN — first scoring output reviewed; bounded window/support/emission sensitivity is the remaining gate before freezing Home/Office semantics.
 
 ## Upstream semantics already frozen for CP2 v1
 
@@ -90,14 +90,48 @@ Before freezing emission/abstention semantics, inspect:
 7. top-1 vs top-2 margin distribution;
 8. distinct support dates and relevant dwell distribution.
 
+## First measured scoring output
+
+On the frozen 97-user Beijing semantic cohort:
+
+- users with a recurring semantic location: **73**;
+- users with a supported Home candidate: **47** (48.5% of cohort; 64.4% of recurring-location users);
+- users with a supported Office candidate: **40** (41.2% of cohort; 54.8% of recurring-location users);
+- users with both candidates: **27** (27.8% of cohort; 37.0% of recurring-location users);
+- among those 27 users, **7** (25.9%) had the same leading location for Home and Office.
+
+Top Home-candidate evidence:
+
+- median night-dwell share: **0.635**;
+- median top-1 vs top-2 share margin: **0.513**;
+- median supported night dates: **4**;
+- median night dwell: **7.04 h**.
+
+Top Office-candidate evidence:
+
+- median office-dwell share: **0.357**;
+- median top-1 vs top-2 share margin: **0.243**;
+- median supported office dates: **3**;
+- median office dwell: **2.94 h**.
+
+The Office distribution is materially weaker than the Home distribution. Therefore CP2 should not assume that Home and Office need identical emission thresholds.
+
+The first audit also confirms that minimum support of only two dates admits weak candidates: Home share can be as low as 0.095 with margin 0.002, and Office share as low as 0.091 with margin 0.015. Ranking alone is therefore insufficient; an explicit abstention gate is required.
+
 ## Next sensitivity
 
-After reviewing the first output, run a bounded sensitivity around:
+Run a bounded sensitivity around:
 
 - Home window: 20–06 / 21–06 / 22–06;
 - Office window: 08–17 / 09–17 / 09–18;
-- minimum relevant dates;
-- minimum share and top-1 margin required for label emission.
+- Home minimum relevant dates: 2 / 3 / 5;
+- Home minimum share: 0.4 / 0.5 / 0.6;
+- Home minimum top-1 margin: 0.1 / 0.2 / 0.3;
+- Office minimum relevant dates: 2 / 3 / 5;
+- Office minimum share: 0.2 / 0.3 / 0.4;
+- Office minimum top-1 margin: 0.05 / 0.10 / 0.20.
+
+The Home and Office grids are intentionally different because their measured evidence distributions differ substantially.
 
 Only then freeze Home/Office scoring and heuristic confidence semantics.
 
