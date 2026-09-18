@@ -180,3 +180,11 @@ The first interval-overlap scoring run produced noticeably different evidence di
 That difference matters. A single threshold such as “share >= 0.5” would be moderately selective for Home but much more aggressive for Office. Without semantic ground truth, there is no justification for pretending both evidence families are calibrated to the same scale.
 
 The next step is therefore separate, bounded sensitivity for Home and Office. I also want to track whether the selected top location itself stays stable when time windows move slightly; coverage alone can hide an unstable heuristic.
+
+## 2026-09-18 — Final CP2 abstention gates come from stability plus middle sensitivity, not pseudo-accuracy
+
+The bounded scoring sensitivity made the stopping rule concrete. The baseline Home window (21–06) kept the same top location for 93.6% of shared users against 20–06 and 90.5% against 22–06. The Office baseline (09–17) was similarly stable at 95.0% versus 08–17 and 92.5% versus 09–18.
+
+Without Home/Office ground truth, I cannot pick a threshold by maximizing accuracy. Instead CP2 v1 freezes the middle support/share/margin settings: Home uses 3 dates / 0.50 share / 0.20 margin, while Office uses 3 dates / 0.30 share / 0.10 margin. These emit 27 and 16 users respectively from the 97-user semantic cohort.
+
+The confidence output is also intentionally framed as evidence strength rather than probability. It averages dwell share, top-two margin, and a date-support factor capped at five dates, while exposing all raw components next to the aggregate.
