@@ -261,3 +261,46 @@ def test_http_result_matches_direct_production_model() -> None:
         assert item["share_margin"] == pytest.approx(row.share_margin)
         assert item["relevant_dates"] == row.relevant_dates
         assert item["relevant_dwell_h"] == pytest.approx(row.relevant_dwell_h)
+
+
+
+def test_validation_error_does_not_echo_sensitive_input_values() -> None:
+    payload = _payload(
+        "u-sensitive-error",
+        [
+            {
+                "arrival_time_utc": "2026-01-05T13:00:00Z",
+                "departure_time_utc": "2026-01-05T14:00:00Z",
+                "latitude": 91.123456,
+                "longitude": 116.456789,
+            }
+        ],
+    )
+
+    response = client.post("/v1/home-office/infer", json=payload)
+
+    assert response.status_code == 422
+    assert "91.123456" not in response.text
+    assert "116.456789" not in response.text
+
+
+def test_request_cannot_override_frozen_model_thresholds() -> None:
+    stays = [
+        _stay("2026-01-05 21:00", "2026-01-05 22:00"),
+        _stay("2026-01-06 21:00", "2026-01-06 22:00"),
+        _stay("2026-01-07 21:00", "2026-01-07 22:00"),
+    ]
+    payload = _payload("u-no-override", stays)
+    payload["home_min_share"] = 0.0
+
+    response = client.post("/v1/home-office/infer", json=payload)
+
+    assert response.status_code == 422
+
+
+def test_openapi_emitted_response_schema_omits_precise_coordinates() -> None:
+    schema = client.get("/openapi.json").json()
+    emitted = schema["components"]["schemas"]["EmittedResult"]["properties"]
+
+    assert "latitude" not in emitted
+    assert "longitude" not in emitted
