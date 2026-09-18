@@ -109,3 +109,117 @@ The corrected V3 strict-containment join matched 4,807,087 of 11,878,198 valid l
 The lesson is broader than this dataset: interval boundary semantics are part of the data contract. A small definition error can substantially distort event/window counts even when duration-weighted conclusions stay stable. I should specify `[start, end)` or another convention explicitly before joining temporal labels.
 
 This audit also demonstrates a useful stopping rule for EDA. The correction was bounded, reproduced independently, and did not change the design decision. EDA is therefore closed for CP1. The next step is contract review and RED tests before production preprocessing/stay-point code.
+
+## 2026-09-18 — A threshold can mean “safe to transform” without meaning “valid versus corrupt”
+
+The mentor same-second question exposed an important modeling distinction. The 10 m rule was originally easy to describe as a conflict/corruption threshold, but the transportation audit showed that this interpretation was too strong.
+
+Train and many subway cases above 10 m were compatible with movement at the scale already observed in the audited transportation-speed benchmark, while most walk/bike cases were not. The same >10 m population therefore mixes several possible causes.
+
+The robust conclusion is narrower: 10 m is the radius below which a same-second group is compact enough to collapse safely. Above 10 m, within-second ordering is unidentifiable, so the conservative action is still to break continuity, but the diagnostic should describe spatial ambiguity rather than claim corruption.
+
+This is a general data-engineering lesson: a threshold can define when a transformation is safe without classifying the underlying data as good or bad.
+
+## 2026-09-18 — CP2 starts with abstention and timezone semantics, not with a Home/Office formula
+
+The next tempting shortcut would be to take stays, add eight hours, and call nighttime locations Home and weekday daytime locations Office. The earlier EDA already showed why that is unsafe: GeoLife contains trajectories outside Beijing, while the timestamps are UTC/GMT.
+
+The CP2 scaffold therefore puts a timezone/geography gate before semantic scoring. It also treats insufficient user history as a valid abstention case instead of forcing a Home or Office label.
+
+Another lesson is that Home/Office is a user-level recurring-location problem, not a trajectory-file problem. The first CP2 notebook materializes the frozen 5,821 stays, audits history sufficiency, then explores per-user spatial clustering before defining semantic scores.
+
+Because Home and Office are sensitive inferred locations, privacy now becomes part of the artifact contract: precise user-level inferred coordinates should remain in private caches, while the repository keeps aggregate diagnostics and decision records.
+
+## 2026-09-18 — First CP2 materialization shows why abstention and cluster diagnostics matter
+
+The first full-release CP2 stay materialization reproduced the frozen CP1 total exactly: 5,821 stays across 136 users. This is a useful contract check because the semantic stage is now demonstrably consuming the same behavior that CP1 validated.
+
+History sufficiency is uneven. Although 120 users have at least two stays, only 62 have stays on at least ten distinct UTC dates. A Home/Office system therefore needs abstention and evidence thresholds; producing a label for every release user would confuse pipeline coverage with semantic certainty.
+
+The first per-user DBSCAN experiment also surfaced a subtle spatial-clustering issue. With epsilon set to 200 m, the largest distance from a cluster's median representative to a member stay reached about 527 m. DBSCAN epsilon limits density-neighbor links, not total cluster diameter, so chaining can create a location much wider than the intuitive 200 m interpretation.
+
+This means the recurring-location contract needs an explicit compactness diagnostic or a different clustering rule before production semantics are frozen.
+
+The spatial stay distribution remains strongly Beijing-centered but includes large geographic outliers. That empirical result confirms the earlier design warning: local behavioral time cannot be created by blindly adding eight hours to every UTC timestamp.
+
+## 2026-09-18 — Timezone scope should be attached to observations, not only users
+
+The CP2 timezone audit exposed another subtle semantic issue. A user can be predominantly Beijing-based and still have travel stays elsewhere. If I classify the user as “Beijing” and then convert every stay for that user to `Asia/Shanghai`, I can still assign the wrong local time to travel observations.
+
+The safer v1 design is two-stage:
+
+1. decide whether a user is sufficiently Beijing-focused using stay-share and dwell-share sensitivity;
+2. even for accepted users, only in-region stays enter Beijing local-time semantic scoring.
+
+Out-of-region travel stays are excluded rather than silently converted.
+
+This is a useful general lesson for spatiotemporal systems: metadata such as timezone may need observation-level scope even when eligibility is decided at the user level.
+
+## 2026-09-18 — Recurring-location clustering needs a diameter contract, not only a neighbor radius
+
+The first DBSCAN representation exposed a useful mismatch between parameter intuition and actual geometry. With epsilon 200 m, one cluster still had a member about 527 m from its median representative.
+
+That is not a DBSCAN bug; density connectivity can chain many local links into a much wider component.
+
+For Home/Office inference, I want the spatial threshold to have a direct semantic meaning: a recurring location should not contain points whose pairwise separation exceeds the threshold. Complete-linkage clustering provides that property more directly because each merge is governed by the maximum pairwise distance between groups.
+
+The next audit therefore compares complete linkage at 100/200/300 m and verifies the resulting cluster diameter explicitly before freezing the recurring-location contract.
+
+## 2026-09-18 — Behavioral-time features should use interval overlap, not arrival-hour labels
+
+The first Home/Office scoring audit uses the full stay interval when measuring behavioral evidence. A stay from 20:50 to 21:30 should contribute only 21:00–21:30 to the night window. Labeling the whole stay from its arrival hour would create a boundary artifact.
+
+The same principle matters for office evidence and for stays crossing midnight. Behavioral-time features are interval-overlap problems, not point-in-time classification problems.
+
+I also avoid turning the first score into a probability. Without Home/Office ground truth, relevant-dwell share, support dates, and top-1 versus top-2 margin are interpretable evidence components, but they are not calibrated confidence probabilities. The next step is to inspect their distributions and define abstention rules before productionizing the heuristic.
+
+## 2026-09-18 — Home and Office evidence should not share a threshold by default
+
+The first interval-overlap scoring run produced noticeably different evidence distributions for Home and Office. Home candidates had a median relevant-dwell share around 0.635 and median top-two margin around 0.513, while Office candidates were around 0.357 and 0.243.
+
+That difference matters. A single threshold such as “share >= 0.5” would be moderately selective for Home but much more aggressive for Office. Without semantic ground truth, there is no justification for pretending both evidence families are calibrated to the same scale.
+
+The next step is therefore separate, bounded sensitivity for Home and Office. I also want to track whether the selected top location itself stays stable when time windows move slightly; coverage alone can hide an unstable heuristic.
+
+## 2026-09-18 — Final CP2 abstention gates come from stability plus middle sensitivity, not pseudo-accuracy
+
+The bounded scoring sensitivity made the stopping rule concrete. The baseline Home window (21–06) kept the same top location for 93.6% of shared users against 20–06 and 90.5% against 22–06. The Office baseline (09–17) was similarly stable at 95.0% versus 08–17 and 92.5% versus 09–18.
+
+Without Home/Office ground truth, I cannot pick a threshold by maximizing accuracy. Instead CP2 v1 freezes the middle support/share/margin settings: Home uses 3 dates / 0.50 share / 0.20 margin, while Office uses 3 dates / 0.30 share / 0.10 margin. These emit 27 and 16 users respectively from the 97-user semantic cohort.
+
+The confidence output is also intentionally framed as evidence strength rather than probability. It averages dwell share, top-two margin, and a date-support factor capped at five dates, while exposing all raw components next to the aggregate.
+
+## 2026-09-18 — RED tests caught a zero-evidence dtype bug that notebook data did not
+
+The first production Home/Office implementation passed compilation but failed RED tests when one semantic evidence family had no overlap at all. After merging an empty feature table, pandas kept an object-typed zero column; the eager division inside `np.where` then raised `ZeroDivisionError`.
+
+The notebook's full-release data had enough mixed Home/Office evidence that this edge case did not appear naturally.
+
+The fix was not to special-case the test. The production feature builder now coerces dwell columns to numeric and uses `np.divide(..., where=denominator > 0)`, making zero-evidence users a first-class abstention case.
+
+This is exactly why the notebook-to-production transition needs acceptance tests even when the exploratory output looks correct.
+
+## 2026-09-18 — Full-release parity is the final notebook-to-production contract check
+
+The production `infer_home_office()` API was run against the same cached 5,821 stays used by the CP2 notebook. It reproduced the frozen emission counts exactly: 27 HOME and 16 OFFICE labels, totaling 43 rows across 36 users.
+
+This final parity check is different from unit tests: tests protect local semantics and edge cases, while parity verifies that the assembled production path reproduces the full-release notebook decision on the actual materialized dataset.
+
+With both checks passing, CP2 v1 has a much stronger handoff from exploratory evidence to production code.
+
+## 2026-09-18 — A notebook should preserve the reasoning contract, not only code and output
+
+After production parity passed, notebooks 02 / 02b / 02c / 03 were expanded to match the mentor-audit narrative style.
+
+A reproducible notebook that contains only executable code is still a weak long-term handoff. A future reader also needs to know:
+
+- which question each section answers;
+- why a metric exists;
+- what denominator an output uses;
+- which conclusions the evidence supports;
+- which conclusions it does not support;
+- which early decisions were superseded by later audits.
+
+This matters here because several initial assumptions changed through evidence: blanket UTC+8 became an explicit geography/timezone cohort; DBSCAN 200 m was replaced by a complete-link diameter contract; and same-second >10 m was reinterpreted as unresolved spatial ambiguity rather than automatic corruption.
+
+A strong notebook is therefore an executable decision record, not merely a scratchpad with plots.

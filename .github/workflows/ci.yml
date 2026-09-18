@@ -28,6 +28,7 @@ jobs:
               'notebooks/02_cleaning_staypoint_validation.ipynb',
               'notebooks/02b_staypoint_sensitivity_validation.ipynb',
               'notebooks/02c_same_second_transport_audit.ipynb',
+              'notebooks/03_home_office_baseline.ipynb',
           ]:
               json.load(open(path, encoding='utf-8'))
               print(path, 'json ok')
@@ -36,3 +37,6 @@ jobs:
         run: python -c "from notebooks.eda_core import read_plt, haversine_vectorized, inventory_dataset; print('eda helpers import ok')"
       - name: Import CP1 production APIs
         run: python -c "from geolife.staypoints import clean_trajectory, clean_trajectory_with_audit, detect_staypoints; print('staypoint APIs import ok')"
+
+      - name: Import CP2 model APIs
+        run: python -c "from geolife.model import HomeOfficeConfig, build_semantic_locations, infer_home_office; print('CP2 model APIs import ok')"

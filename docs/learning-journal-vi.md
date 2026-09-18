@@ -111,3 +111,117 @@ V3 strict-containment match 4,807,087 / 11,878,198 valid segments của labeled 
 Bài học chính không chỉ dành cho GeoLife: boundary semantics như `[start, end)` hay `[start, end]` phải được coi là một phần của data contract. Chỉ một khác biệt nhỏ ở boundary cũng có thể làm event/window counts thay đổi mạnh, dù kết luận theo duration vẫn ổn định.
 
 Audit này cũng cho thấy cách dừng EDA đúng lúc: correction đã được independently reproduce, rerun bounded và không làm đổi design decision. Vì vậy EDA cho CP1 được đóng tại đây. Bước tiếp theo là review/approve cleaning + stay-point contract, sau đó viết RED tests trước khi implement production preprocessing/stay-point code.
+
+## 2026-09-18 — Threshold có thể nghĩa là “safe để transform”, không phải “valid hay corrupt”
+
+Góp ý của mentor về same-second làm rõ một distinction quan trọng. Rule 10 m ban đầu rất dễ bị diễn giải thành ngưỡng phân biệt data tốt và corruption, nhưng transportation audit cho thấy cách hiểu đó quá mạnh.
+
+Các case train và nhiều subway case vượt 10 m vẫn nằm trong scale movement đã quan sát ở transportation-speed benchmark, trong khi phần lớn walk/bike case thì không. Vì vậy population >10 m là một mixture của nhiều nguyên nhân có thể có.
+
+Kết luận chắc chắn hơn và hẹp hơn là: 10 m là bán kính mà bên dưới nó group đủ compact để collapse an toàn. Trên 10 m, within-second ordering không xác định nên vẫn phải break continuity một cách conservative, nhưng diagnostic nên gọi là spatial ambiguity thay vì khẳng định corruption.
+
+Bài học tổng quát: một threshold có thể định nghĩa “khi nào phép transform an toàn” mà không hề phân loại bản chất dữ liệu thành đúng hay sai.
+
+## 2026-09-18 — CP2 phải bắt đầu bằng abstention và timezone semantics, không phải một công thức Home/Office ngay lập tức
+
+Shortcut hấp dẫn tiếp theo là lấy stay points, cộng 8 giờ rồi gọi location ban đêm là Home và location giờ hành chính là Office. EDA trước đã cho thấy cách đó không an toàn: GeoLife có trajectories ngoài Beijing trong khi timestamp PLT là UTC/GMT.
+
+Vì vậy scaffold CP2 đặt timezone/geography gate trước semantic scoring. User có lịch sử quá ít cũng phải được phép abstain thay vì ép ra Home hoặc Office.
+
+Một bài học khác là Home/Office là bài toán recurring location ở cấp user, không phải bài toán theo từng trajectory file. Notebook CP2 đầu tiên materialize 5,821 stays đã freeze, audit history sufficiency, rồi mới thử spatial clustering theo user trước khi định nghĩa score.
+
+Home và Office cũng là inferred locations rất nhạy cảm. Vì vậy privacy trở thành một phần của artifact contract: precise user-level inferred coordinates chỉ nên nằm trong private cache; repo chỉ giữ aggregate diagnostics và decision records.
+
+## 2026-09-18 — Materialization CP2 đầu tiên cho thấy vì sao cần abstention và cluster diagnostics
+
+Run CP2 full-release đầu tiên reproduce chính xác frozen CP1 total: 5,821 stays trên 136 users. Đây là contract check quan trọng vì semantic stage giờ đã chứng minh là đang consume đúng behavior mà CP1 đã validate.
+
+History support theo user rất không đều. Dù 120 users có ít nhất hai stays, chỉ 62 users có stays trên ít nhất mười ngày UTC khác nhau. Vì vậy Home/Office system phải có abstention và evidence threshold; ép label cho mọi user sẽ đánh đồng pipeline coverage với semantic certainty.
+
+Thử nghiệm DBSCAN theo user cũng lộ ra một vấn đề clustering quan trọng. Với epsilon 200 m, khoảng cách lớn nhất từ median representative của cluster tới member stay đạt khoảng 527 m. DBSCAN epsilon giới hạn neighbor links theo density, không giới hạn total cluster diameter, nên chaining có thể tạo một “location” rộng hơn nhiều so với trực giác 200 m.
+
+Điều này nghĩa là recurring-location contract cần compactness diagnostic rõ ràng hoặc một clustering rule khác trước khi freeze production semantics.
+
+Spatial distribution của stays vẫn tập trung mạnh quanh Beijing nhưng có geographic outliers lớn. Kết quả thực nghiệm này xác nhận warning trước đó: không thể tạo local behavioral time bằng cách cộng 8 giờ cho mọi UTC timestamp.
+
+## 2026-09-18 — Timezone scope phải gắn với observation, không chỉ với user
+
+Timezone audit của CP2 làm lộ thêm một semantic issue nhỏ nhưng quan trọng. Một user có thể chủ yếu sống ở Beijing nhưng vẫn có travel stays ở nơi khác. Nếu chỉ classify user là “Beijing” rồi convert toàn bộ stays của user đó sang `Asia/Shanghai`, travel observations vẫn có thể bị gán sai local time.
+
+Thiết kế v1 an toàn hơn là hai tầng:
+
+1. quyết định user có đủ Beijing-focused hay không bằng sensitivity của stay-share và dwell-share;
+2. ngay cả với user được accept, chỉ các stays nằm trong Beijing region mới đi vào semantic scoring theo local time.
+
+Travel stays ngoài region bị exclude thay vì bị silently convert.
+
+Bài học tổng quát cho spatiotemporal systems: metadata như timezone có thể cần scope ở cấp observation dù eligibility được quyết định ở cấp user.
+
+## 2026-09-18 — Recurring-location clustering cần diameter contract, không chỉ neighbor radius
+
+DBSCAN experiment đầu tiên cho thấy một mismatch quan trọng giữa trực giác về parameter và geometry thật. Dù epsilon là 200 m, một cluster vẫn có member cách median representative khoảng 527 m.
+
+Đây không phải bug của DBSCAN; density connectivity có thể chain nhiều local links thành một component rộng hơn nhiều.
+
+Với Home/Office inference, mình muốn spatial threshold có semantic trực tiếp: một recurring location không nên chứa các point có pairwise separation vượt threshold. Complete-linkage clustering phù hợp hơn vì mỗi merge được quyết định bởi maximum pairwise distance giữa hai nhóm.
+
+Audit tiếp theo vì vậy so sánh complete linkage ở 100/200/300 m và verify exact cluster diameter trước khi freeze recurring-location contract.
+
+## 2026-09-18 — Behavioral-time feature phải dùng interval overlap, không phải arrival-hour label
+
+Scoring audit Home/Office đầu tiên dùng toàn bộ stay interval để đo evidence theo thời gian. Một stay từ 20:50 đến 21:30 chỉ nên đóng góp đoạn 21:00–21:30 vào night window. Nếu chỉ nhìn arrival hour rồi gán toàn bộ stay thì sẽ tạo boundary artifact.
+
+Nguyên tắc này cũng áp dụng cho office evidence và các stay đi qua midnight. Behavioral-time feature là bài toán interval overlap, không phải point-in-time classification.
+
+Mình cũng chưa biến score đầu tiên thành “probability”. Khi không có Home/Office ground truth, relevant-dwell share, số ngày support và margin top-1 so với top-2 là các evidence component dễ giải thích, nhưng không phải calibrated confidence probability. Bước tiếp theo là xem distribution và định nghĩa abstention rule trước khi productionize heuristic.
+
+## 2026-09-18 — Home và Office không nên mặc định dùng chung threshold
+
+Run scoring theo interval overlap đầu tiên cho thấy distribution evidence của Home và Office khác nhau khá rõ. Home candidate có median relevant-dwell share khoảng 0.635 và median top-two margin khoảng 0.513, trong khi Office chỉ khoảng 0.357 và 0.243.
+
+Khác biệt này quan trọng. Một rule chung như “share >= 0.5” sẽ chỉ moderately selective với Home nhưng lại aggressive hơn nhiều với Office. Khi không có semantic ground truth, không có lý do để giả vờ rằng hai evidence family đã được calibrate trên cùng một scale.
+
+Vì vậy bước tiếp theo là sensitivity riêng cho Home và Office. Ngoài coverage, mình cũng sẽ đo top location có giữ nguyên khi dịch time window một chút hay không; coverage ổn nhưng top location đổi liên tục vẫn là heuristic không ổn định.
+
+## 2026-09-18 — Abstention gate cuối của CP2 đến từ stability + middle sensitivity, không phải pseudo-accuracy
+
+Bounded scoring sensitivity giúp chốt stopping rule rõ ràng. Home window baseline 21–06 giữ nguyên top location cho 93.6% shared users khi so với 20–06 và 90.5% khi so với 22–06. Office baseline 09–17 cũng ổn định tương tự: 95.0% so với 08–17 và 92.5% so với 09–18.
+
+Không có Home/Office ground truth nên không thể chọn threshold bằng cách “maximize accuracy”. CP2 v1 vì vậy freeze middle setting của support/share/margin: Home dùng 3 dates / 0.50 share / 0.20 margin; Office dùng 3 dates / 0.30 share / 0.10 margin. Hai gate này emit lần lượt 27 và 16 users trên semantic cohort 97 users.
+
+Confidence cũng được gọi đúng nghĩa là evidence strength, không phải probability. Nó lấy trung bình dwell share, top-two margin và date-support factor saturate ở 5 dates, đồng thời vẫn expose toàn bộ raw components bên cạnh aggregate score.
+
+## 2026-09-18 — RED tests bắt được zero-evidence dtype bug mà notebook full data không lộ ra
+
+Production Home/Office implementation đầu tiên compile được nhưng fail RED tests khi một semantic evidence family hoàn toàn không có overlap. Sau merge với empty feature table, pandas giữ zero column ở object dtype; phép chia eager bên trong `np.where` sau đó ném `ZeroDivisionError`.
+
+Full-release notebook có đủ mixture Home/Office evidence nên edge case này không tự nhiên xuất hiện.
+
+Fix đúng không phải special-case test. Feature builder production giờ coercion dwell columns sang numeric và dùng `np.divide(..., where=denominator > 0)`, nhờ đó zero-evidence user trở thành abstention case bình thường.
+
+Đây là ví dụ rất rõ vì sao chuyển từ notebook sang production vẫn cần acceptance tests dù exploratory output nhìn hoàn toàn hợp lý.
+
+## 2026-09-18 — Full-release parity là contract check cuối giữa notebook và production
+
+Production API `infer_home_office()` được chạy trên đúng cache 5,821 stays đã dùng trong CP2 notebook. Kết quả reproduce chính xác frozen emission counts: 27 HOME và 16 OFFICE, tổng 43 rows trên 36 users.
+
+Parity check này khác unit tests: tests bảo vệ local semantics và edge cases, còn parity xác nhận assembled production path reproduce đúng quyết định notebook trên materialized dataset thật.
+
+Khi cả hai cùng pass, handoff từ exploratory evidence sang production code của CP2 v1 mới thật sự kín.
+
+## 2026-09-18 — Notebook nên lưu reasoning contract, không chỉ lưu code và output
+
+Sau khi production parity đã pass, mình quay lại 02 / 02b / 02c / 03 để bổ sung narrative theo style mentor audit.
+
+Một notebook reproducible nhưng chỉ có code vẫn chưa đủ cho handoff dài hạn. Người đọc cần biết:
+
+- câu hỏi nào cell đang trả lời;
+- vì sao metric đó tồn tại;
+- output phải đọc theo denominator nào;
+- conclusion nào được support;
+- conclusion nào không được support;
+- decision nào đã bị supersede bởi audit sau.
+
+Điều này đặc biệt quan trọng với project này vì một số assumption ban đầu đã được sửa bằng evidence: blanket UTC+8 bị thay bằng geography/timezone cohort; DBSCAN 200 m bị thay bằng complete-link diameter contract; >10 m same-second không còn bị gọi là corruption.
+
+Bài học: notebook tốt nên đóng vai trò decision record có thể chạy lại, không chỉ là scratchpad có biểu đồ.

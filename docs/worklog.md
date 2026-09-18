@@ -251,3 +251,239 @@ Decision:
 - boundary behavior is unchanged, so the full baseline and sensitivity grid do not need to be rerun.
 
 Detailed evidence: `docs/eda/15_same_second_transport_audit.md`.
+
+## 2026-09-18 — CP2 Home/Office baseline kickoff
+
+PR #3 merged the CP1 cleaning + stay-point baseline into `main`. CP2 now starts from frozen production stay-point semantics instead of raw GPS.
+
+New branch: `cp2-home-office-baseline`.
+
+Scaffolded:
+
+- `docs/design/03_home_office_baseline_contract.md`;
+- `notebooks/03_home_office_baseline.ipynb`;
+- full-release stay-event materialization with resumable cache;
+- user-level history sufficiency audit;
+- candidate per-user Haversine DBSCAN recurring-location representation;
+- explicit timezone/geography review gate before any Home/Office time-of-day scoring.
+
+Important design constraints:
+
+- reconcile CP2 materialized stays to the CP1 total of 5,821;
+- do not reimplement cleaning/stay detection in notebook code;
+- do not blindly apply UTC+8 to the full release;
+- do not force Home/Office labels for users with weak history;
+- do not commit precise user-level inferred Home/Office locations;
+- treat heuristic confidence as evidence strength, not calibrated probability.
+
+Production Home/Office logic under `src/geolife/model/` remains intentionally unimplemented until timezone policy, recurring-location representation, scoring semantics and RED acceptance tests are reviewed.
+
+## 2026-09-18 — CP2 stay-cache portability fix
+
+The first full-release CP2 stay materialization completed the expensive cleaning/stay computation but failed while writing the final Parquet cache because the active Modal notebook image did not expose a Parquet engine (`pyarrow` / `fastparquet`) to pandas.
+
+The materialization itself was unaffected. The notebook cache format was changed from Parquet to pandas pickle for this private intermediate artifact:
+
+- no extra runtime dependency is required;
+- the existing 500-file partial checkpoint/resume path is unchanged;
+- precise user-level stays remain in the mounted private cache rather than the repository.
+
+This is an execution-environment/cache-format fix only; it does not change CP1 or CP2 modeling semantics.
+
+## 2026-09-18 — First CP2 full-release stay materialization
+
+The first CP2 run completed and reproduced the frozen CP1 stay total exactly:
+
+- 5,821 stays;
+- 136 users with at least one stay.
+
+User-history support:
+
+- 120 users with >=2 stays;
+- 99 with >=5;
+- 81 with >=10;
+- 114 users with stays on >=2 distinct UTC dates;
+- 83 with >=5 distinct UTC dates;
+- 62 with >=10 distinct UTC dates.
+
+The candidate per-user Haversine DBSCAN representation at 200 m produced 1,885 candidate locations, of which 635 had >=2 stays; 104 users had at least one recurring location.
+
+A key diagnostic is DBSCAN chaining: the largest distance from a cluster median representative to a member stay reached ~526.7 m even though epsilon was 200 m. Therefore 200 m cannot be interpreted as a hard location-radius bound and clustering semantics remain unfrozen.
+
+The stay geography is strongly Beijing-centered but includes substantial outliers, confirming that a blanket UTC+8 conversion across the full release is not acceptable without an explicit cohort/timezone policy.
+
+The first notebook execution also exposed a cache-format portability issue: pandas could not write Parquet in the active Modal environment because no Parquet engine was available. The final private cache was successfully saved as pandas pickle and contains all 5,821 stays.
+
+## 2026-09-18 — CP2 timezone/geography audit scaffold
+
+The Home/Office notebook now has an explicit geography sensitivity stage before any time-of-day scoring.
+
+Candidate v1 approach:
+
+- approximate Beijing reference point: 39.9042 N, 116.4074 E;
+- audit radii: 50 / 100 / 200 km;
+- per-user metrics: share of stays and share of dwell time inside each radius;
+- candidate cohort rule for review: >=80% of stays and >=80% of dwell within 100 km;
+- only in-radius stays from eligible users are converted to `Asia/Shanghai`;
+- travel/out-of-radius stays from otherwise Beijing-focused users remain excluded;
+- out-of-cohort users abstain instead of receiving a guessed timezone.
+
+This policy is not frozen yet. The next notebook run should review threshold sensitivity and cohort coverage before Home/Office scoring is implemented.
+
+Detailed plan: `docs/eda/16_cp2_timezone_geography_audit.md`.
+
+## 2026-09-18 — CP2 recurring-location audit moved from DBSCAN to complete linkage
+
+The first 200 m DBSCAN experiment produced useful recurrence structure but exposed chaining: a cluster member could be ~526.7 m from the median representative even though epsilon was 200 m.
+
+The next CP2 gate now compares per-user complete-linkage clustering at 100 / 200 / 300 m on the frozen Beijing semantic cohort.
+
+Complete linkage is preferred for this audit because the threshold has a direct compactness interpretation: the final cluster diameter should not exceed the threshold.
+
+The 200 m value remains a candidate engineering choice until sensitivity and exact diameter outputs are reviewed. Home/Office scoring stays blocked until this gate is resolved.
+
+Detailed plan: `docs/eda/17_cp2_recurring_location_audit.md`.
+
+## 2026-09-18 — CP2 recurring-location gate resolved; Home/Office scoring audit started
+
+Complete-link sensitivity on the frozen Beijing semantic cohort produced:
+
+- 100 m: 1,320 locations, 499 recurring, 67 users with recurrence;
+- 200 m: 1,111 locations, 486 recurring, 73 users with recurrence;
+- 300 m: 1,007 locations, 473 recurring, 73 users with recurrence.
+
+The 200 m configuration verified a maximum cluster diameter of 199.23 m. It is now frozen as the CP2 v1 recurring-location engineering baseline because it avoids DBSCAN chaining, preserves the same recurring-user coverage as 300 m, and remains a middle sensitivity choice.
+
+The notebook now proceeds to a first Home/Office scoring audit:
+
+- Home candidate window: 21:00–06:00 local;
+- Office candidate window: weekdays 09:00–17:00 local;
+- stays contribute by exact interval overlap, not arrival hour;
+- candidates require recurrence plus at least two relevant dates;
+- ranking uses relevant-dwell share with date/dwell support and top-1 vs top-2 margin;
+- Home and Office may resolve to the same location and that ambiguity is surfaced explicitly;
+- no share/margin emission threshold or confidence formula is frozen yet.
+
+Detailed plan: `docs/eda/18_cp2_home_office_scoring_audit.md`.
+
+## 2026-09-18 — First Home/Office evidence measured; emission sensitivity added
+
+The first interval-overlap scoring run on the frozen 97-user Beijing semantic cohort produced:
+
+- 73 users with recurring semantic locations;
+- 47 users with a supported Home candidate;
+- 40 users with a supported Office candidate;
+- 27 users with both;
+- 7/27 both-candidate users with the same leading location for Home and Office.
+
+Home evidence was stronger than Office evidence:
+
+- Home median relevant-dwell share / top-two margin: 0.635 / 0.513;
+- Office median relevant-dwell share / top-two margin: 0.357 / 0.243.
+
+The low tail also shows that ranking alone is insufficient: the weakest supported candidates can have shares around 0.09 and near-zero margins under the current two-date support rule.
+
+Therefore no emission threshold is frozen yet. The notebook now runs separate Home and Office sensitivity grids over:
+
+- nearby behavioral-time windows;
+- minimum relevant dates;
+- minimum relevant-dwell share;
+- minimum top-two share margin.
+
+The sensitivity also reports whether the top location remains stable when time windows shift.
+
+Detailed plan: `docs/eda/19_cp2_home_office_sensitivity.md`.
+
+## 2026-09-18 — CP2 Home/Office scoring gate resolved
+
+Bounded time-window sensitivity showed stable top-location selection:
+
+- Home 20–06 vs baseline 21–06: 93.6% same top location;
+- Home 22–06 vs baseline: 90.5%;
+- Office 08–17 vs baseline 09–17: 95.0%;
+- Office 09–18 vs baseline: 92.5%.
+
+CP2 v1 therefore keeps the interpretable baseline windows:
+
+- Home: 21:00–06:00 local;
+- Office: weekdays 09:00–17:00 local.
+
+Emission gates are frozen at the middle sensitivity settings:
+
+- Home: >=3 relevant dates, share >=0.50, margin >=0.20 → 27 emitted users;
+- Office: >=3 relevant dates, share >=0.30, margin >=0.10 → 16 emitted users.
+
+The separate gates are intentional because measured Office evidence is weaker than Home evidence.
+
+Heuristic evidence strength is defined as the arithmetic mean of relevant-dwell share, top-two share margin, and a support factor capped at five relevant dates. It is explicitly not a calibrated correctness probability.
+
+The CP2 design contract is now approved for RED tests before production model implementation.
+
+## 2026-09-18 — CP2 RED tests implemented; production model CI GREEN
+
+After freezing the scoring contract, eight CP2 acceptance tests were added before production implementation.
+
+The tests cover:
+
+- Beijing-focused user eligibility with observation-level travel exclusion;
+- complete-link clustering that prevents >200 m chaining;
+- exact night-window interval overlap;
+- allowing Home and Office to resolve to the same location;
+- Home abstention when top-two margin is weak;
+- default Home emission and evidence-strength formula;
+- the separate Office emission gate;
+- frozen config/evidence-strength semantics.
+
+The first production CI run exposed a zero-evidence edge case: an empty Home or Office feature family could preserve object dtype after merging, and an eager division inside `np.where` raised `ZeroDivisionError`.
+
+The implementation was corrected by coercing dwell columns to numeric and using `np.divide(..., where=denominator > 0)`.
+
+CI #138 then passed all **20 tests**, notebook JSON validation, CP1 imports, and CP2 model API imports.
+
+Production APIs now live under `src/geolife/model/home_office.py`.
+
+One release-level gate remains: run the notebook production parity cell on the cached 5,821 stays and verify the production defaults emit 27 HOME and 16 OFFICE labels.
+
+## 2026-09-18 — CP2 full-release production parity passed
+
+The final CP2 release-level gate was run on the cached 5,821-stay full-release table using the production `infer_home_office()` default config.
+
+Observed:
+
+- HOME: 27;
+- OFFICE: 16;
+- total emitted rows: 43;
+- unique users with at least one emitted label: 36.
+
+The expected 27/16 emission counts exactly match the frozen notebook sensitivity decision.
+
+Production parity check: PASS.
+
+Together with the GREEN CI test suite, this closes the CP2 v1 implementation gate. PR #4 is ready for normal review/merge consideration.
+
+## 2026-09-18 — Notebook narrative pass aligned with mentor-audit style
+
+After CP2 production parity passed, the four implementation/audit notebooks were expanded so that future readers can reconstruct not only what code ran, but why each gate existed and what conclusions are justified.
+
+Updated:
+
+- `notebooks/02_cleaning_staypoint_validation.ipynb`
+- `notebooks/02b_staypoint_sensitivity_validation.ipynb`
+- `notebooks/02c_same_second_transport_audit.ipynb`
+- `notebooks/03_home_office_baseline.ipynb`
+
+The narrative pattern now mirrors the CP1 mentor-audit notebook:
+
+- question / motivation;
+- how to read output;
+- interpretation;
+- what must not be inferred;
+- explicit decision / downstream gate.
+
+Stale assumptions were also corrected in the explanatory text:
+- no blanket UTC+8 across the release;
+- DBSCAN is documented as a historical prototype, not the frozen recurring-location implementation;
+- same-second >10 m is documented as unresolved spatial ambiguity, not automatic corruption;
+- notebook 02 prefix sensitivity is explicitly separated from the final user-stratified sensitivity in notebook 02b.
+
+No production algorithm or frozen parameter changed in this pass.
