@@ -223,3 +223,15 @@ A reproducible notebook that contains only executable code is still a weak long-
 This matters here because several initial assumptions changed through evidence: blanket UTC+8 became an explicit geography/timezone cohort; DBSCAN 200 m was replaced by a complete-link diameter contract; and same-second >10 m was reinterpreted as unresolved spatial ambiguity rather than automatic corruption.
 
 A strong notebook is therefore an executable decision record, not merely a scratchpad with plots.
+
+## 2026-09-18 — Abstention belongs in the model response, not the HTTP error model
+
+The first API-serving contract forced a useful separation between invalid requests and valid uncertainty.
+
+A malformed timestamp, impossible coordinate or reversed interval is a transport/schema problem and should return HTTP 422. A user who is outside the Beijing semantic cohort, has no recurring location, or has weak Home/Office evidence has supplied a perfectly valid request. Those cases should therefore return HTTP 200 with an explicit model abstention reason.
+
+This keeps serving semantics aligned with the conservative CP2 model: uncertainty is a first-class output rather than an operational failure.
+
+The API contract also omits precise inferred Home/Office coordinates even though the internal model computes them. Returning only a request-local `location_id` plus evidence fields gives downstream systems enough traceability for v1 while reducing accidental semantic-location disclosure.
+
+A second lesson is that request-time configuration is part of the model contract. Allowing clients to submit thresholds such as `home_min_share` would silently turn one frozen CP2 model into many per-request variants, so v1 explicitly forbids extra tuning fields.
