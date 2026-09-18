@@ -129,3 +129,15 @@ The CP2 scaffold therefore puts a timezone/geography gate before semantic scorin
 Another lesson is that Home/Office is a user-level recurring-location problem, not a trajectory-file problem. The first CP2 notebook materializes the frozen 5,821 stays, audits history sufficiency, then explores per-user spatial clustering before defining semantic scores.
 
 Because Home and Office are sensitive inferred locations, privacy now becomes part of the artifact contract: precise user-level inferred coordinates should remain in private caches, while the repository keeps aggregate diagnostics and decision records.
+
+## 2026-09-18 — First CP2 materialization shows why abstention and cluster diagnostics matter
+
+The first full-release CP2 stay materialization reproduced the frozen CP1 total exactly: 5,821 stays across 136 users. This is a useful contract check because the semantic stage is now demonstrably consuming the same behavior that CP1 validated.
+
+History sufficiency is uneven. Although 120 users have at least two stays, only 62 have stays on at least ten distinct UTC dates. A Home/Office system therefore needs abstention and evidence thresholds; producing a label for every release user would confuse pipeline coverage with semantic certainty.
+
+The first per-user DBSCAN experiment also surfaced a subtle spatial-clustering issue. With epsilon set to 200 m, the largest distance from a cluster's median representative to a member stay reached about 527 m. DBSCAN epsilon limits density-neighbor links, not total cluster diameter, so chaining can create a location much wider than the intuitive 200 m interpretation.
+
+This means the recurring-location contract needs an explicit compactness diagnostic or a different clustering rule before production semantics are frozen.
+
+The spatial stay distribution remains strongly Beijing-centered but includes large geographic outliers. That empirical result confirms the earlier design warning: local behavioral time cannot be created by blindly adding eight hours to every UTC timestamp.
