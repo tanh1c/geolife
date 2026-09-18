@@ -172,3 +172,11 @@ The first Home/Office scoring audit uses the full stay interval when measuring b
 The same principle matters for office evidence and for stays crossing midnight. Behavioral-time features are interval-overlap problems, not point-in-time classification problems.
 
 I also avoid turning the first score into a probability. Without Home/Office ground truth, relevant-dwell share, support dates, and top-1 versus top-2 margin are interpretable evidence components, but they are not calibrated confidence probabilities. The next step is to inspect their distributions and define abstention rules before productionizing the heuristic.
+
+## 2026-09-18 — Home and Office evidence should not share a threshold by default
+
+The first interval-overlap scoring run produced noticeably different evidence distributions for Home and Office. Home candidates had a median relevant-dwell share around 0.635 and median top-two margin around 0.513, while Office candidates were around 0.357 and 0.243.
+
+That difference matters. A single threshold such as “share >= 0.5” would be moderately selective for Home but much more aggressive for Office. Without semantic ground truth, there is no justification for pretending both evidence families are calibrated to the same scale.
+
+The next step is therefore separate, bounded sensitivity for Home and Office. I also want to track whether the selected top location itself stays stable when time windows move slightly; coverage alone can hide an unstable heuristic.
