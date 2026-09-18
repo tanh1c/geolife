@@ -1,7 +1,7 @@
 # CP2 Home / Office scoring audit
 
 Date: 2026-09-18  
-Status: OPEN — first scoring output reviewed; bounded window/support/emission sensitivity is the remaining gate before freezing Home/Office semantics.
+Status: COMPLETE — CP2 v1 Home/Office scoring, abstention, evidence-strength, and production parity are resolved.
 
 ## Upstream semantics already frozen for CP2 v1
 
@@ -136,3 +136,17 @@ The Home and Office grids are intentionally different because their measured evi
 Only then freeze Home/Office scoring and heuristic confidence semantics.
 
 Notebook: `notebooks/03_home_office_baseline.ipynb`.
+
+
+## Final production parity
+
+The frozen production implementation was run over the cached full-release stay table.
+
+Observed:
+
+- HOME: 27;
+- OFFICE: 16;
+- total emitted labels: 43;
+- unique emitted users: 36.
+
+The 27/16 label counts match the frozen notebook sensitivity decision exactly. This closes the scoring audit for CP2 v1.
