@@ -289,3 +289,27 @@ The materialization itself was unaffected. The notebook cache format was changed
 - precise user-level stays remain in the mounted private cache rather than the repository.
 
 This is an execution-environment/cache-format fix only; it does not change CP1 or CP2 modeling semantics.
+
+## 2026-09-18 — First CP2 full-release stay materialization
+
+The first CP2 run completed and reproduced the frozen CP1 stay total exactly:
+
+- 5,821 stays;
+- 136 users with at least one stay.
+
+User-history support:
+
+- 120 users with >=2 stays;
+- 99 with >=5;
+- 81 with >=10;
+- 114 users with stays on >=2 distinct UTC dates;
+- 83 with >=5 distinct UTC dates;
+- 62 with >=10 distinct UTC dates.
+
+The candidate per-user Haversine DBSCAN representation at 200 m produced 1,885 candidate locations, of which 635 had >=2 stays; 104 users had at least one recurring location.
+
+A key diagnostic is DBSCAN chaining: the largest distance from a cluster median representative to a member stay reached ~526.7 m even though epsilon was 200 m. Therefore 200 m cannot be interpreted as a hard location-radius bound and clustering semantics remain unfrozen.
+
+The stay geography is strongly Beijing-centered but includes substantial outliers, confirming that a blanket UTC+8 conversion across the full release is not acceptable without an explicit cohort/timezone policy.
+
+The first notebook execution also exposed a cache-format portability issue: pandas could not write Parquet in the active Modal environment because no Parquet engine was available. The final private cache was successfully saved as pandas pickle and contains all 5,821 stays.
