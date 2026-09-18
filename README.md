@@ -2,9 +2,9 @@
 
 A 6-week MLE learning project built around the Microsoft GeoLife GPS trajectory dataset.
 
-Current focus: **Checkpoint 1 — data exploration, trajectory cleaning, stay-point detection, baseline Home/Office inference, and API contract design**.
+Current focus: **Checkpoint 2 — user-level recurring locations, timezone policy, and interpretable Home / Office / POI baseline inference on top of the merged CP1 cleaning + stay-point pipeline**.
 
-## CP1 workflow
+## Workflow
 
 ```text
 GeoLife raw PLT
@@ -15,14 +15,18 @@ clean / speed-based filtering
     ↓
 stay-point detection
     ↓
-Home / Office heuristic
+user-level recurring locations
+    ↓
+timezone / geography policy
+    ↓
+Home / Office / POI heuristic
     ↓
 OpenAPI contract review
     ↓
 FastAPI implementation
 ```
 
-Production implementation starts only after the relevant design/contract is reviewed. Exploratory EDA code is kept under `notebooks/` and will not be silently promoted into `src/`.
+Production implementation starts only after the relevant design/contract is reviewed. CP1 cleaning/stay-point code is now merged; CP2 Home/Office logic remains notebook/design work until timezone, recurring-location and scoring semantics are reviewed and covered by RED tests. Exploratory code under `notebooks/` is not silently promoted into `src/`.
 
 ## Repository structure
 
@@ -33,6 +37,10 @@ geolife/
 │   └── eda/                  # EDA questions and decision records
 ├── notebooks/
 │   ├── 01_geolife_eda.ipynb
+│   ├── 02_cleaning_staypoint_validation.ipynb
+│   ├── 02b_staypoint_sensitivity_validation.ipynb
+│   ├── 02c_same_second_transport_audit.ipynb
+│   ├── 03_home_office_baseline.ipynb
 │   └── eda_core.py           # exploratory helpers, not production code
 ├── reports/
 │   └── eda/                  # generated outputs ignored by default
