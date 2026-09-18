@@ -101,3 +101,33 @@ The first API accepts **CP1 stay events for one user per request** and calls the
 It does not accept raw GPS in v1 and does not return precise inferred Home/Office coordinates.
 
 See `docs/design/04_api_contract.md`.
+
+
+## Run the CP3 API
+
+Install the project and start the local server:
+
+```bash
+python -m pip install -e '.[dev]'
+uvicorn geolife.api.app:app --host 127.0.0.1 --port 8000
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Interactive OpenAPI docs are available at `/docs` while the server is running.
+
+The v1 inference endpoint is:
+
+```text
+POST /v1/home-office/infer
+```
+
+It accepts one user's CP1 stay events. Valid but weak/out-of-scope evidence returns HTTP 200 with explicit abstention. Malformed input returns HTTP 422.
+
+Precise inferred Home/Office coordinates are intentionally omitted from the response contract.
+
+Full-release HTTP parity is validated in `notebooks/04_api_contract_validation.ipynb`.
