@@ -277,3 +277,15 @@ Important design constraints:
 - treat heuristic confidence as evidence strength, not calibrated probability.
 
 Production Home/Office logic under `src/geolife/model/` remains intentionally unimplemented until timezone policy, recurring-location representation, scoring semantics and RED acceptance tests are reviewed.
+
+## 2026-09-18 — CP2 stay-cache portability fix
+
+The first full-release CP2 stay materialization completed the expensive cleaning/stay computation but failed while writing the final Parquet cache because the active Modal notebook image did not expose a Parquet engine (`pyarrow` / `fastparquet`) to pandas.
+
+The materialization itself was unaffected. The notebook cache format was changed from Parquet to pandas pickle for this private intermediate artifact:
+
+- no extra runtime dependency is required;
+- the existing 500-file partial checkpoint/resume path is unchanged;
+- precise user-level stays remain in the mounted private cache rather than the repository.
+
+This is an execution-environment/cache-format fix only; it does not change CP1 or CP2 modeling semantics.
