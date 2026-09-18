@@ -190,3 +190,13 @@ Bounded scoring sensitivity giúp chốt stopping rule rõ ràng. Home window ba
 Không có Home/Office ground truth nên không thể chọn threshold bằng cách “maximize accuracy”. CP2 v1 vì vậy freeze middle setting của support/share/margin: Home dùng 3 dates / 0.50 share / 0.20 margin; Office dùng 3 dates / 0.30 share / 0.10 margin. Hai gate này emit lần lượt 27 và 16 users trên semantic cohort 97 users.
 
 Confidence cũng được gọi đúng nghĩa là evidence strength, không phải probability. Nó lấy trung bình dwell share, top-two margin và date-support factor saturate ở 5 dates, đồng thời vẫn expose toàn bộ raw components bên cạnh aggregate score.
+
+## 2026-09-18 — RED tests bắt được zero-evidence dtype bug mà notebook full data không lộ ra
+
+Production Home/Office implementation đầu tiên compile được nhưng fail RED tests khi một semantic evidence family hoàn toàn không có overlap. Sau merge với empty feature table, pandas giữ zero column ở object dtype; phép chia eager bên trong `np.where` sau đó ném `ZeroDivisionError`.
+
+Full-release notebook có đủ mixture Home/Office evidence nên edge case này không tự nhiên xuất hiện.
+
+Fix đúng không phải special-case test. Feature builder production giờ coercion dwell columns sang numeric và dùng `np.divide(..., where=denominator > 0)`, nhờ đó zero-evidence user trở thành abstention case bình thường.
+
+Đây là ví dụ rất rõ vì sao chuyển từ notebook sang production vẫn cần acceptance tests dù exploratory output nhìn hoàn toàn hợp lý.
