@@ -523,3 +523,22 @@ The FastAPI validation handler strips rejected input values from validation resp
 The API tests also lock that clients cannot override frozen CP2 thresholds in v1 and that emitted response/OpenAPI schemas do not expose precise inferred coordinates.
 
 A dedicated release-level notebook, `notebooks/04_api_contract_validation.ipynb`, reuses the private 5,821-stay CP2 cache and is designed to compare all 136 per-user HTTP requests against direct production inference. The remaining CP3 release gate is to run that notebook and verify full-release HTTP ↔ direct-model parity.
+
+## 2026-09-18 — CP3 API CI GREEN
+
+CI #168 passed on the CP3 API implementation head.
+
+Validated:
+
+- **36 tests** passed;
+- Python source compilation passed;
+- notebook JSON validation includes `notebooks/04_api_contract_validation.ipynb`;
+- CP1 production API imports passed;
+- CP2 model API imports passed;
+- CP3 FastAPI imports passed.
+
+The test suite includes privacy assertions that validation responses do not echo rejected coordinate values, OpenAPI emitted-result schema omits precise coordinates, and request-time model-threshold overrides are rejected.
+
+A Starlette/FastAPI test-client deprecation warning is currently emitted by the installed dependency stack, but it does not affect test correctness. This is dependency/tooling noise rather than a model/API contract failure and can be handled separately from the CP3 semantic gate.
+
+The only remaining CP3 release-level gate is the private-data full-release HTTP parity run in notebook 04.
