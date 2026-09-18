@@ -132,7 +132,7 @@ Duplicate-heavy trajectory user `141` / `20111022031803`:
 Structurally corrupted trajectory user `062` / `20080926000623`:
 
 - 8,117 raw points -> 8,091 consolidated rows;
-- 26 same-second spatial conflicts were correctly flagged;
+- 26 same-second >10 m groups (then described as spatial conflicts) were flagged for non-consolidation;
 - the repeated ~850 km jumps between singleton timestamps remain, with speeds around 3.1 million km/h.
 
 Interpretation:
