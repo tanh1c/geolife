@@ -111,3 +111,23 @@ V3 strict-containment match 4,807,087 / 11,878,198 valid segments của labeled 
 Bài học chính không chỉ dành cho GeoLife: boundary semantics như `[start, end)` hay `[start, end]` phải được coi là một phần của data contract. Chỉ một khác biệt nhỏ ở boundary cũng có thể làm event/window counts thay đổi mạnh, dù kết luận theo duration vẫn ổn định.
 
 Audit này cũng cho thấy cách dừng EDA đúng lúc: correction đã được independently reproduce, rerun bounded và không làm đổi design decision. Vì vậy EDA cho CP1 được đóng tại đây. Bước tiếp theo là review/approve cleaning + stay-point contract, sau đó viết RED tests trước khi implement production preprocessing/stay-point code.
+
+## 2026-09-18 — Threshold có thể nghĩa là “safe để transform”, không phải “valid hay corrupt”
+
+Góp ý của mentor về same-second làm rõ một distinction quan trọng. Rule 10 m ban đầu rất dễ bị diễn giải thành ngưỡng phân biệt data tốt và corruption, nhưng transportation audit cho thấy cách hiểu đó quá mạnh.
+
+Các case train và nhiều subway case vượt 10 m vẫn nằm trong scale movement đã quan sát ở transportation-speed benchmark, trong khi phần lớn walk/bike case thì không. Vì vậy population >10 m là một mixture của nhiều nguyên nhân có thể có.
+
+Kết luận chắc chắn hơn và hẹp hơn là: 10 m là bán kính mà bên dưới nó group đủ compact để collapse an toàn. Trên 10 m, within-second ordering không xác định nên vẫn phải break continuity một cách conservative, nhưng diagnostic nên gọi là spatial ambiguity thay vì khẳng định corruption.
+
+Bài học tổng quát: một threshold có thể định nghĩa “khi nào phép transform an toàn” mà không hề phân loại bản chất dữ liệu thành đúng hay sai.
+
+## 2026-09-18 — CP2 phải bắt đầu bằng abstention và timezone semantics, không phải một công thức Home/Office ngay lập tức
+
+Shortcut hấp dẫn tiếp theo là lấy stay points, cộng 8 giờ rồi gọi location ban đêm là Home và location giờ hành chính là Office. EDA trước đã cho thấy cách đó không an toàn: GeoLife có trajectories ngoài Beijing trong khi timestamp PLT là UTC/GMT.
+
+Vì vậy scaffold CP2 đặt timezone/geography gate trước semantic scoring. User có lịch sử quá ít cũng phải được phép abstain thay vì ép ra Home hoặc Office.
+
+Một bài học khác là Home/Office là bài toán recurring location ở cấp user, không phải bài toán theo từng trajectory file. Notebook CP2 đầu tiên materialize 5,821 stays đã freeze, audit history sufficiency, rồi mới thử spatial clustering theo user trước khi định nghĩa score.
+
+Home và Office cũng là inferred locations rất nhạy cảm. Vì vậy privacy trở thành một phần của artifact contract: precise user-level inferred coordinates chỉ nên nằm trong private cache; repo chỉ giữ aggregate diagnostics và decision records.
