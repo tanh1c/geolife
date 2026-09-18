@@ -1,7 +1,7 @@
 # CP2 Home / Office / POI baseline contract
 
 Date: 2026-09-18  
-Status: APPROVED FOR TDD — CP2 v1 geography, recurring-location, Home/Office scoring, abstention, and heuristic evidence-strength semantics are frozen as engineering baselines.
+Status: IMPLEMENTED — CP2 v1 contract is covered by tests and production code; final full-release production-parity smoke check remains before PR readiness.
 
 ## Goal
 
@@ -250,11 +250,15 @@ Repository outputs must avoid committing user-level precise coordinates or raw i
 
 `notebooks/03_home_office_baseline.ipynb` is the CP2 exploration/validation surface.
 
-Production logic will live under `src/geolife/model/` only after:
+Production logic now lives in `src/geolife/model/home_office.py` and exports:
 
-1. timezone policy is reviewed;
-2. recurring-location representation is reviewed;
-3. Home/Office scoring semantics are written as acceptance tests.
+- `HomeOfficeConfig`;
+- `build_semantic_locations()`;
+- `infer_home_office()`.
+
+The production path is covered by acceptance tests for geography/travel exclusion, complete-link compactness, interval-overlap semantics, separate Home/Office gates, same-location Home/Office behavior, abstention, and heuristic evidence strength.
+
+The remaining release-level gate is a parity run over the cached 5,821 stays, expected to reproduce 27 HOME and 16 OFFICE emissions under the frozen default config.
 
 ## Initial review gates
 
