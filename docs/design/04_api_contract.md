@@ -1,7 +1,7 @@
 # CP3 API contract — Home / Office inference
 
 Date: 2026-09-18  
-Status: IMPLEMENTED / CI GREEN — contract, FastAPI layer, 36-test suite, OpenAPI validation, and API import checks pass; full-release HTTP parity notebook remains the release-level gate.
+Status: VALIDATED — contract, FastAPI layer, tests, OpenAPI/privacy checks, and full-release HTTP ↔ direct-model parity have passed.
 
 ## Goal
 
@@ -273,3 +273,60 @@ The release-level validation notebook is:
 `notebooks/04_api_contract_validation.ipynb`
 
 It reuses the private 5,821-stay CP2 cache and replays all 136 users through the API one user at a time. The final gate is exact emitted-key/evidence parity with direct production inference and aggregate counts of 27 HOME / 16 OFFICE.
+
+
+## Full-release HTTP parity result
+
+Notebook `04_api_contract_validation.ipynb` was run on the private cached table of **5,821 stays across 136 users**.
+
+Direct production model:
+
+- HOME: **27**;
+- OFFICE: **16**;
+- emitted rows: **43**;
+- unique emitted users: **36**.
+
+HTTP replay, one user per request:
+
+- HOME: **27**;
+- OFFICE: **16**;
+- emitted rows: **43**;
+- unique emitted users: **36**.
+
+The notebook also verified:
+
+- exact emitted `(user_id, label)` key parity;
+- exact location-id parity;
+- relevant-date parity;
+- numerical parity for evidence strength, relevant-dwell share, share margin and relevant dwell hours;
+- validation/privacy smoke checks.
+
+Result: **full-release HTTP ↔ direct-model parity PASS**.
+
+### Abstention distribution
+
+Across the 136 valid per-user requests, each semantic label always returns either emitted or abstained.
+
+HOME:
+
+- emitted: 27;
+- `out_of_scope_geography`: 39;
+- `insufficient_recurring_history`: 24;
+- `insufficient_semantic_evidence`: 46.
+
+OFFICE:
+
+- emitted: 16;
+- `out_of_scope_geography`: 39;
+- `insufficient_recurring_history`: 24;
+- `insufficient_semantic_evidence`: 57.
+
+These are serving/model-outcome counts, not error rates or accuracy measurements.
+
+### Partial-emission warning found during replay
+
+The full HTTP replay exposed a pandas `FutureWarning` when the production model concatenated one emitted frame with one empty frame for users who emitted only HOME or only OFFICE.
+
+The result values were correct, but the warning indicated a future dtype-behavior risk.
+
+The production code was amended to concatenate only non-empty emission frames, and a regression test was added. This does not change frozen CP2 semantics or parity counts.
