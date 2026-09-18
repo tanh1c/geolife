@@ -1,7 +1,7 @@
 # CP2 Home / Office / POI baseline contract
 
 Date: 2026-09-18  
-Status: DRAFT — full-release CP2 stay materialization reproduced CP1 exactly; recurring-location and timezone gates are under review. No Home/Office heuristic is frozen yet.
+Status: DRAFT — full-release stay materialization and CP2 v1 timezone/geography policy are resolved; recurring-location representation remains under review. No Home/Office scoring heuristic is frozen yet.
 
 ## Goal
 
@@ -126,13 +126,17 @@ Therefore:
 
 Before computing night/daytime features, the notebook must audit spatial coverage of the materialized stays and document the local-time policy.
 
-Candidate v1 policy under review:
+Frozen CP2 v1 engineering policy:
 
-- define a Beijing-focused cohort using sensitivity over distance-to-Beijing and per-user stay/dwell share;
-- current audit values are 50/100/200 km radii and a candidate 100 km / 80% stay-share / 80% dwell-share rule;
-- for accepted users, only stays inside the selected Beijing radius enter `Asia/Shanghai` semantic-time processing;
+- Beijing reference point: 39.9042 N, 116.4074 E;
+- cohort radius: 100 km;
+- user must have at least 80% of stays and 80% of dwell time inside the radius;
+- only in-radius stays from eligible users enter `Asia/Shanghai` semantic-time processing;
 - out-of-radius travel stays remain excluded rather than being silently converted to Beijing time;
+- users failing the rule abstain from the v1 semantic baseline;
 - a broader cohort is deferred unless a reliable per-location timezone mapping is added.
+
+Measured coverage: 97 eligible users, 4,197 in-region stays, and 245 excluded travel stays from otherwise eligible users (72.10% of all materialized stays retained).
 
 No production heuristic may silently infer a timezone from longitude alone without a reviewed contract.
 
