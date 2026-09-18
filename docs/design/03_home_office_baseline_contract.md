@@ -1,7 +1,7 @@
 # CP2 Home / Office / POI baseline contract
 
 Date: 2026-09-18  
-Status: DRAFT — stay materialization, CP2 v1 timezone/geography policy, and recurring-location representation are resolved. Home/Office scoring semantics remain under review.
+Status: APPROVED FOR TDD — CP2 v1 geography, recurring-location, Home/Office scoring, abstention, and heuristic evidence-strength semantics are frozen as engineering baselines.
 
 ## Goal
 
@@ -160,7 +160,7 @@ After the timezone gate is resolved, candidate location-level features include:
 - total weekday work-hour dwell;
 - fraction of a user's weekday daytime dwell captured by the location.
 
-Candidate time windows such as night and 09:00–17:00 are **parameters for sensitivity review**, not universal truths.
+Frozen CP2 v1 engineering windows are Home night 21:00–06:00 local and Office weekdays 09:00–17:00 local. Bounded sensitivity showed >90% top-location stability for neighboring tested windows. These remain engineering choices, not universal behavioral truths.
 
 ## First Home / Office scoring audit
 
@@ -174,6 +174,24 @@ Using interval-overlap evidence with candidate windows 21:00–06:00 for Home an
 Home evidence is stronger in the first run than Office evidence. Median Home dwell share / top-two margin are 0.635 / 0.513, while median Office values are 0.357 / 0.243.
 
 Therefore Home and Office emission thresholds are reviewed separately rather than forcing one shared threshold. No scoring/emission threshold is frozen yet.
+
+## Frozen CP2 v1 emission gates
+
+Home is emitted only when the leading recurring location has:
+
+- at least 3 distinct supported night dates;
+- night-dwell share >= 0.50;
+- top-two night-share margin >= 0.20.
+
+Office is emitted only when the leading recurring location has:
+
+- at least 3 distinct supported weekday-office dates;
+- office-dwell share >= 0.30;
+- top-two office-share margin >= 0.10.
+
+Measured coverage under these gates is 27 Home users and 16 Office users out of the 97-user semantic cohort.
+
+The different gates are intentional: Office evidence is materially weaker in the measured distribution, so using the Home gate for Office would impose a much stronger abstention policy without ground-truth justification.
 
 ## Stage F — candidate labeling semantics
 
@@ -198,7 +216,14 @@ Candidate components include:
 - margin over the second-ranked candidate;
 - observation-span sufficiency.
 
-The first contract must define the exact confidence formula before implementation is promoted to production.
+CP2 v1 exposes a heuristic evidence-strength score, not a calibrated probability:
+
+```text
+support_factor = min(relevant_dates / 5, 1)
+evidence_strength = (relevant_dwell_share + top_two_share_margin + support_factor) / 3
+```
+
+The raw share, margin, relevant dates, and dwell must remain available alongside the aggregate score.
 
 ## Validation without Home/Office ground truth
 
