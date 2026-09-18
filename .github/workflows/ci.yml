@@ -28,6 +28,7 @@ jobs:
               'notebooks/02_cleaning_staypoint_validation.ipynb',
               'notebooks/02b_staypoint_sensitivity_validation.ipynb',
               'notebooks/02c_same_second_transport_audit.ipynb',
+              'notebooks/03_home_office_baseline.ipynb',
           ]:
               json.load(open(path, encoding='utf-8'))
               print(path, 'json ok')
