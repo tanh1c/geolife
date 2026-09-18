@@ -40,3 +40,6 @@ jobs:
 
       - name: Import CP2 model APIs
         run: python -c "from geolife.model import HomeOfficeConfig, build_semantic_locations, infer_home_office; print('CP2 model APIs import ok')"
+
+      - name: Import CP3 API
+        run: python -c "from geolife.api import app, InferRequest, InferResponse; print('CP3 API import ok')"
