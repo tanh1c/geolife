@@ -1,7 +1,7 @@
 # CP3 API contract — Home / Office inference
 
 Date: 2026-09-18  
-Status: IMPLEMENTED — contract, FastAPI layer, RED/acceptance tests, and CI are in place; full-release HTTP parity notebook remains the release-level gate.
+Status: IMPLEMENTED / CI GREEN — contract, FastAPI layer, 36-test suite, OpenAPI validation, and API import checks pass; full-release HTTP parity notebook remains the release-level gate.
 
 ## Goal
 
