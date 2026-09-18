@@ -143,3 +143,16 @@ Thử nghiệm DBSCAN theo user cũng lộ ra một vấn đề clustering quan 
 Điều này nghĩa là recurring-location contract cần compactness diagnostic rõ ràng hoặc một clustering rule khác trước khi freeze production semantics.
 
 Spatial distribution của stays vẫn tập trung mạnh quanh Beijing nhưng có geographic outliers lớn. Kết quả thực nghiệm này xác nhận warning trước đó: không thể tạo local behavioral time bằng cách cộng 8 giờ cho mọi UTC timestamp.
+
+## 2026-09-18 — Timezone scope phải gắn với observation, không chỉ với user
+
+Timezone audit của CP2 làm lộ thêm một semantic issue nhỏ nhưng quan trọng. Một user có thể chủ yếu sống ở Beijing nhưng vẫn có travel stays ở nơi khác. Nếu chỉ classify user là “Beijing” rồi convert toàn bộ stays của user đó sang `Asia/Shanghai`, travel observations vẫn có thể bị gán sai local time.
+
+Thiết kế v1 an toàn hơn là hai tầng:
+
+1. quyết định user có đủ Beijing-focused hay không bằng sensitivity của stay-share và dwell-share;
+2. ngay cả với user được accept, chỉ các stays nằm trong Beijing region mới đi vào semantic scoring theo local time.
+
+Travel stays ngoài region bị exclude thay vì bị silently convert.
+
+Bài học tổng quát cho spatiotemporal systems: metadata như timezone có thể cần scope ở cấp observation dù eligibility được quyết định ở cấp user.
