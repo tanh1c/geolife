@@ -126,12 +126,17 @@ Therefore:
 
 Before computing night/daytime features, the notebook must audit spatial coverage of the materialized stays and document the local-time policy.
 
-Candidate policies to evaluate include:
+Candidate v1 policy under review:
 
-- a Beijing-focused cohort with `Asia/Shanghai`;
-- a broader cohort only if a reliable per-location timezone mapping is available.
+- define a Beijing-focused cohort using sensitivity over distance-to-Beijing and per-user stay/dwell share;
+- current audit values are 50/100/200 km radii and a candidate 100 km / 80% stay-share / 80% dwell-share rule;
+- for accepted users, only stays inside the selected Beijing radius enter `Asia/Shanghai` semantic-time processing;
+- out-of-radius travel stays remain excluded rather than being silently converted to Beijing time;
+- a broader cohort is deferred unless a reliable per-location timezone mapping is added.
 
 No production heuristic may silently infer a timezone from longitude alone without a reviewed contract.
+
+See `docs/eda/16_cp2_timezone_geography_audit.md`.
 
 ## Stage E — candidate semantic features
 
