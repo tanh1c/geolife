@@ -235,3 +235,15 @@ This keeps serving semantics aligned with the conservative CP2 model: uncertaint
 The API contract also omits precise inferred Home/Office coordinates even though the internal model computes them. Returning only a request-local `location_id` plus evidence fields gives downstream systems enough traceability for v1 while reducing accidental semantic-location disclosure.
 
 A second lesson is that request-time configuration is part of the model contract. Allowing clients to submit thresholds such as `home_min_share` would silently turn one frozen CP2 model into many per-request variants, so v1 explicitly forbids extra tuning fields.
+
+## 2026-09-18 — Full HTTP replay validates adapter semantics, not only route availability
+
+The CP3 release notebook replayed all 136 users from the private 5,821-stay cache through the FastAPI endpoint and compared the response to direct `infer_home_office()` output.
+
+The aggregate counts matched exactly: 27 HOME and 16 OFFICE labels, 43 emitted rows across 36 users. More importantly, the notebook also checked the exact emitted `(user_id, label)` keys, location ids, relevant dates and numerical evidence fields.
+
+This is stronger than checking only aggregate counts. Two serving layers could both produce 27/16 while disagreeing about which users were labeled.
+
+The replay also produced useful abstention observability. HOME abstained for 39 geography cases, 24 recurring-history cases and 46 semantic-evidence cases; OFFICE had the same first two counts and 57 semantic-evidence abstentions. These are model outcomes, not error rates.
+
+A pandas FutureWarning appeared repeatedly for partial emissions because the model concatenated one non-empty frame with one empty frame. The values were correct, but the warning exposed a future dtype-risk. The production code now concatenates only non-empty frames and has a regression test for that case.
