@@ -166,3 +166,11 @@ DBSCAN experiment đầu tiên cho thấy một mismatch quan trọng giữa tr�
 Với Home/Office inference, mình muốn spatial threshold có semantic trực tiếp: một recurring location không nên chứa các point có pairwise separation vượt threshold. Complete-linkage clustering phù hợp hơn vì mỗi merge được quyết định bởi maximum pairwise distance giữa hai nhóm.
 
 Audit tiếp theo vì vậy so sánh complete linkage ở 100/200/300 m và verify exact cluster diameter trước khi freeze recurring-location contract.
+
+## 2026-09-18 — Behavioral-time feature phải dùng interval overlap, không phải arrival-hour label
+
+Scoring audit Home/Office đầu tiên dùng toàn bộ stay interval để đo evidence theo thời gian. Một stay từ 20:50 đến 21:30 chỉ nên đóng góp đoạn 21:00–21:30 vào night window. Nếu chỉ nhìn arrival hour rồi gán toàn bộ stay thì sẽ tạo boundary artifact.
+
+Nguyên tắc này cũng áp dụng cho office evidence và các stay đi qua midnight. Behavioral-time feature là bài toán interval overlap, không phải point-in-time classification.
+
+Mình cũng chưa biến score đầu tiên thành “probability”. Khi không có Home/Office ground truth, relevant-dwell share, số ngày support và margin top-1 so với top-2 là các evidence component dễ giải thích, nhưng không phải calibrated confidence probability. Bước tiếp theo là xem distribution và định nghĩa abstention rule trước khi productionize heuristic.
