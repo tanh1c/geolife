@@ -141,3 +141,16 @@ The first per-user DBSCAN experiment also surfaced a subtle spatial-clustering i
 This means the recurring-location contract needs an explicit compactness diagnostic or a different clustering rule before production semantics are frozen.
 
 The spatial stay distribution remains strongly Beijing-centered but includes large geographic outliers. That empirical result confirms the earlier design warning: local behavioral time cannot be created by blindly adding eight hours to every UTC timestamp.
+
+## 2026-09-18 — Timezone scope should be attached to observations, not only users
+
+The CP2 timezone audit exposed another subtle semantic issue. A user can be predominantly Beijing-based and still have travel stays elsewhere. If I classify the user as “Beijing” and then convert every stay for that user to `Asia/Shanghai`, I can still assign the wrong local time to travel observations.
+
+The safer v1 design is two-stage:
+
+1. decide whether a user is sufficiently Beijing-focused using stay-share and dwell-share sensitivity;
+2. even for accepted users, only in-region stays enter Beijing local-time semantic scoring.
+
+Out-of-region travel stays are excluded rather than silently converted.
+
+This is a useful general lesson for spatiotemporal systems: metadata such as timezone may need observation-level scope even when eligibility is decided at the user level.
