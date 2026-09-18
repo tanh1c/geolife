@@ -440,17 +440,28 @@ def _location_features(
         locations.merge(home, on=["user_id", "location_id"], how="left")
         .merge(office, on=["user_id", "location_id"], how="left")
     )
-    for col in ["home_dwell_s", "home_dates", "office_dwell_s", "office_dates"]:
-        features[col] = features[col].fillna(0)
-
-    features["home_dates"] = features["home_dates"].astype(int)
-    features["office_dates"] = features["office_dates"].astype(int)
+    for col in ["home_dwell_s", "office_dwell_s"]:
+        features[col] = pd.to_numeric(features[col], errors="coerce").fillna(0.0)
+    for col in ["home_dates", "office_dates"]:
+        features[col] = pd.to_numeric(features[col], errors="coerce").fillna(0).astype(int)
 
     for prefix in ["home", "office"]:
         dwell_col = f"{prefix}_dwell_s"
         share_col = f"{prefix}_dwell_share"
-        user_total = features.groupby("user_id")[dwell_col].transform("sum")
-        features[share_col] = np.where(user_total > 0, features[dwell_col] / user_total, 0.0)
+        numerator = features[dwell_col].to_numpy(dtype=float)
+        denominator = (
+            features.groupby("user_id")[dwell_col]
+            .transform("sum")
+            .to_numpy(dtype=float)
+        )
+        shares = np.zeros(len(features), dtype=float)
+        np.divide(
+            numerator,
+            denominator,
+            out=shares,
+            where=denominator > 0,
+        )
+        features[share_col] = shares
 
     return features
 
