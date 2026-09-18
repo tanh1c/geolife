@@ -225,3 +225,15 @@ Một notebook reproducible nhưng chỉ có code vẫn chưa đủ cho handoff 
 Điều này đặc biệt quan trọng với project này vì một số assumption ban đầu đã được sửa bằng evidence: blanket UTC+8 bị thay bằng geography/timezone cohort; DBSCAN 200 m bị thay bằng complete-link diameter contract; >10 m same-second không còn bị gọi là corruption.
 
 Bài học: notebook tốt nên đóng vai trò decision record có thể chạy lại, không chỉ là scratchpad có biểu đồ.
+
+## 2026-09-18 — Abstention là model output, không phải HTTP error
+
+API contract đầu tiên làm rõ một boundary quan trọng giữa invalid request và valid uncertainty.
+
+Timestamp malformed, coordinate ngoài domain hoặc interval đảo ngược là lỗi transport/schema nên trả HTTP 422. Nhưng user ngoài Beijing semantic cohort, không có recurring location, hoặc evidence Home/Office yếu vẫn là request hợp lệ. Các case này phải trả HTTP 200 với abstention reason rõ ràng.
+
+Nhờ vậy serving semantics giữ đúng tinh thần conservative của CP2: uncertainty là first-class model output chứ không phải operational failure.
+
+API v1 cũng không trả precise inferred Home/Office coordinates dù internal model có tính chúng. Chỉ trả request-local `location_id` cùng evidence fields giúp downstream đủ traceability mà giảm accidental semantic-location disclosure.
+
+Một bài học khác: request-time configuration cũng là một phần của model contract. Nếu client được truyền threshold như `home_min_share`, một frozen CP2 model sẽ biến thành nhiều model variants theo từng request. Vì vậy v1 forbid extra tuning fields.
