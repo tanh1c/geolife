@@ -313,3 +313,21 @@ A key diagnostic is DBSCAN chaining: the largest distance from a cluster median 
 The stay geography is strongly Beijing-centered but includes substantial outliers, confirming that a blanket UTC+8 conversion across the full release is not acceptable without an explicit cohort/timezone policy.
 
 The first notebook execution also exposed a cache-format portability issue: pandas could not write Parquet in the active Modal environment because no Parquet engine was available. The final private cache was successfully saved as pandas pickle and contains all 5,821 stays.
+
+## 2026-09-18 — CP2 timezone/geography audit scaffold
+
+The Home/Office notebook now has an explicit geography sensitivity stage before any time-of-day scoring.
+
+Candidate v1 approach:
+
+- approximate Beijing reference point: 39.9042 N, 116.4074 E;
+- audit radii: 50 / 100 / 200 km;
+- per-user metrics: share of stays and share of dwell time inside each radius;
+- candidate cohort rule for review: >=80% of stays and >=80% of dwell within 100 km;
+- only in-radius stays from eligible users are converted to `Asia/Shanghai`;
+- travel/out-of-radius stays from otherwise Beijing-focused users remain excluded;
+- out-of-cohort users abstain instead of receiving a guessed timezone.
+
+This policy is not frozen yet. The next notebook run should review threshold sensitivity and cohort coverage before Home/Office scoring is implemented.
+
+Detailed plan: `docs/eda/16_cp2_timezone_geography_audit.md`.
