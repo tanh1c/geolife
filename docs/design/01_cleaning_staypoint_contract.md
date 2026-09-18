@@ -1,7 +1,7 @@
 # Cleaning + stay-point contract
 
-Date: 2026-09-17
-Status: APPROVED — semantics reviewed and implemented; CP1 engineering baseline frozen after full-release audit and user-stratified sensitivity validation.
+Date: 2026-09-18
+Status: APPROVED — semantics reviewed and implemented; CP1 engineering baseline frozen after full-release audit, user-stratified sensitivity, and same-second transportation audit.
 
 ## Goal
 
@@ -34,13 +34,13 @@ Each retained timestamp-level observation should expose at least:
 `boundary_before_reason` is attached to the first retained observation of a new sequence. The first sequence uses `None`. Initial reason values are:
 
 - `invalid_coordinate`;
-- `same_second_spatial_conflict`;
+- `same_second_spatial_ambiguity`;
 - `temporal_gap`;
 - `hard_speed_guard`.
 
 This field is diagnostic metadata; the hard semantic constraint for downstream stay detection is still `sequence_id`.
 
-Because a discarded invalid/conflict timestamp may occur at the end of a file or several quality events may occur before the next retained point, `boundary_before_reason` is **not** a complete event counter. Production cleaning therefore also exposes a separate audit-event stream with at least:
+Because a discarded invalid/ambiguity timestamp may occur at the end of a file or several quality events may occur before the next retained point, `boundary_before_reason` is **not** a complete event counter. Production cleaning therefore also exposes a separate audit-event stream with at least:
 
 - `timestamp`;
 - `reason`.
@@ -70,9 +70,22 @@ For a timestamp group:
 
 If `max_radius_m <= 10 m`, emit one representative point using median latitude/longitude and preserve `raw_point_count`.
 
-If `max_radius_m > 10 m`, do not average incompatible locations. Mark that timestamp as a spatial conflict and create a continuity boundary.
+The `10 m` value is a **safe-consolidation threshold**, not a valid-versus-corrupt threshold.
 
-Evidence: 99.61% of measured same-second groups are within 10 m; the full-release transform reduced 698,901 rows while producing only 835 spatial-conflict timestamps.
+If `max_radius_m > 10 m`, do not collapse the group into a representative point. The release does not preserve recoverable sub-second ordering, so the group is treated as `same_second_spatial_ambiguity` and creates a continuity boundary. This reason means only that the observed spatial spread is unresolved at the released timestamp precision; it does **not** assert that the observations are necessarily corrupt.
+
+Evidence before the mentor audit: 99.61% of measured same-second groups are within 10 m; only 835 groups exceed the threshold.
+
+The follow-up same-second × transportation audit computed exact within-group diameter for all 835 groups and joined available transportation labels using half-open `[start, end)` semantics. Among the 403 groups with one unambiguous mode, the audit found:
+
+- train: 3 groups, median diameter 30.08 m, all 3 within the train p99 one-second distance scale;
+- subway: 25 groups, median diameter 19.07 m, 20/25 within the subway p99 one-second distance scale;
+- taxi: 10 groups, 7/10 within the taxi p99 one-second distance scale;
+- walk and bike: only 4/194 and 2/145 groups respectively within their diagnostic one-second reference scales;
+- no unambiguous airplane groups occurred in this 835-group subset;
+- 68 groups had diameter >1 km, showing that the >10 m tail also contains much stronger spatial inconsistency.
+
+Therefore the >10 m population is heterogeneous. Transportation evidence shows that legitimate movement plus whole-second timestamp quantization is a plausible explanation for some groups, while other groups require different explanations. Production cleaning does not use transportation mode to repair or reorder observations; the conservative behavior remains to create a boundary whenever the group is not safe to collapse.
 
 ## Stage 3 — temporal continuity boundary
 
@@ -173,7 +186,7 @@ Implementation is locked by these reviewed semantics:
 
 1. invalid coordinate creates a boundary and is not bridged;
 2. compact same-second observations collapse to a median representative;
-3. same-second spatial conflict creates a boundary;
+3. same-second spatial ambiguity creates a boundary;
 4. temporal gap above `max_gap_s` prevents one stay from spanning the outage;
 5. speed above the hard guard creates a boundary without guessing which endpoint is wrong;
 6. a cluster inside the distance threshold but shorter than `min_dwell_s` is not a stay;
