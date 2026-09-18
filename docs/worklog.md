@@ -418,3 +418,28 @@ The separate gates are intentional because measured Office evidence is weaker th
 Heuristic evidence strength is defined as the arithmetic mean of relevant-dwell share, top-two share margin, and a support factor capped at five relevant dates. It is explicitly not a calibrated correctness probability.
 
 The CP2 design contract is now approved for RED tests before production model implementation.
+
+## 2026-09-18 — CP2 RED tests implemented; production model CI GREEN
+
+After freezing the scoring contract, eight CP2 acceptance tests were added before production implementation.
+
+The tests cover:
+
+- Beijing-focused user eligibility with observation-level travel exclusion;
+- complete-link clustering that prevents >200 m chaining;
+- exact night-window interval overlap;
+- allowing Home and Office to resolve to the same location;
+- Home abstention when top-two margin is weak;
+- default Home emission and evidence-strength formula;
+- the separate Office emission gate;
+- frozen config/evidence-strength semantics.
+
+The first production CI run exposed a zero-evidence edge case: an empty Home or Office feature family could preserve object dtype after merging, and an eager division inside `np.where` raised `ZeroDivisionError`.
+
+The implementation was corrected by coercing dwell columns to numeric and using `np.divide(..., where=denominator > 0)`.
+
+CI #138 then passed all **20 tests**, notebook JSON validation, CP1 imports, and CP2 model API imports.
+
+Production APIs now live under `src/geolife/model/home_office.py`.
+
+One release-level gate remains: run the notebook production parity cell on the cached 5,821 stays and verify the production defaults emit 27 HOME and 16 OFFICE labels.
