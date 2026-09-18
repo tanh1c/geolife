@@ -460,3 +460,30 @@ The expected 27/16 emission counts exactly match the frozen notebook sensitivity
 Production parity check: PASS.
 
 Together with the GREEN CI test suite, this closes the CP2 v1 implementation gate. PR #4 is ready for normal review/merge consideration.
+
+## 2026-09-18 — Notebook narrative pass aligned with mentor-audit style
+
+After CP2 production parity passed, the four implementation/audit notebooks were expanded so that future readers can reconstruct not only what code ran, but why each gate existed and what conclusions are justified.
+
+Updated:
+
+- `notebooks/02_cleaning_staypoint_validation.ipynb`
+- `notebooks/02b_staypoint_sensitivity_validation.ipynb`
+- `notebooks/02c_same_second_transport_audit.ipynb`
+- `notebooks/03_home_office_baseline.ipynb`
+
+The narrative pattern now mirrors the CP1 mentor-audit notebook:
+
+- question / motivation;
+- how to read output;
+- interpretation;
+- what must not be inferred;
+- explicit decision / downstream gate.
+
+Stale assumptions were also corrected in the explanatory text:
+- no blanket UTC+8 across the release;
+- DBSCAN is documented as a historical prototype, not the frozen recurring-location implementation;
+- same-second >10 m is documented as unresolved spatial ambiguity, not automatic corruption;
+- notebook 02 prefix sensitivity is explicitly separated from the final user-stratified sensitivity in notebook 02b.
+
+No production algorithm or frozen parameter changed in this pass.
