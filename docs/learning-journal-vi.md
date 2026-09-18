@@ -237,3 +237,15 @@ Nhờ vậy serving semantics giữ đúng tinh thần conservative của CP2: u
 API v1 cũng không trả precise inferred Home/Office coordinates dù internal model có tính chúng. Chỉ trả request-local `location_id` cùng evidence fields giúp downstream đủ traceability mà giảm accidental semantic-location disclosure.
 
 Một bài học khác: request-time configuration cũng là một phần của model contract. Nếu client được truyền threshold như `home_min_share`, một frozen CP2 model sẽ biến thành nhiều model variants theo từng request. Vì vậy v1 forbid extra tuning fields.
+
+## 2026-09-18 — Full HTTP replay validate adapter semantics, không chỉ route availability
+
+Release notebook của CP3 replay toàn bộ 136 users từ private cache 5,821 stays qua FastAPI endpoint rồi so response với direct `infer_home_office()`.
+
+Aggregate counts match chính xác: 27 HOME và 16 OFFICE, tổng 43 emitted rows trên 36 users. Quan trọng hơn, notebook còn check exact emitted `(user_id, label)` keys, location ids, relevant dates và các numerical evidence fields.
+
+Cách check này mạnh hơn chỉ nhìn aggregate count. Hai serving layers hoàn toàn có thể cùng cho 27/16 nhưng label nhầm những users khác nhau.
+
+Replay cũng cho một observability table hữu ích về abstention. HOME abstain 39 geography cases, 24 recurring-history cases và 46 semantic-evidence cases; OFFICE có cùng hai count đầu và 57 semantic-evidence abstentions. Đây là model outcomes, không phải error rates.
+
+Run này còn làm lộ pandas FutureWarning ở partial emission vì model concat một non-empty frame với một empty frame. Kết quả vẫn đúng nhưng warning cho thấy future dtype-risk. Production code giờ chỉ concat các non-empty frames và có regression test riêng.
