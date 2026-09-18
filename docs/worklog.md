@@ -393,3 +393,28 @@ Therefore no emission threshold is frozen yet. The notebook now runs separate Ho
 The sensitivity also reports whether the top location remains stable when time windows shift.
 
 Detailed plan: `docs/eda/19_cp2_home_office_sensitivity.md`.
+
+## 2026-09-18 — CP2 Home/Office scoring gate resolved
+
+Bounded time-window sensitivity showed stable top-location selection:
+
+- Home 20–06 vs baseline 21–06: 93.6% same top location;
+- Home 22–06 vs baseline: 90.5%;
+- Office 08–17 vs baseline 09–17: 95.0%;
+- Office 09–18 vs baseline: 92.5%.
+
+CP2 v1 therefore keeps the interpretable baseline windows:
+
+- Home: 21:00–06:00 local;
+- Office: weekdays 09:00–17:00 local.
+
+Emission gates are frozen at the middle sensitivity settings:
+
+- Home: >=3 relevant dates, share >=0.50, margin >=0.20 → 27 emitted users;
+- Office: >=3 relevant dates, share >=0.30, margin >=0.10 → 16 emitted users.
+
+The separate gates are intentional because measured Office evidence is weaker than Home evidence.
+
+Heuristic evidence strength is defined as the arithmetic mean of relevant-dwell share, top-two share margin, and a support factor capped at five relevant dates. It is explicitly not a calibrated correctness probability.
+
+The CP2 design contract is now approved for RED tests before production model implementation.
