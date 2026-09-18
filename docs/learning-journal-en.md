@@ -206,3 +206,20 @@ The production `infer_home_office()` API was run against the same cached 5,821 s
 This final parity check is different from unit tests: tests protect local semantics and edge cases, while parity verifies that the assembled production path reproduces the full-release notebook decision on the actual materialized dataset.
 
 With both checks passing, CP2 v1 has a much stronger handoff from exploratory evidence to production code.
+
+## 2026-09-18 — A notebook should preserve the reasoning contract, not only code and output
+
+After production parity passed, notebooks 02 / 02b / 02c / 03 were expanded to match the mentor-audit narrative style.
+
+A reproducible notebook that contains only executable code is still a weak long-term handoff. A future reader also needs to know:
+
+- which question each section answers;
+- why a metric exists;
+- what denominator an output uses;
+- which conclusions the evidence supports;
+- which conclusions it does not support;
+- which early decisions were superseded by later audits.
+
+This matters here because several initial assumptions changed through evidence: blanket UTC+8 became an explicit geography/timezone cohort; DBSCAN 200 m was replaced by a complete-link diameter contract; and same-second >10 m was reinterpreted as unresolved spatial ambiguity rather than automatic corruption.
+
+A strong notebook is therefore an executable decision record, not merely a scratchpad with plots.
