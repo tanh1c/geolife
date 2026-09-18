@@ -132,7 +132,7 @@ Duplicate-heavy trajectory user `141` / `20111022031803`:
 Structurally corrupted trajectory user `062` / `20080926000623`:
 
 - 8,117 raw points -> 8,091 consolidated rows;
-- 26 same-second spatial conflicts were correctly flagged;
+- 26 same-second >10 m groups (then described as spatial conflicts) were flagged for non-consolidation;
 - the repeated ~850 km jumps between singleton timestamps remain, with speeds around 3.1 million km/h.
 
 Interpretation:
@@ -229,3 +229,25 @@ The final V3 strict-containment benchmark matched 4,807,087 of 11,878,198 valid 
 Conclusion: the interval-semantics correction changes the overlap-count narrative but does not change the broad movement-speed decision. Generic 100/200/500 km/h filters remain rejected, and the proposed release-specific 1,200 km/h continuity guard remains a conservative candidate.
 
 EDA and the transportation-label audit are now closed for CP1. Next step: review/approve the cleaning + stay-point contract, then begin RED tests before production implementation.
+
+## 2026-09-18 — Same-second transportation audit resolved Stage 2 semantics
+
+Mentor review challenged the interpretation of the 10 m same-second threshold: with whole-second timestamps, fast movement can create non-trivial spread while within-second ordering remains unobservable.
+
+The follow-up audit evaluated all 835 same-second groups with max radius >10 m, reconstructed exact within-group diameter, and joined available transportation labels using half-open `[start, end)` semantics.
+
+Key evidence:
+- 403 groups had one unambiguous mode;
+- train 3/3, subway 20/25, and taxi 7/10 were within their audited one-second reference scales;
+- walk 4/194 and bike 2/145 were within their diagnostic one-second scales;
+- no unambiguous airplane case occurred in this subset;
+- 68 groups exceeded 1 km diameter.
+
+Decision:
+- 10 m is a safe-to-collapse threshold, not a valid-vs-corrupt threshold;
+- >10 m groups remain continuity boundaries because within-second order is unidentifiable;
+- the diagnostic reason is `same_second_spatial_ambiguity`;
+- transportation mode remains audit evidence only and is not used by production cleaning;
+- boundary behavior is unchanged, so the full baseline and sensitivity grid do not need to be rerun.
+
+Detailed evidence: `docs/eda/15_same_second_transport_audit.md`.

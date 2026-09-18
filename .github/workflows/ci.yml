@@ -14,10 +14,25 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install package
-        run: python -m pip install -e .
+        run: python -m pip install -e '.[dev]'
       - name: Compile Python sources
         run: python -m compileall -q src notebooks/eda_core.py
-      - name: Validate EDA notebook JSON
-        run: python -c "import json; json.load(open('notebooks/01_geolife_eda.ipynb', encoding='utf-8')); print('notebook json ok')"
+      - name: Run tests
+        run: pytest -q
+      - name: Validate notebook JSON
+        run: |
+          python - <<'PY'
+          import json
+          for path in [
+              'notebooks/01_geolife_eda.ipynb',
+              'notebooks/02_cleaning_staypoint_validation.ipynb',
+              'notebooks/02b_staypoint_sensitivity_validation.ipynb',
+              'notebooks/02c_same_second_transport_audit.ipynb',
+          ]:
+              json.load(open(path, encoding='utf-8'))
+              print(path, 'json ok')
+          PY
       - name: Import EDA helpers
         run: python -c "from notebooks.eda_core import read_plt, haversine_vectorized, inventory_dataset; print('eda helpers import ok')"
+      - name: Import CP1 production APIs
+        run: python -c "from geolife.staypoints import clean_trajectory, clean_trajectory_with_audit, detect_staypoints; print('staypoint APIs import ok')"
