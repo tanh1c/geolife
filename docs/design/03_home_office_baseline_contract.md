@@ -1,7 +1,7 @@
 # CP2 Home / Office / POI baseline contract
 
 Date: 2026-09-18  
-Status: DRAFT — scaffolded after CP1 cleaning/stay-point merge. No Home/Office heuristic is frozen yet.
+Status: DRAFT — full-release CP2 stay materialization reproduced CP1 exactly; recurring-location and timezone gates are under review. No Home/Office heuristic is frozen yet.
 
 ## Goal
 
@@ -53,6 +53,24 @@ The materialization must:
 
 The CP1 full-release summary reported 5,821 stays. The CP2 materialized stay table should reconcile to that total before semantic inference begins.
 
+## First full-release CP2 materialization
+
+The first CP2 run reproduced the frozen CP1 total exactly:
+
+- stays: `5,821`;
+- users with at least one stay: `136`.
+
+History sufficiency from the measured stay table:
+
+- users with >=2 stays: `120`;
+- users with >=5 stays: `99`;
+- users with >=10 stays: `81`;
+- users with stays on >=2 distinct UTC dates: `114`;
+- users with stays on >=5 distinct UTC dates: `83`;
+- users with stays on >=10 distinct UTC dates: `62`.
+
+This confirms that Home/Office inference must support abstention: 46/182 release users have no detected stay at all under the frozen CP1 baseline, and many users with stays still have limited repeated-history support.
+
 ## Stage B — user-level coverage audit
 
 Before scoring Home/Office, measure:
@@ -86,9 +104,21 @@ Any clustering review should inspect:
 
 The semantic label must be assigned to a recurring location, not to a raw GPS point.
 
+## First recurring-location audit
+
+A candidate per-user Haversine DBSCAN run with `eps=200 m` and `min_samples=1` produced:
+
+- candidate locations: `1,885`;
+- recurring locations with >=2 stays: `635`;
+- users with at least one recurring location: `104`.
+
+The largest observed distance from a cluster's median representative to a member stay was about `526.7 m`, which is substantially larger than the 200 m DBSCAN epsilon. This is expected under density-connectivity chaining and demonstrates why `eps=200 m` must not be interpreted as a hard cluster-radius guarantee.
+
+Therefore the recurring-location representation remains a review gate. CP2 should compare alternatives or add a compactness constraint before freezing production clustering semantics.
+
 ## Stage D — timezone policy gate
 
-Home/Office heuristics depend on local behavioral time. GeoLife PLT timestamps are UTC/GMT, while the release contains trajectories outside Beijing.
+Home/Office heuristics depend on local behavioral time. GeoLife PLT timestamps are UTC/GMT, while the release contains trajectories outside Beijing. The first CP2 stay materialization confirms that the 5,821 stays are strongly Beijing-centered but include substantial geographic outliers (stay longitude spans approximately -149.88 to 135.77 degrees).
 
 Therefore:
 
