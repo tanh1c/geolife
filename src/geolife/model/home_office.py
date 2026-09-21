@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import AgglomerativeClustering, DBSCAN
 
 from geolife.geo.distance import haversine_m
 
@@ -74,6 +74,8 @@ class HomeOfficeConfig:
     timezone: str = "Asia/Shanghai"
 
     location_max_diameter_m: float = 200.0
+    clustering_method: str = "complete_link"
+    dbscan_eps_m: float = 100.0
     min_relevant_date_overlap_s: float = 600.0
 
     home_start_hour: int = 21
@@ -97,6 +99,10 @@ class HomeOfficeConfig:
             raise ValueError("beijing_radius_km must be positive")
         if self.location_max_diameter_m <= 0:
             raise ValueError("location_max_diameter_m must be positive")
+        if self.clustering_method not in {"complete_link", "dbscan"}:
+            raise ValueError("clustering_method must be complete_link or dbscan")
+        if self.dbscan_eps_m <= 0:
+            raise ValueError("dbscan_eps_m must be positive")
         if self.min_relevant_date_overlap_s < 0:
             raise ValueError("min_relevant_date_overlap_s must be non-negative")
         for name, value in [
@@ -221,12 +227,52 @@ def _complete_link_user(
     return ordered, distances
 
 
+
+def _dbscan_user(
+    group: pd.DataFrame,
+    *,
+    eps_m: float,
+) -> tuple[pd.DataFrame, np.ndarray]:
+    """Cluster one user's stays with Haversine DBSCAN for benchmark use."""
+    ordered = group.sort_values("arrival_time_local", kind="stable").copy()
+    n = len(ordered)
+
+    if n == 1:
+        ordered["location_id"] = 0
+        return ordered, np.zeros((1, 1), dtype=float)
+
+    coords_rad = np.radians(
+        ordered[["latitude", "longitude"]].to_numpy(dtype=float)
+    )
+    raw_labels = DBSCAN(
+        eps=eps_m / 6_371_008.8,
+        min_samples=1,
+        metric="haversine",
+        algorithm="ball_tree",
+    ).fit_predict(coords_rad)
+
+    ordered["_raw_location_id"] = raw_labels.astype(int)
+    first_seen = (
+        ordered.groupby("_raw_location_id", sort=False)["arrival_time_local"]
+        .min()
+        .sort_values(kind="stable")
+    )
+    label_map = {raw: idx for idx, raw in enumerate(first_seen.index)}
+    ordered["location_id"] = ordered["_raw_location_id"].map(label_map).astype(int)
+    ordered = ordered.drop(columns="_raw_location_id")
+    return ordered, _pairwise_haversine_matrix_m(ordered)
+
+
 def build_semantic_locations(
     stays: pd.DataFrame,
     *,
     config: HomeOfficeConfig | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Apply frozen CP2 geography/timezone policy and compact location clustering.
+    """Apply CP2 geography/timezone policy and per-user location clustering.
+
+    The default production method is complete-link. DBSCAN is available as a
+    benchmark variant so Track B1 can compare clustering behavior without
+    changing the production default.
 
     Returns in-region semantic stays with a per-user location_id and the
     corresponding location summary table. Out-of-region travel stays and users
@@ -286,10 +332,16 @@ def build_semantic_locations(
     location_rows: list[dict[str, object]] = []
 
     for user_id, group in semantic.groupby("user_id", sort=True):
-        clustered_user, distances = _complete_link_user(
-            group,
-            threshold_m=cfg.location_max_diameter_m,
-        )
+        if cfg.clustering_method == "complete_link":
+            clustered_user, distances = _complete_link_user(
+                group,
+                threshold_m=cfg.location_max_diameter_m,
+            )
+        else:
+            clustered_user, distances = _dbscan_user(
+                group,
+                eps_m=cfg.dbscan_eps_m,
+            )
         clustered_parts.append(clustered_user)
 
         labels = clustered_user["location_id"].to_numpy(dtype=int)
@@ -301,7 +353,10 @@ def build_semantic_locations(
                 if len(member_idx) > 1
                 else 0.0
             )
-            if diameter_m > cfg.location_max_diameter_m + 1e-6:
+            if (
+                cfg.clustering_method == "complete_link"
+                and diameter_m > cfg.location_max_diameter_m + 1e-6
+            ):
                 raise RuntimeError("complete-link location exceeded configured maximum diameter")
 
             location_rows.append(
