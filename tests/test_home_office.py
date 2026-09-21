@@ -245,3 +245,31 @@ def test_partial_emission_does_not_warn_on_empty_frame_concat() -> None:
 
     assert set(out["label"]) == {"HOME"}
     assert not [w for w in caught if issubclass(w.category, FutureWarning)]
+
+
+def test_dbscan_variant_is_available_for_track_benchmark() -> None:
+    stays = _stays(
+        [
+            ("u", "2026-01-01 21:00", "2026-01-01 22:00", BEIJING_LAT, BEIJING_LON),
+            ("u", "2026-01-02 21:00", "2026-01-02 22:00", BEIJING_LAT + 0.00135, BEIJING_LON),
+            ("u", "2026-01-03 21:00", "2026-01-03 22:00", BEIJING_LAT + 0.00270, BEIJING_LON),
+        ]
+    )
+    config = HomeOfficeConfig(
+        clustering_method="dbscan",
+        dbscan_eps_m=200.0,
+    )
+
+    _, locations = build_semantic_locations(stays, config=config)
+
+    assert len(locations) == 1
+    assert locations.iloc[0]["stay_count"] == 3
+    assert locations.iloc[0]["diameter_m"] > 200.0
+
+
+def test_clustering_method_config_validation() -> None:
+    with pytest.raises(ValueError, match="clustering_method"):
+        HomeOfficeConfig(clustering_method="not-a-method")
+
+    with pytest.raises(ValueError, match="dbscan_eps_m"):
+        HomeOfficeConfig(clustering_method="dbscan", dbscan_eps_m=0.0)
