@@ -588,3 +588,63 @@ Added:
 - an explicit manual Home/Office plausibility-review protocol under `docs/evaluation/`.
 
 The model/API semantics are unchanged. This pass makes the existing FastAPI/OpenAPI implementation easier to review against the mentor checklist.
+
+
+## 2026-09-22 — API contract realigned to the literal Track B1 requirement
+
+A review against the original mentor brief found that the existing API used
+`POST /v1/home-office/infer` with already-detected stay events, while Checkpoint 1
+explicitly asks for `/v1/classify/{user_id}` with a GPS lat/lng sequence.
+
+The repo now exposes the mentor-facing contract:
+
+- `POST /v1/classify/{user_id}`;
+- input: raw GPS observations with `timestamp_utc`, latitude and longitude;
+- pipeline: frozen CP1 cleaning → stay detection → semantic inference;
+- output: HOME / OFFICE / generic POI plus heuristic `confidence`;
+- HOME/OFFICE confidence maps to the existing evidence-strength heuristic;
+- generic POI confidence is visit share among semantic stays;
+- `openapi.yaml` and Swagger/OpenAPI now document the primary classify route.
+
+The previous stay-event endpoint remains available as a deprecated internal compatibility
+route so existing full-release HTTP parity evidence is not discarded.
+
+Generic POI here means "other recurring location"; semantic POI categorization via
+reverse geocoding/H3 remains the Checkpoint 2 bonus.
+
+
+## 2026-09-22 — Checkpoint 1 Terraform foundation added
+
+The original Track B1 Week 1 brief explicitly requires repository/environment/Terraform
+setup. A minimal AWS Terraform foundation is now committed under `infra/terraform/`.
+
+The foundation:
+
+- pins Terraform and the AWS provider;
+- defines region/project/environment variables;
+- defaults development to `ap-southeast-1`;
+- applies common AWS tags;
+- ignores local state, provider cache and local tfvars;
+- is validated in GitHub Actions with `terraform fmt`, `init -backend=false` and
+  `terraform validate`.
+
+No AWS resources are created yet. EC2/Lambda/API Gateway/SQS/CloudWatch resources remain
+Checkpoint 2/3 work so the repository does not imply a deployment that does not exist.
+
+## 2026-09-22 — Manual Home/Office plausibility sample completed
+
+The Checkpoint 1 evaluation note now includes a privacy-safe manual review of three
+GeoLife users from the executed private Home/Office notebook:
+
+- user 002: HOME and OFFICE patterns both plausible;
+- user 009: HOME and OFFICE patterns both plausible;
+- user 022: OFFICE strongly plausible; HOME remains ambiguous and correctly abstains
+  because dwell share 0.479 is below the frozen 0.50 HOME gate.
+
+The review records stay/date/dwell/share/margin evidence but intentionally omits exact
+coordinates and raw trajectories.
+
+This is a plausibility review, not an accuracy estimate. GeoLife still has no
+authoritative HOME/OFFICE ground truth.
+
+Evidence: `docs/evaluation/01_home_office_manual_plausibility.md`.

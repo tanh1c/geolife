@@ -1,4 +1,4 @@
-# CP3 API contract — Home / Office inference
+# Internal stay-event API contract — Home / Office inference
 
 Date: 2026-09-18  
 Status: VALIDATED — contract, FastAPI layer, tests, OpenAPI/privacy checks, and full-release HTTP ↔ direct-model parity have passed.

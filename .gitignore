@@ -34,3 +34,12 @@ reports/eda/generated/**
 
 # Local notebook exports
 *.html
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.tfstate.lock.info
+crash.log

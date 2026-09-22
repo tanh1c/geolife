@@ -233,6 +233,7 @@ def test_openapi_exposes_v1_inference_and_discriminated_result_shapes() -> None:
     schema = client.get("/openapi.json").json()
 
     assert "/health" in schema["paths"]
+    assert "/v1/classify/{user_id}" in schema["paths"]
     assert "/v1/home-office/infer" in schema["paths"]
 
     post = schema["paths"]["/v1/home-office/infer"]["post"]
@@ -318,8 +319,134 @@ def test_committed_openapi_yaml_matches_runtime_contract_shape() -> None:
     assert spec["info"] == runtime["info"]
     assert set(spec["paths"]) == set(runtime["paths"])
     assert "/health" in spec["paths"]
+    assert "/v1/classify/{user_id}" in spec["paths"]
     assert "/v1/home-office/infer" in spec["paths"]
 
     emitted = spec["components"]["schemas"]["EmittedResult"]["properties"]
     assert "latitude" not in emitted
     assert "longitude" not in emitted
+
+
+
+def _raw_point(
+    local_timestamp: str,
+    *,
+    latitude: float = BEIJING_LAT,
+    longitude: float = BEIJING_LON,
+) -> dict[str, object]:
+    return {
+        "timestamp_utc": _utc(local_timestamp).isoformat().replace("+00:00", "Z"),
+        "latitude": latitude,
+        "longitude": longitude,
+    }
+
+
+def _raw_stay(
+    day: str,
+    start_hour: str,
+    *,
+    latitude: float = BEIJING_LAT,
+    longitude: float = BEIJING_LON,
+) -> list[dict[str, object]]:
+    return [
+        _raw_point(
+            f"{day} {start_hour}:{minute:02d}",
+            latitude=latitude,
+            longitude=longitude,
+        )
+        for minute in [0, 5, 10, 15, 20]
+    ]
+
+
+def test_mentor_classify_endpoint_accepts_raw_gps_and_emits_home_confidence() -> None:
+    points = []
+    for day in ["2026-01-05", "2026-01-06", "2026-01-07"]:
+        points.extend(_raw_stay(day, "21"))
+
+    response = client.post(
+        "/v1/classify/u-raw-home",
+        json={"points": points},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["user_id"] == "u-raw-home"
+    assert body["api_version"] == "v1"
+
+    home = next(item for item in body["locations"] if item["label"] == "HOME")
+    assert 0.0 <= home["confidence"] <= 1.0
+    assert home["confidence_method"] == "home_office_evidence"
+
+    encoded = response.text
+    assert '"latitude"' not in encoded
+    assert '"longitude"' not in encoded
+
+
+def test_mentor_classify_endpoint_can_emit_generic_poi_from_other_recurring_location() -> None:
+    points = []
+
+    for day in ["2026-01-05", "2026-01-06", "2026-01-07"]:
+        points.extend(_raw_stay(day, "21"))
+
+    poi_lat = BEIJING_LAT + 0.004
+    for day in ["2026-01-10", "2026-01-11"]:
+        points.extend(
+            _raw_stay(
+                day,
+                "18",
+                latitude=poi_lat,
+                longitude=BEIJING_LON,
+            )
+        )
+
+    response = client.post(
+        "/v1/classify/u-raw-poi",
+        json={"points": points},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+
+    labels = [item["label"] for item in body["locations"]]
+    assert "HOME" in labels
+    assert "POI" in labels
+
+    poi = next(item for item in body["locations"] if item["label"] == "POI")
+    assert poi["confidence_method"] == "poi_visit_share"
+    assert 0.0 < poi["confidence"] <= 1.0
+
+
+def test_mentor_classify_endpoint_abstains_when_raw_sequence_has_no_stay() -> None:
+    response = client.post(
+        "/v1/classify/u-moving",
+        json={
+            "points": [
+                _raw_point("2026-01-05 10:00"),
+                _raw_point("2026-01-05 10:05", latitude=39.92),
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["locations"] == []
+    assert {
+        item["reason"]
+        for item in body["abstentions"]
+    } == {"insufficient_stay_history"}
+
+
+def test_mentor_classify_openapi_documents_raw_points_poi_and_confidence() -> None:
+    schema = client.get("/openapi.json").json()
+
+    classify = schema["paths"]["/v1/classify/{user_id}"]["post"]
+    assert "200" in classify["responses"]
+    assert "422" in classify["responses"]
+
+    gps = schema["components"]["schemas"]["GpsPoint"]["properties"]
+    assert {"timestamp_utc", "latitude", "longitude"} <= set(gps)
+
+    location = schema["components"]["schemas"]["ClassifiedLocation"]["properties"]
+    assert "confidence" in location
+    assert "confidence_method" in location
+    assert "POI" in location["label"]["enum"]
