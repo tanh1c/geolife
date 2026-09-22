@@ -26,6 +26,18 @@ app = FastAPI(
     ),
 )
 
+THREE_NIGHT_BEIJING_HOME_EXAMPLE = {
+    "points": [
+        {
+            "timestamp_utc": f"2026-01-{day}T13:{minute:02d}:00Z",
+            "latitude": 39.9042,
+            "longitude": 116.4074,
+        }
+        for day in ("05", "06", "07")
+        for minute in (0, 5, 10, 15, 20)
+    ]
+}
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(_, exc: RequestValidationError) -> JSONResponse:
@@ -43,6 +55,11 @@ async def validation_exception_handler(_, exc: RequestValidationError) -> JSONRe
     return JSONResponse(status_code=422, content={"detail": sanitized})
 
 
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(_request, _exc) -> JSONResponse:
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 def health() -> HealthResponse:
     return HealthResponse()
@@ -58,37 +75,9 @@ def health() -> HealthResponse:
             "content": {
                 "application/json": {
                     "examples": {
-                        "beijing_stay": {
-                            "summary": "Five Beijing observations covering 20 minutes",
-                            "value": {
-                                "points": [
-                                    {
-                                        "timestamp_utc": "2026-01-05T13:00:00Z",
-                                        "latitude": 39.9042,
-                                        "longitude": 116.4074,
-                                    },
-                                    {
-                                        "timestamp_utc": "2026-01-05T13:05:00Z",
-                                        "latitude": 39.9042,
-                                        "longitude": 116.4074,
-                                    },
-                                    {
-                                        "timestamp_utc": "2026-01-05T13:10:00Z",
-                                        "latitude": 39.9042,
-                                        "longitude": 116.4074,
-                                    },
-                                    {
-                                        "timestamp_utc": "2026-01-05T13:15:00Z",
-                                        "latitude": 39.9042,
-                                        "longitude": 116.4074,
-                                    },
-                                    {
-                                        "timestamp_utc": "2026-01-05T13:20:00Z",
-                                        "latitude": 39.9042,
-                                        "longitude": 116.4074,
-                                    },
-                                ]
-                            },
+                        "three_night_beijing_home": {
+                            "summary": "Three 20-minute Beijing night stays that emit HOME",
+                            "value": THREE_NIGHT_BEIJING_HOME_EXAMPLE,
                         }
                     }
                 }

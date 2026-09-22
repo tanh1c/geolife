@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib import import_module
 from pathlib import Path
 
 import pandas as pd
@@ -7,6 +8,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+api_app = import_module("geolife.api.app")
 from geolife.api.app import app
 from geolife.model import infer_home_office
 
@@ -452,40 +454,54 @@ def test_mentor_classify_openapi_documents_raw_points_poi_and_confidence() -> No
     assert "POI" in location["label"]["enum"]
 
 
+def test_classify_returns_documented_json_for_unexpected_server_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_unexpected(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("unexpected internal detail")
+
+    monkeypatch.setattr(api_app, "classify_raw_request", raise_unexpected)
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/v1/classify/u-server-error",
+        json={"points": [_raw_point("2026-01-05 21:00")]},
+    )
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Internal server error"}
+    assert "unexpected internal detail" not in response.text
+
+
+def test_classify_openapi_example_three_night_beijing_sequence_emits_home() -> None:
+    schema = client.get("/openapi.json").json()
+    payload = schema["paths"]["/v1/classify/{user_id}"]["post"]["requestBody"][
+        "content"
+    ]["application/json"]["examples"]["three_night_beijing_home"]["value"]
+
+    response = client.post("/v1/classify/demo-user", json=payload)
+
+    assert response.status_code == 200
+    home = next(location for location in response.json()["locations"] if location["label"] == "HOME")
+    assert home["confidence_method"] == "home_office_evidence"
+
+
 def test_classify_openapi_provides_mentor_review_examples_and_confidence_semantics() -> None:
     schema = client.get("/openapi.json").json()
     classify = schema["paths"]["/v1/classify/{user_id}"]["post"]
 
     request_example = classify["requestBody"]["content"]["application/json"]["examples"][
-        "beijing_stay"
+        "three_night_beijing_home"
     ]["value"]
-    assert request_example["points"] == [
-        {
-            "timestamp_utc": "2026-01-05T13:00:00Z",
-            "latitude": 39.9042,
-            "longitude": 116.4074,
-        },
-        {
-            "timestamp_utc": "2026-01-05T13:05:00Z",
-            "latitude": 39.9042,
-            "longitude": 116.4074,
-        },
-        {
-            "timestamp_utc": "2026-01-05T13:10:00Z",
-            "latitude": 39.9042,
-            "longitude": 116.4074,
-        },
-        {
-            "timestamp_utc": "2026-01-05T13:15:00Z",
-            "latitude": 39.9042,
-            "longitude": 116.4074,
-        },
-        {
-            "timestamp_utc": "2026-01-05T13:20:00Z",
-            "latitude": 39.9042,
-            "longitude": 116.4074,
-        },
-    ]
+    assert len(request_example["points"]) == 15
+    assert request_example["points"][0] == {
+        "timestamp_utc": "2026-01-05T13:00:00Z",
+        "latitude": 39.9042,
+        "longitude": 116.4074,
+    }
+    assert request_example["points"][-1] == {
+        "timestamp_utc": "2026-01-07T13:20:00Z",
+        "latitude": 39.9042,
+        "longitude": 116.4074,
+    }
 
     responses = classify["responses"]
     assert set(responses["200"]["content"]["application/json"]["examples"]) == {

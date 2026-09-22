@@ -41,8 +41,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ClassifyRequest'
             examples:
-              beijing_stay:
-                summary: Five Beijing observations covering 20 minutes
+              three_night_beijing_home:
+                summary: Three 20-minute Beijing night stays that emit HOME
                 value:
                   points:
                   - timestamp_utc: '2026-01-05T13:00:00Z'
@@ -58,6 +58,36 @@ paths:
                     latitude: 39.9042
                     longitude: 116.4074
                   - timestamp_utc: '2026-01-05T13:20:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:00:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:05:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:10:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:15:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:20:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:00:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:05:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:10:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:15:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:20:00Z'
                     latitude: 39.9042
                     longitude: 116.4074
       responses:
