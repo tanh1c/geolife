@@ -250,7 +250,10 @@ The API package exposes:
 - `GET /health`;
 - `POST /v1/home-office/infer`;
 - OpenAPI at `/openapi.json`;
-- interactive docs at `/docs`.
+- interactive Swagger UI at `/docs`;
+- standalone reviewable OpenAPI artifact at repository root: `openapi.yaml`.
+
+The standalone file is generated from the same FastAPI application with `python scripts/export_openapi.py`.
 
 Acceptance tests cover:
 
