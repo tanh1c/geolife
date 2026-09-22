@@ -573,3 +573,18 @@ These counts are valid model outcomes, not failures.
 The replay also surfaced repeated pandas `FutureWarning` messages for partial-emission users because the model concatenated an emitted frame with an empty frame. Production output was unchanged, but the implementation was cleaned up to concatenate only non-empty frames. A regression test now locks that partial emission does not produce this FutureWarning.
 
 With that warning fix and final CI, CP3 has no remaining semantic/release-level parity gate.
+
+
+## 2026-09-22 — Checkpoint 1 standalone OpenAPI deliverable
+
+The FastAPI serving layer already exposed runtime OpenAPI at `/openapi.json` and Swagger UI at `/docs`. To match the mentor's Checkpoint 1 deliverable literally, the repository now also commits a standalone `openapi.yaml`.
+
+Added:
+
+- root-level `openapi.yaml` for direct review;
+- `scripts/export_openapi.py` to regenerate YAML from `geolife.api.app:app`;
+- PyYAML as a development dependency;
+- a regression test that checks the committed YAML against the runtime FastAPI contract shape;
+- an explicit manual Home/Office plausibility-review protocol under `docs/evaluation/`.
+
+The model/API semantics are unchanged. This pass makes the existing FastAPI/OpenAPI implementation easier to review against the mentor checklist.
