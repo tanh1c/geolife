@@ -120,8 +120,47 @@ class ClassifiedLocation(BaseModel):
 
     label: Literal["HOME", "OFFICE", "POI"]
     location_id: int = Field(ge=0)
-    confidence: float = Field(ge=0.0, le=1.0)
-    confidence_method: Literal["home_office_evidence", "poi_visit_share"]
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Heuristic score, not a calibrated probability or supervised-model confidence. "
+            "HOME/OFFICE combines relevant dwell share, top-two share margin, and support "
+            "across relevant dates. POI is recurring-location visit share."
+        ),
+    )
+    confidence_method: Literal["home_office_evidence", "poi_visit_share"] = Field(
+        description=(
+            "home_office_evidence uses dwell share, top-two margin, and date support; "
+            "poi_visit_share uses recurring-location stay count divided by total semantic stays."
+        )
+    )
+
+
+class ValidationIssue(BaseModel):
+    """Sanitized validation detail that never echoes raw GPS input."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    loc: list[str | int]
+    msg: str
+    type: str
+
+
+class ValidationErrorResponse(BaseModel):
+    """Malformed-request response returned with HTTP 422."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    detail: list[ValidationIssue]
+
+
+class ServerError(BaseModel):
+    """Generic unexpected server failure response."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    detail: Literal["Internal server error"]
 
 
 class ClassificationAbstention(BaseModel):

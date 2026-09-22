@@ -1,13 +1,15 @@
 openapi: 3.1.0
 info:
   title: GeoLife Home / Office API
-  description: "GeoLife location inference API. The mentor-facing v1 contract accepts raw GPS sequences at /v1/classify/{user_id}. Confidence values are heuristic evidence scores, not calibrated probabilities."
+  description: GeoLife location inference API. The mentor-facing v1 contract accepts
+    raw GPS sequences at /v1/classify/{user_id}. Confidence values are heuristic evidence
+    scores, not calibrated probabilities.
   version: 1.0.0
 paths:
   /health:
     get:
       tags:
-        - system
+      - system
       summary: Health
       operationId: health_health_get
       responses:
@@ -20,49 +22,147 @@ paths:
   /v1/classify/{user_id}:
     post:
       tags:
-        - inference
+      - inference
       summary: Classify a raw GPS sequence into HOME / OFFICE / POI locations
       operationId: classify_endpoint_v1_classify__user_id__post
       parameters:
-        - name: user_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 256
-            title: User Id
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 256
+          title: User Id
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ClassifyRequest'
+            examples:
+              three_night_beijing_home:
+                summary: Three 20-minute Beijing night stays that emit HOME
+                value:
+                  points:
+                  - timestamp_utc: '2026-01-05T13:00:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-05T13:05:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-05T13:10:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-05T13:15:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-05T13:20:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:00:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:05:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:10:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:15:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-06T13:20:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:00:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:05:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:10:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:15:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
+                  - timestamp_utc: '2026-01-07T13:20:00Z'
+                    latitude: 39.9042
+                    longitude: 116.4074
       responses:
         '200':
-          description: Successful Response
+          description: Valid request; the result may emit locations and/or abstain.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClassifyResponse'
+              examples:
+                emitted_location:
+                  summary: HOME emitted and OFFICE abstained
+                  value:
+                    user_id: demo-user
+                    api_version: v1
+                    model_contract: cp2-v1
+                    locations:
+                    - label: HOME
+                      location_id: 0
+                      confidence: 0.83
+                      confidence_method: home_office_evidence
+                    abstentions:
+                    - label: OFFICE
+                      reason: insufficient_semantic_evidence
+                valid_request_abstained:
+                  summary: Valid but insufficient history
+                  value:
+                    user_id: demo-user
+                    api_version: v1
+                    model_contract: cp2-v1
+                    locations: []
+                    abstentions:
+                    - label: HOME
+                      reason: insufficient_stay_history
+                    - label: OFFICE
+                      reason: insufficient_stay_history
         '422':
-          description: Validation Error
+          description: Validation error; rejected GPS values are not echoed.
           content:
             application/json:
+              examples:
+                invalid_coordinate:
+                  summary: Latitude 91 is outside [-90, 90]
+                  value:
+                    detail:
+                    - type: less_than_equal
+                      loc:
+                      - body
+                      - points
+                      - 0
+                      - latitude
+                      msg: Input should be less than or equal to 90
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Unexpected server failure.
+          content:
+            application/json:
+              example:
+                detail: Internal server error
+              schema:
+                $ref: '#/components/schemas/ServerError'
   /v1/home-office/infer:
     post:
       tags:
-        - inference
-      summary: Infer Home / Office evidence from one user's CP1 stay events
+      - internal
+      summary: Infer Home / Office evidence from already-detected stay events
+      description: Compatibility endpoint retained for model/API parity tests.
       operationId: infer_home_office_endpoint_v1_home_office_infer_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/InferRequest'
+        required: true
       responses:
         '200':
           description: Successful Response
@@ -76,84 +176,108 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      deprecated: true
 components:
   schemas:
     AbstainedResult:
-      type: object
-      additionalProperties: false
-      required: [label, reason]
       properties:
         label:
           type: string
-          enum: [HOME, OFFICE]
+          enum:
+          - HOME
+          - OFFICE
           title: Label
         status:
           type: string
           const: abstained
-          default: abstained
           title: Status
+          default: abstained
         reason:
           $ref: '#/components/schemas/AbstentionReason'
+      additionalProperties: false
+      type: object
+      required:
+      - label
+      - reason
       title: AbstainedResult
     AbstentionReason:
       type: string
       enum:
-        - insufficient_stay_history
-        - out_of_scope_geography
-        - insufficient_recurring_history
-        - insufficient_semantic_evidence
+      - insufficient_stay_history
+      - out_of_scope_geography
+      - insufficient_recurring_history
+      - insufficient_semantic_evidence
       title: AbstentionReason
     ClassificationAbstention:
-      type: object
-      additionalProperties: false
-      required: [label, reason]
       properties:
         label:
           type: string
-          enum: [HOME, OFFICE]
+          enum:
+          - HOME
+          - OFFICE
           title: Label
         reason:
           $ref: '#/components/schemas/AbstentionReason'
+      additionalProperties: false
+      type: object
+      required:
+      - label
+      - reason
       title: ClassificationAbstention
     ClassifiedLocation:
-      type: object
-      additionalProperties: false
-      required: [label, location_id, confidence, confidence_method]
       properties:
         label:
           type: string
-          enum: [HOME, OFFICE, POI]
+          enum:
+          - HOME
+          - OFFICE
+          - POI
           title: Label
         location_id:
           type: integer
-          minimum: 0
+          minimum: 0.0
           title: Location Id
         confidence:
           type: number
-          minimum: 0
-          maximum: 1
+          maximum: 1.0
+          minimum: 0.0
           title: Confidence
+          description: Heuristic score, not a calibrated probability or supervised-model
+            confidence. HOME/OFFICE combines relevant dwell share, top-two share margin,
+            and support across relevant dates. POI is recurring-location visit share.
         confidence_method:
           type: string
-          enum: [home_office_evidence, poi_visit_share]
+          enum:
+          - home_office_evidence
+          - poi_visit_share
           title: Confidence Method
-      title: ClassifiedLocation
-    ClassifyRequest:
-      type: object
+          description: home_office_evidence uses dwell share, top-two margin, and
+            date support; poi_visit_share uses recurring-location stay count divided
+            by total semantic stays.
       additionalProperties: false
-      required: [points]
+      type: object
+      required:
+      - label
+      - location_id
+      - confidence
+      - confidence_method
+      title: ClassifiedLocation
+      description: Emitted HOME/OFFICE/POI location without exposing precise coordinates.
+    ClassifyRequest:
       properties:
         points:
-          type: array
-          minItems: 1
           items:
             $ref: '#/components/schemas/GpsPoint'
+          type: array
+          minItems: 1
           title: Points
-      title: ClassifyRequest
-    ClassifyResponse:
-      type: object
       additionalProperties: false
-      required: [user_id, locations, abstentions]
+      type: object
+      required:
+      - points
+      title: ClassifyRequest
+      description: Raw GPS sequence. user_id is versioned in the URL path.
+    ClassifyResponse:
       properties:
         user_id:
           type: string
@@ -161,28 +285,82 @@ components:
         api_version:
           type: string
           const: v1
-          default: v1
           title: Api Version
+          default: v1
         model_contract:
           type: string
           const: cp2-v1
-          default: cp2-v1
           title: Model Contract
+          default: cp2-v1
         locations:
-          type: array
           items:
             $ref: '#/components/schemas/ClassifiedLocation'
+          type: array
           title: Locations
         abstentions:
-          type: array
           items:
             $ref: '#/components/schemas/ClassificationAbstention'
+          type: array
           title: Abstentions
-      title: ClassifyResponse
-    GpsPoint:
-      type: object
       additionalProperties: false
-      required: [timestamp_utc, latitude, longitude]
+      type: object
+      required:
+      - user_id
+      - locations
+      - abstentions
+      title: ClassifyResponse
+    EmittedResult:
+      properties:
+        label:
+          type: string
+          enum:
+          - HOME
+          - OFFICE
+          title: Label
+        status:
+          type: string
+          const: emitted
+          title: Status
+          default: emitted
+        location_id:
+          type: integer
+          minimum: 0.0
+          title: Location Id
+        evidence_strength:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Evidence Strength
+        relevant_dwell_share:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Relevant Dwell Share
+        share_margin:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Share Margin
+        relevant_dates:
+          type: integer
+          minimum: 0.0
+          title: Relevant Dates
+        relevant_dwell_h:
+          type: number
+          minimum: 0.0
+          title: Relevant Dwell H
+      additionalProperties: false
+      type: object
+      required:
+      - label
+      - location_id
+      - evidence_strength
+      - relevant_dwell_share
+      - share_margin
+      - relevant_dates
+      - relevant_dwell_h
+      title: EmittedResult
+    GpsPoint:
       properties:
         timestamp_utc:
           type: string
@@ -190,110 +368,77 @@ components:
           title: Timestamp Utc
         latitude:
           type: number
-          minimum: -90
-          maximum: 90
+          maximum: 90.0
+          minimum: -90.0
           title: Latitude
         longitude:
           type: number
-          minimum: -180
-          maximum: 180
+          maximum: 180.0
+          minimum: -180.0
           title: Longitude
-      title: GpsPoint
-    EmittedResult:
-      type: object
       additionalProperties: false
+      type: object
       required:
-        - label
-        - location_id
-        - evidence_strength
-        - relevant_dwell_share
-        - share_margin
-        - relevant_dates
-        - relevant_dwell_h
+      - timestamp_utc
+      - latitude
+      - longitude
+      title: GpsPoint
+      description: One raw GPS observation for the mentor-facing classify contract.
+    HTTPValidationError:
       properties:
-        label:
-          type: string
-          enum: [HOME, OFFICE]
-          title: Label
-        status:
-          type: string
-          const: emitted
-          default: emitted
-          title: Status
-        location_id:
-          type: integer
-          minimum: 0
-          title: Location Id
-        evidence_strength:
-          type: number
-          minimum: 0
-          maximum: 1
-          title: Evidence Strength
-        relevant_dwell_share:
-          type: number
-          minimum: 0
-          maximum: 1
-          title: Relevant Dwell Share
-        share_margin:
-          type: number
-          minimum: 0
-          maximum: 1
-          title: Share Margin
-        relevant_dates:
-          type: integer
-          minimum: 0
-          title: Relevant Dates
-        relevant_dwell_h:
-          type: number
-          minimum: 0
-          title: Relevant Dwell H
-      title: EmittedResult
-    HealthResponse:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
       type: object
-      additionalProperties: false
+      title: HTTPValidationError
+    HealthResponse:
       properties:
         status:
           type: string
           const: ok
-          default: ok
           title: Status
+          default: ok
         service:
           type: string
           const: geolife-home-office-api
-          default: geolife-home-office-api
           title: Service
+          default: geolife-home-office-api
         api_version:
           type: string
           const: v1
-          default: v1
           title: Api Version
+          default: v1
         model_contract:
           type: string
           const: cp2-v1
-          default: cp2-v1
           title: Model Contract
+          default: cp2-v1
+      additionalProperties: false
+      type: object
       title: HealthResponse
     InferRequest:
-      type: object
-      additionalProperties: false
-      required: [user_id, stays]
       properties:
         user_id:
           type: string
-          minLength: 1
           maxLength: 256
+          minLength: 1
           title: User Id
         stays:
-          type: array
-          minItems: 1
           items:
             $ref: '#/components/schemas/StayEvent'
+          type: array
+          minItems: 1
           title: Stays
-      title: InferRequest
-    InferResponse:
-      type: object
       additionalProperties: false
-      required: [user_id, results]
+      type: object
+      required:
+      - user_id
+      - stays
+      title: InferRequest
+      description: Internal stay-event request retained for CP2/CP3 parity testing.
+    InferResponse:
       properties:
         user_id:
           type: string
@@ -301,27 +446,41 @@ components:
         model_contract:
           type: string
           const: cp2-v1
-          default: cp2-v1
           title: Model Contract
+          default: cp2-v1
         results:
-          type: array
-          minItems: 2
-          maxItems: 2
           items:
             oneOf:
-              - $ref: '#/components/schemas/EmittedResult'
-              - $ref: '#/components/schemas/AbstainedResult'
+            - $ref: '#/components/schemas/EmittedResult'
+            - $ref: '#/components/schemas/AbstainedResult'
             discriminator:
               propertyName: status
               mapping:
-                emitted: '#/components/schemas/EmittedResult'
                 abstained: '#/components/schemas/AbstainedResult'
+                emitted: '#/components/schemas/EmittedResult'
+          type: array
+          maxItems: 2
+          minItems: 2
           title: Results
-      title: InferResponse
-    StayEvent:
-      type: object
       additionalProperties: false
-      required: [arrival_time_utc, departure_time_utc, latitude, longitude]
+      type: object
+      required:
+      - user_id
+      - results
+      title: InferResponse
+    ServerError:
+      properties:
+        detail:
+          type: string
+          const: Internal server error
+          title: Detail
+      additionalProperties: false
+      type: object
+      required:
+      - detail
+      title: ServerError
+      description: Generic unexpected server failure response.
+    StayEvent:
       properties:
         arrival_time_utc:
           type: string
@@ -333,34 +492,30 @@ components:
           title: Departure Time Utc
         latitude:
           type: number
-          minimum: -90
-          maximum: 90
+          maximum: 90.0
+          minimum: -90.0
           title: Latitude
         longitude:
           type: number
-          minimum: -180
-          maximum: 180
+          maximum: 180.0
+          minimum: -180.0
           title: Longitude
+      additionalProperties: false
+      type: object
+      required:
+      - arrival_time_utc
+      - departure_time_utc
+      - latitude
+      - longitude
       title: StayEvent
-    HTTPValidationError:
-      type: object
-      properties:
-        detail:
-          type: array
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          title: Detail
-      title: HTTPValidationError
     ValidationError:
-      type: object
-      required: [loc, msg, type]
       properties:
         loc:
-          type: array
           items:
             anyOf:
-              - type: string
-              - type: integer
+            - type: string
+            - type: integer
+          type: array
           title: Location
         msg:
           type: string
@@ -368,9 +523,45 @@ components:
         type:
           type: string
           title: Error Type
-        input:
-          title: Input
-        ctx:
-          type: object
-          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
       title: ValidationError
+    ValidationErrorResponse:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+          type: array
+          title: Detail
+      additionalProperties: false
+      type: object
+      required:
+      - detail
+      title: ValidationErrorResponse
+      description: Malformed-request response returned with HTTP 422.
+    ValidationIssue:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Loc
+        msg:
+          type: string
+          title: Msg
+        type:
+          type: string
+          title: Type
+      additionalProperties: false
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationIssue
+      description: Sanitized validation detail that never echoes raw GPS input.
