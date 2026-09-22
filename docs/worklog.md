@@ -611,3 +611,40 @@ route so existing full-release HTTP parity evidence is not discarded.
 
 Generic POI here means "other recurring location"; semantic POI categorization via
 reverse geocoding/H3 remains the Checkpoint 2 bonus.
+
+
+## 2026-09-22 — Checkpoint 1 Terraform foundation added
+
+The original Track B1 Week 1 brief explicitly requires repository/environment/Terraform
+setup. A minimal AWS Terraform foundation is now committed under `infra/terraform/`.
+
+The foundation:
+
+- pins Terraform and the AWS provider;
+- defines region/project/environment variables;
+- defaults development to `ap-southeast-1`;
+- applies common AWS tags;
+- ignores local state, provider cache and local tfvars;
+- is validated in GitHub Actions with `terraform fmt`, `init -backend=false` and
+  `terraform validate`.
+
+No AWS resources are created yet. EC2/Lambda/API Gateway/SQS/CloudWatch resources remain
+Checkpoint 2/3 work so the repository does not imply a deployment that does not exist.
+
+## 2026-09-22 — Manual Home/Office plausibility sample completed
+
+The Checkpoint 1 evaluation note now includes a privacy-safe manual review of three
+GeoLife users from the executed private Home/Office notebook:
+
+- user 002: HOME and OFFICE patterns both plausible;
+- user 009: HOME and OFFICE patterns both plausible;
+- user 022: OFFICE strongly plausible; HOME remains ambiguous and correctly abstains
+  because dwell share 0.479 is below the frozen 0.50 HOME gate.
+
+The review records stay/date/dwell/share/margin evidence but intentionally omits exact
+coordinates and raw trajectories.
+
+This is a plausibility review, not an accuracy estimate. GeoLife still has no
+authoritative HOME/OFFICE ground truth.
+
+Evidence: `docs/evaluation/01_home_office_manual_plausibility.md`.
