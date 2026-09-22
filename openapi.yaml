@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: GeoLife Home / Office API
-  description: HTTP serving layer for the frozen CP2 v1 Home / Office heuristic baseline. Evidence strength is not a calibrated probability.
+  description: "GeoLife location inference API. The mentor-facing v1 contract accepts raw GPS sequences at /v1/classify/{user_id}. Confidence values are heuristic evidence scores, not calibrated probabilities."
   version: 1.0.0
 paths:
   /health:
@@ -17,6 +17,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /v1/classify/{user_id}:
+    post:
+      tags:
+        - inference
+      summary: Classify a raw GPS sequence into HOME / OFFICE / POI locations
+      operationId: classify_endpoint_v1_classify__user_id__post
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 256
+            title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassifyRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassifyResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /v1/home-office/infer:
     post:
       tags:
@@ -64,10 +98,107 @@ components:
     AbstentionReason:
       type: string
       enum:
+        - insufficient_stay_history
         - out_of_scope_geography
         - insufficient_recurring_history
         - insufficient_semantic_evidence
       title: AbstentionReason
+    ClassificationAbstention:
+      type: object
+      additionalProperties: false
+      required: [label, reason]
+      properties:
+        label:
+          type: string
+          enum: [HOME, OFFICE]
+          title: Label
+        reason:
+          $ref: '#/components/schemas/AbstentionReason'
+      title: ClassificationAbstention
+    ClassifiedLocation:
+      type: object
+      additionalProperties: false
+      required: [label, location_id, confidence, confidence_method]
+      properties:
+        label:
+          type: string
+          enum: [HOME, OFFICE, POI]
+          title: Label
+        location_id:
+          type: integer
+          minimum: 0
+          title: Location Id
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          title: Confidence
+        confidence_method:
+          type: string
+          enum: [home_office_evidence, poi_visit_share]
+          title: Confidence Method
+      title: ClassifiedLocation
+    ClassifyRequest:
+      type: object
+      additionalProperties: false
+      required: [points]
+      properties:
+        points:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/GpsPoint'
+          title: Points
+      title: ClassifyRequest
+    ClassifyResponse:
+      type: object
+      additionalProperties: false
+      required: [user_id, locations, abstentions]
+      properties:
+        user_id:
+          type: string
+          title: User Id
+        api_version:
+          type: string
+          const: v1
+          default: v1
+          title: Api Version
+        model_contract:
+          type: string
+          const: cp2-v1
+          default: cp2-v1
+          title: Model Contract
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassifiedLocation'
+          title: Locations
+        abstentions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassificationAbstention'
+          title: Abstentions
+      title: ClassifyResponse
+    GpsPoint:
+      type: object
+      additionalProperties: false
+      required: [timestamp_utc, latitude, longitude]
+      properties:
+        timestamp_utc:
+          type: string
+          format: date-time
+          title: Timestamp Utc
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+          title: Latitude
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+          title: Longitude
+      title: GpsPoint
     EmittedResult:
       type: object
       additionalProperties: false
