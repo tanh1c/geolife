@@ -450,3 +450,61 @@ def test_mentor_classify_openapi_documents_raw_points_poi_and_confidence() -> No
     assert "confidence" in location
     assert "confidence_method" in location
     assert "POI" in location["label"]["enum"]
+
+
+def test_classify_openapi_provides_mentor_review_examples_and_confidence_semantics() -> None:
+    schema = client.get("/openapi.json").json()
+    classify = schema["paths"]["/v1/classify/{user_id}"]["post"]
+
+    request_example = classify["requestBody"]["content"]["application/json"]["examples"][
+        "beijing_stay"
+    ]["value"]
+    assert request_example["points"] == [
+        {
+            "timestamp_utc": "2026-01-05T13:00:00Z",
+            "latitude": 39.9042,
+            "longitude": 116.4074,
+        },
+        {
+            "timestamp_utc": "2026-01-05T13:05:00Z",
+            "latitude": 39.9042,
+            "longitude": 116.4074,
+        },
+        {
+            "timestamp_utc": "2026-01-05T13:10:00Z",
+            "latitude": 39.9042,
+            "longitude": 116.4074,
+        },
+        {
+            "timestamp_utc": "2026-01-05T13:15:00Z",
+            "latitude": 39.9042,
+            "longitude": 116.4074,
+        },
+        {
+            "timestamp_utc": "2026-01-05T13:20:00Z",
+            "latitude": 39.9042,
+            "longitude": 116.4074,
+        },
+    ]
+
+    responses = classify["responses"]
+    assert set(responses["200"]["content"]["application/json"]["examples"]) == {
+        "emitted_location",
+        "valid_request_abstained",
+    }
+    invalid_coordinate = responses["422"]["content"]["application/json"]["examples"][
+        "invalid_coordinate"
+    ]
+    assert "Latitude 91" in invalid_coordinate["summary"]
+    assert "input" not in invalid_coordinate["value"]["detail"][0]
+    assert responses["500"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/ServerError"
+    }
+
+    confidence_description = schema["components"]["schemas"]["ClassifiedLocation"][
+        "properties"
+    ]["confidence"]["description"]
+    assert "heuristic" in confidence_description.lower()
+    assert "not a calibrated probability" in confidence_description.lower()
+    assert "HOME/OFFICE" in confidence_description
+    assert "POI" in confidence_description

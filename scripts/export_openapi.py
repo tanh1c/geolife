@@ -13,10 +13,8 @@ TARGET = ROOT / "openapi.yaml"
 
 def main() -> None:
     schema = app.openapi()
-    TARGET.write_text(
-        yaml.safe_dump(schema, sort_keys=False, allow_unicode=True),
-        encoding="utf-8",
-    )
+    with TARGET.open("w", encoding="utf-8", newline="\n") as output:
+        output.write(yaml.safe_dump(schema, sort_keys=False, allow_unicode=True))
     print(f"Wrote {TARGET}")
 
 
