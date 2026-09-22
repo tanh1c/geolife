@@ -588,3 +588,26 @@ Added:
 - an explicit manual Home/Office plausibility-review protocol under `docs/evaluation/`.
 
 The model/API semantics are unchanged. This pass makes the existing FastAPI/OpenAPI implementation easier to review against the mentor checklist.
+
+
+## 2026-09-22 — API contract realigned to the literal Track B1 requirement
+
+A review against the original mentor brief found that the existing API used
+`POST /v1/home-office/infer` with already-detected stay events, while Checkpoint 1
+explicitly asks for `/v1/classify/{user_id}` with a GPS lat/lng sequence.
+
+The repo now exposes the mentor-facing contract:
+
+- `POST /v1/classify/{user_id}`;
+- input: raw GPS observations with `timestamp_utc`, latitude and longitude;
+- pipeline: frozen CP1 cleaning → stay detection → semantic inference;
+- output: HOME / OFFICE / generic POI plus heuristic `confidence`;
+- HOME/OFFICE confidence maps to the existing evidence-strength heuristic;
+- generic POI confidence is visit share among semantic stays;
+- `openapi.yaml` and Swagger/OpenAPI now document the primary classify route.
+
+The previous stay-event endpoint remains available as a deprecated internal compatibility
+route so existing full-release HTTP parity evidence is not discarded.
+
+Generic POI here means "other recurring location"; semantic POI categorization via
+reverse geocoding/H3 remains the Checkpoint 2 bonus.
