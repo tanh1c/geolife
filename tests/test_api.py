@@ -304,3 +304,19 @@ def test_openapi_emitted_response_schema_omits_precise_coordinates() -> None:
 
     assert "latitude" not in emitted
     assert "longitude" not in emitted
+
+
+def test_committed_openapi_yaml_matches_runtime_contract_shape() -> None:
+    spec_path = Path(__file__).resolve().parents[1] / "openapi.yaml"
+    spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
+    runtime = client.get("/openapi.json").json()
+
+    assert spec["openapi"] == runtime["openapi"]
+    assert spec["info"] == runtime["info"]
+    assert set(spec["paths"]) == set(runtime["paths"])
+    assert "/health" in spec["paths"]
+    assert "/v1/home-office/infer" in spec["paths"]
+
+    emitted = spec["components"]["schemas"]["EmittedResult"]["properties"]
+    assert "latitude" not in emitted
+    assert "longitude" not in emitted
