@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class AbstentionReason(str, Enum):
+    INSUFFICIENT_STAY_HISTORY = "insufficient_stay_history"
     OUT_OF_SCOPE_GEOGRAPHY = "out_of_scope_geography"
     INSUFFICIENT_RECURRING_HISTORY = "insufficient_recurring_history"
     INSUFFICIENT_SEMANTIC_EVIDENCE = "insufficient_semantic_evidence"
@@ -36,6 +37,8 @@ class StayEvent(BaseModel):
 
 
 class InferRequest(BaseModel):
+    """Internal stay-event request retained for CP2/CP3 parity testing."""
+
     model_config = ConfigDict(extra="forbid")
 
     user_id: str = Field(min_length=1, max_length=256)
@@ -83,6 +86,59 @@ class InferResponse(BaseModel):
     user_id: str
     model_contract: Literal["cp2-v1"] = "cp2-v1"
     results: list[SemanticResult] = Field(min_length=2, max_length=2)
+
+
+class GpsPoint(BaseModel):
+    """One raw GPS observation for the mentor-facing classify contract."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    timestamp_utc: datetime
+    latitude: float = Field(ge=-90.0, le=90.0)
+    longitude: float = Field(ge=-180.0, le=180.0)
+
+    @field_validator("timestamp_utc")
+    @classmethod
+    def require_timezone_aware(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("timestamp_utc must include a timezone offset")
+        return value.astimezone(timezone.utc)
+
+
+class ClassifyRequest(BaseModel):
+    """Raw GPS sequence. user_id is versioned in the URL path."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    points: list[GpsPoint] = Field(min_length=1)
+
+
+class ClassifiedLocation(BaseModel):
+    """Emitted HOME/OFFICE/POI location without exposing precise coordinates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: Literal["HOME", "OFFICE", "POI"]
+    location_id: int = Field(ge=0)
+    confidence: float = Field(ge=0.0, le=1.0)
+    confidence_method: Literal["home_office_evidence", "poi_visit_share"]
+
+
+class ClassificationAbstention(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: Literal["HOME", "OFFICE"]
+    reason: AbstentionReason
+
+
+class ClassifyResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    api_version: Literal["v1"] = "v1"
+    model_contract: Literal["cp2-v1"] = "cp2-v1"
+    locations: list[ClassifiedLocation]
+    abstentions: list[ClassificationAbstention]
 
 
 class HealthResponse(BaseModel):
