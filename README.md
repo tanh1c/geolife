@@ -52,7 +52,10 @@ geolife/
 │   ├── staypoints/
 │   ├── model/
 │   └── api/
+├── scripts/
+│   └── export_openapi.py      # export FastAPI schema to standalone YAML
 ├── tests/
+├── openapi.yaml               # mentor-reviewable standalone OpenAPI spec
 └── pyproject.toml
 ```
 
@@ -118,7 +121,19 @@ Health check:
 curl http://127.0.0.1:8000/health
 ```
 
-Interactive OpenAPI docs are available at `/docs` while the server is running.
+FastAPI provides the API contract in three reviewable forms:
+
+- Swagger UI: `http://127.0.0.1:8000/docs`;
+- runtime OpenAPI JSON: `http://127.0.0.1:8000/openapi.json`;
+- committed standalone spec: `openapi.yaml`.
+
+Regenerate the committed YAML from the FastAPI app with:
+
+```bash
+python scripts/export_openapi.py
+```
+
+This keeps the mentor-facing `.yaml` deliverable derived from the same FastAPI application that serves Swagger/OpenAPI at runtime.
 
 The v1 inference endpoint is:
 
