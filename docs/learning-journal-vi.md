@@ -249,3 +249,36 @@ Cách check này mạnh hơn chỉ nhìn aggregate count. Hai serving layers ho�
 Replay cũng cho một observability table hữu ích về abstention. HOME abstain 39 geography cases, 24 recurring-history cases và 46 semantic-evidence cases; OFFICE có cùng hai count đầu và 57 semantic-evidence abstentions. Đây là model outcomes, không phải error rates.
 
 Run này còn làm lộ pandas FutureWarning ở partial emission vì model concat một non-empty frame với một empty frame. Kết quả vẫn đúng nhưng warning cho thấy future dtype-risk. Production code giờ chỉ concat các non-empty frames và có regression test riêng.
+
+## 2026-09-24 — Timezone là polygon lookup, không phải bán kính quanh một thành phố
+
+Một review lại notebook 03 cho thấy tôi đã trộn hai khái niệm: **timezone assignment** và **Beijing-focused cohort selection**.
+
+Rule hiện tại lấy một điểm tham chiếu gần trung tâm Beijing rồi dùng bán kính 100 km. Cách này có thể hữu ích như một engineering scope, nhưng nó không phải ranh giới timezone và cũng không phải ranh giới hành chính Beijing.
+
+Điểm học được quan trọng hơn là timezone không nên được hiểu như một rectangle `lat_min / lat_max / lon_min / lon_max`. IANA tz database cung cấp timezone identifiers và representative locations; còn việc một GPS coordinate thuộc timezone nào là bài toán point-in-polygon. Các dataset như timezone-boundary-builder gắn mỗi polygon với một IANA `tzid`, và `timezonefinder` có thể lookup offline từ WGS84 `(lat, lon)`.
+
+Thiết kế sạch hơn cho GeoLife là:
+
+```text
+stay coordinate
+    ↓
+timezone polygon lookup
+    ↓
+IANA tzid per stay
+    ↓
+ZoneInfo(tzid)
+    ↓
+local behavioral time
+```
+
+Sau đó mới xử lý một câu hỏi khác:
+
+```text
+user có Beijing-focused không?
+```
+
+Nếu cần cohort Beijing thật sự, nên dùng Beijing administrative polygon. Nếu chỉ cần một central-Beijing engineering cohort thì radius vẫn có thể dùng, nhưng phải gọi đúng tên và không diễn giải nó như timezone truth.
+
+Bài học tổng quát: **geographic scope và timezone scope có thể liên quan nhưng không phải cùng một contract**. Khi phát hiện hai semantics đang bị gộp chung, nên tách chúng trước khi tune threshold.
+
