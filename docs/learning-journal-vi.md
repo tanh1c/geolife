@@ -324,3 +324,20 @@ Asia/Shanghai share vẫn có ích để mô tả dataset, nhưng không còn qu
 
 Bài học quan trọng: **metadata cần để diễn giải observation không nhất thiết phải trở thành cohort filter**. Timezone trả lời "đọc đồng hồ nào"; abstention nên đến từ evidence liên quan trực tiếp đến task như history, recurrence, share, margin và repeated dates.
 
+## 2026-09-24 — DBSCAN eps tăng coverage nhưng không kiểm soát được diameter
+
+Rerun cuối trên toàn bộ 5,821 timezone-resolved stays làm trade-off của DBSCAN rất rõ.
+
+Khi eps tăng từ 10 m lên 200 m, số user có recurring location tăng từ 78 lên 104. Nhưng spatial compactness xấu đi nhanh:
+
+```text
+eps 30m  → 90 recurring users, 0 clusters >200m, max diameter ~181m
+eps 50m  → 94 recurring users, 6 clusters >200m, max ~249m
+eps 100m → 97 recurring users, 24 clusters >200m, max ~441m
+eps 200m → 104 recurring users, 86 clusters >200m, max ~837m
+```
+
+Một lesson quan trọng là `eps=200m` chỉ giới hạn neighbor connectivity, không giới hạn cluster diameter. Chaining có thể nối nhiều bước ngắn thành một recurring location rất rộng.
+
+Vì vậy không nên chọn DBSCAN eps chỉ bằng coverage. Nếu muốn threshold có semantics trực tiếp kiểu "location diameter <= X", complete-link phù hợp hơn cho contract này.
+
