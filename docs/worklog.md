@@ -677,3 +677,25 @@ References:
 - timezone-boundary-builder: https://github.com/evansiroky/timezone-boundary-builder
 - Beijing official administrative-boundary maps: https://ghzrzyw.beijing.gov.cn/zhengwuxinxi/tzgg/sj/202609/t20260911_4859523.html
 
+## 2026-09-24 — Notebook 03 timezone-v2 candidate implemented
+
+Notebook 03 was revised to separate timezone assignment from Beijing geographic scoping.
+
+Implemented in `notebooks/03_home_office_baseline.ipynb`:
+
+- pinned notebook-only dependency `timezonefinder==9.0.0`;
+- each CP1 stay now receives an IANA timezone from its own WGS84 `(lat, lon)`;
+- user concentration is measured with stay-share and dwell-share in `Asia/Shanghai`;
+- the 80/80 threshold is retained only as a migration control so the timezone rule changes in isolation;
+- resolved travel stays from eligible users are retained and converted using their own timezone instead of being discarded by a Beijing-radius rule;
+- local wall-clock fields are derived per stay with `ZoneInfo(timezone_id)`;
+- clustering and scoring outputs from the old 97-user / 4,197-stay cohort are treated as stale and must be rerun;
+- production CP2 v1 counts (27 HOME / 16 OFFICE) remain a historical comparison, not a parity assertion for the candidate;
+- production end-to-end DBSCAN parity is intentionally gated until the timezone-v2 contract is implemented in `src/`.
+
+The notebook JSON was cleared of stale outputs and syntax-validated before commit.
+
+Commit: `e6005639b6a68050097b83333c9cf522d2c569ef`.
+
+Next step: Run All on the full frozen 5,821 stays, review timezone/cohort sensitivity and downstream emission deltas, then decide whether production migration is justified.
+
