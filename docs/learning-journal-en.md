@@ -318,3 +318,20 @@ Asia/Shanghai concentration remains a useful dataset-profile diagnostic, but it 
 
 General lesson: **metadata needed to interpret an observation does not automatically belong in the eligibility policy**. Timezone answers which local clock to use; abstention should come from task-relevant evidence such as history, recurrence, share, margin and repeated dates.
 
+## 2026-09-24 — DBSCAN eps improves coverage without controlling cluster diameter
+
+The final rerun over all 5,821 timezone-resolved stays makes the DBSCAN trade-off explicit.
+
+As eps increases from 10 m to 200 m, users with a recurring location increase from 78 to 104, but spatial compactness degrades quickly:
+
+```text
+eps 30m  → 90 recurring users, 0 clusters >200m, max diameter ~181m
+eps 50m  → 94 recurring users, 6 clusters >200m, max ~249m
+eps 100m → 97 recurring users, 24 clusters >200m, max ~441m
+eps 200m → 104 recurring users, 86 clusters >200m, max ~837m
+```
+
+The key lesson is that `eps=200m` constrains local neighbor connectivity, not total cluster diameter. Chaining can join many short links into a very wide recurring location.
+
+DBSCAN therefore remains useful as a coverage benchmark, while complete-link clustering is better suited to a contract that needs a directly interpretable maximum-diameter threshold.
+
