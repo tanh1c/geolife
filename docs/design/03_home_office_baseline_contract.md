@@ -304,3 +304,20 @@ A candidate v2 contract is:
 
 This follow-up is methodological debt, not a silent production change.
 
+## Timezone-v2 notebook candidate status
+
+As of 2026-09-24, notebook 03 contains an executable candidate for the follow-up timezone contract:
+
+```text
+stay coordinate
+→ IANA timezone lookup
+→ per-stay local time
+→ user primary-timezone concentration
+```
+
+The candidate targets `Asia/Shanghai` for user concentration and retains the existing 80/80 stay/dwell thresholds only as migration controls.
+
+This is **not yet the production contract**. The current `HomeOfficeConfig` remains CP2 v1 until full-release rerun, sensitivity review, tests and parity are updated.
+
+A Beijing-only geographic scope, if still required by product policy, must be modeled as a separate gate rather than inferred from timezone membership.
+
