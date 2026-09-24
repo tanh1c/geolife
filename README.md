@@ -40,6 +40,7 @@ geolife/
 ├── notebooks/
 │   ├── 01_geolife_eda.ipynb
 │   ├── 02_cleaning_staypoint_validation.ipynb
+│   ├── 02a_trajectory_config_deep_dive.ipynb
 │   ├── 02b_staypoint_sensitivity_validation.ipynb
 │   ├── 02c_same_second_transport_audit.ipynb
 │   ├── 03_home_office_baseline.ipynb
