@@ -298,3 +298,23 @@ The old 97-user / 4,197-stay cohort and 27 HOME / 16 OFFICE emissions are now hi
 
 General lesson: when an upstream semantic contract changes, downstream measured outputs become stale and must be rerun before they are treated as evidence.
 
+## 2026-09-24 — If geography is not a product requirement, timezone should not become a cohort filter
+
+The first timezone-v2 run showed that coordinate-based lookup works cleanly: all 5,821 frozen CP1 stays resolved to an IANA timezone, with Asia/Shanghai dominating the release. I initially kept an 80/80 Asia/Shanghai concentration rule as a migration cohort.
+
+A follow-up review showed that this is still an unnecessary restriction when the task only asks for Home/Office inference and does not require a Beijing-only or China-only scope.
+
+The final notebook therefore uses:
+
+```text
+each stay
+→ coordinate → timezone
+→ UTC → that stay's local time
+→ recurring location
+→ HOME/OFFICE evidence
+```
+
+Asia/Shanghai concentration remains a useful dataset-profile diagnostic, but it no longer decides whether a user enters semantic inference.
+
+General lesson: **metadata needed to interpret an observation does not automatically belong in the eligibility policy**. Timezone answers which local clock to use; abstention should come from task-relevant evidence such as history, recurrence, share, margin and repeated dates.
+
