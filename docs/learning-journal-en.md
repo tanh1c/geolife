@@ -276,3 +276,25 @@ If CP2 requires a true Beijing geographic cohort, an administrative Beijing poly
 
 General lesson: **geographic scope and timezone scope can be related without being the same contract**.
 
+## 2026-09-24 — Change one semantic layer at a time during timezone migration
+
+Notebook 03 now assigns an IANA timezone to each stay from its coordinate instead of using a 100 km circle around a Beijing reference point.
+
+A key migration lesson is to **avoid retuning every threshold at once**. The 80% stay-share / 80% dwell-share threshold is retained as a control:
+
+```text
+v1:
+Beijing-distance proxy + 80/80
+
+candidate:
+coordinate timezone lookup + 80/80
+```
+
+This makes downstream differences easier to attribute to the timezone-assignment change rather than threshold tuning.
+
+Travel stays for eligible users are also retained and converted with their own timezone instead of being discarded solely because they fall outside the old Beijing radius.
+
+The old 97-user / 4,197-stay cohort and 27 HOME / 16 OFFICE emissions are now historical references only. They must not be copied into the candidate notebook as if parity were expected.
+
+General lesson: when an upstream semantic contract changes, downstream measured outputs become stale and must be rerun before they are treated as evidence.
+
