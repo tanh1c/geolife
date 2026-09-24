@@ -699,3 +699,23 @@ Commit: `e6005639b6a68050097b83333c9cf522d2c569ef`.
 
 Next step: Run All on the full frozen 5,821 stays, review timezone/cohort sensitivity and downstream emission deltas, then decide whether production migration is justified.
 
+## 2026-09-24 — Final notebook 03 removes timezone-based user filtering
+
+The executed timezone-v2 candidate showed that coordinate-to-IANA lookup works cleanly on the frozen CP1 stay inventory: all 5,821 stays resolved to a timezone, with Asia/Shanghai dominating the release. Review then clarified that the assignment does not require a Beijing-only or China-only cohort.
+
+Notebook 03 was therefore finalized with a simpler semantic scope:
+
+- assign an IANA timezone to every stay from its own WGS84 coordinate;
+- convert each stay from UTC into its own local wall-clock time;
+- keep every stay whose timezone resolves;
+- retain Asia/Shanghai stay/dwell share only as a dataset-profile diagnostic, not an eligibility gate;
+- let abstention come from history sufficiency, recurring-location support, and weak HOME/OFFICE behavioral evidence rather than geography;
+- keep complete-link 200 m and the v1 HOME/OFFICE gates as audit controls until the full notebook is rerun on the widened semantic scope;
+- treat current production CP2 v1 as a historical comparison until src/ is migrated and parity is re-established.
+
+The final notebook also adds a compact final summary table and rewrites the narrative in the explanatory style of the original notebook 03.
+
+Notebook commit: `0a36ad9a8a208b4c6d46299418f389c882660a18`.
+
+The earlier 80/80 Asia/Shanghai-focused candidate is superseded as a filtering rule; its sensitivity table remains useful only for describing how geographically concentrated GeoLife is.
+
