@@ -75,3 +75,27 @@ This is not claimed to be an accuracy-optimal spatial threshold. It is selected 
 The recurring-location gate is resolved. CP2 can proceed to Home/Office scoring audit, with scoring semantics still considered exploratory until reviewed.
 
 Notebook: `notebooks/03_home_office_baseline.ipynb`.
+
+## Final timezone-resolved DBSCAN rerun — 2026-09-24
+
+Notebook 03 now keeps every CP1 stay whose timezone resolves. Since all 5,821 frozen stays resolve successfully, the final DBSCAN sensitivity again runs on the complete stay inventory.
+
+| eps_m | locations | recurring_locations | users_with_recurring_location | median_recurring_diameter_m | p95_recurring_diameter_m | max_recurring_diameter_m | recurring_clusters_gt_200 |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 3698 | 442 | 78 | 8.03 | 43.12 | 110.84 | 0 |
+| 20 | 3018 | 466 | 84 | 15.81 | 73.41 | 172.31 | 0 |
+| 30 | 2702 | 496 | 90 | 23.24 | 100.13 | 181.32 | 0 |
+| 50 | 2420 | 551 | 94 | 34.61 | 118.10 | 248.80 | 6 |
+| 100 | 2131 | 602 | 97 | 51.09 | 186.28 | 441.31 | 24 |
+| 150 | 1996 | 616 | 102 | 64.38 | 258.85 | 627.11 | 53 |
+| 200 | 1885 | 635 | 104 | 73.48 | 307.99 | 836.66 | 86 |
+
+Key interpretation:
+
+- 10–30 m improve recurring-user coverage while keeping every recurring cluster under 200 m;
+- 50 m is the first tested setting where DBSCAN chaining creates clusters wider than 200 m;
+- beyond 50 m, recurring-user gains are modest relative to the growth in large-diameter clusters;
+- at 200 m, 86 / 635 recurring clusters exceed 200 m and the maximum diameter reaches ~837 m.
+
+This does not select 30 m as the production clustering threshold. It demonstrates why DBSCAN eps is not a hard location-size contract and why the complete-link audit remains necessary.
+
