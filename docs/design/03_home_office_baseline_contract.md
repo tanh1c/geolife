@@ -285,3 +285,22 @@ Before writing production Home/Office inference:
 4. recurring-location representation is reviewed;
 5. candidate time windows and abstention behavior are documented;
 6. no precise user-level inferred-location artifact is committed.
+
+## Known follow-up — separate timezone assignment from Beijing cohort geography
+
+Post-freeze review on 2026-09-24 found that the current `beijing_reference_point + radius` contract conflates two concerns:
+
+1. assigning correct local time to a stay;
+2. restricting CP2 v1 to a Beijing-focused semantic cohort.
+
+The existing v1 behavior remains frozen for reproducibility, but it should not be interpreted as a true timezone boundary.
+
+A candidate v2 contract is:
+
+- assign an IANA timezone to each stay from its own WGS84 coordinate using timezone polygons;
+- convert timestamps with `ZoneInfo(tzid)`;
+- define Beijing geographic membership independently, preferably with an explicit Beijing boundary polygon if a Beijing-only cohort is still required;
+- rerun full-release sensitivity and parity before changing production defaults.
+
+This follow-up is methodological debt, not a silent production change.
+
