@@ -719,3 +719,28 @@ Notebook commit: `0a36ad9a8a208b4c6d46299418f389c882660a18`.
 
 The earlier 80/80 Asia/Shanghai-focused candidate is superseded as a filtering rule; its sensitivity table remains useful only for describing how geographically concentrated GeoLife is.
 
+## 2026-09-24 — Final DBSCAN sensitivity rerun on timezone-resolved scope
+
+Notebook 03 reran the DBSCAN recurring-location sensitivity after the semantic scope was finalized as all timezone-resolved stays. All 5,821 stays resolve to a timezone, so this recurring-location audit operates on the full frozen CP1 stay inventory.
+
+Measured results:
+
+- eps 10 m: 78 users with a recurring location, 0 recurring clusters above 200 m, max recurring diameter ~110.84 m;
+- eps 20 m: 84 recurring users, 0 clusters above 200 m, max ~172.31 m;
+- eps 30 m: 90 recurring users, 0 clusters above 200 m, max ~181.32 m;
+- eps 50 m: 94 recurring users, 6 clusters above 200 m, max ~248.80 m;
+- eps 100 m: 97 recurring users, 24 clusters above 200 m, max ~441.31 m;
+- eps 150 m: 102 recurring users, 53 clusters above 200 m, p95 diameter ~258.85 m, max ~627.11 m;
+- eps 200 m: 104 recurring users, 86 clusters above 200 m, p95 diameter ~307.99 m, max ~836.66 m.
+
+Interpretation:
+
+- increasing eps improves recurring-user coverage but progressively weakens spatial compactness;
+- 30 m is the largest tested DBSCAN eps with zero recurring clusters above 200 m;
+- 50 m is the first tested value where chaining produces >200 m recurring clusters;
+- eps=200 m must not be interpreted as a 200 m cluster-diameter contract.
+
+This result strengthens the motivation for keeping DBSCAN as a benchmark while using complete-link clustering for a directly interpretable maximum-diameter contract.
+
+Notebook commit: `147870a9ec2270fecd126df7e9a60a41d01e8d2d`.
+
