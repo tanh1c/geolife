@@ -151,3 +151,20 @@ References:
 - timezone-boundary-builder: https://github.com/evansiroky/timezone-boundary-builder
 - Beijing 2026 administrative-boundary base maps: https://ghzrzyw.beijing.gov.cn/zhengwuxinxi/tzgg/sj/202609/t20260911_4859523.html
 
+## Notebook implementation status — 2026-09-24
+
+The timezone-v2 candidate path is now implemented in `notebooks/03_home_office_baseline.ipynb`.
+
+Implementation details:
+
+- `timezonefinder==9.0.0` is installed by the notebook when needed;
+- every stay is assigned a coordinate-derived IANA `timezone_id`;
+- user-level concentration is measured against `Asia/Shanghai` using both stay share and dwell share;
+- the 80/80 threshold is retained as a migration control;
+- all resolved-timezone stays of eligible users are retained, including travel stays;
+- local timestamps are created per stay using `ZoneInfo(timezone_id)`;
+- Beijing administrative membership is no longer inferred from the timezone rule;
+- the old radius-based 97-user / 4,197-stay outputs are marked stale for the candidate path.
+
+Production v1 is intentionally unchanged until the full notebook is rerun and the output delta is reviewed. A future Beijing-only geography gate, if required, should be audited independently from timezone assignment.
+
