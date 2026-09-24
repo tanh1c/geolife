@@ -321,3 +321,19 @@ This is **not yet the production contract**. The current `HomeOfficeConfig` rema
 
 A Beijing-only geographic scope, if still required by product policy, must be modeled as a separate gate rather than inferred from timezone membership.
 
+## Final notebook timezone semantics — production migration pending
+
+The final notebook no longer uses Beijing-radius membership or Asia/Shanghai concentration to decide semantic eligibility.
+
+Notebook contract:
+
+- assign each stay an IANA timezone from its own coordinate;
+- retain every stay whose timezone resolves;
+- convert each stay to its own local wall-clock time before behavioral scoring;
+- use timezone concentration only as a descriptive release diagnostic;
+- rely on history, recurrence and HOME/OFFICE evidence gates for abstention.
+
+The existing production `HomeOfficeConfig` remains the frozen CP2 v1 implementation until this notebook contract is rerun on the full release, implemented in `src/`, covered by tests, and validated by direct-model and HTTP parity.
+
+The prior 80/80 Asia/Shanghai-focused notebook candidate should be treated as superseded, not as an additional frozen contract.
+
