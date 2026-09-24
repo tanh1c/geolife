@@ -103,3 +103,51 @@ This is not claimed to be an accuracy-optimal geographic boundary. It is an expl
 The timezone/geography gate is now resolved. Home/Office scoring remains blocked only by the recurring-location representation gate.
 
 Notebook: `notebooks/03_home_office_baseline.ipynb`.
+
+## 2026-09-24 post-freeze semantic review
+
+A later review identified a limitation in the v1 framing.
+
+The frozen `39.9042 N, 116.4074 E + 100 km` rule should be interpreted only as a **Beijing-focused engineering cohort heuristic**. It is not a timezone boundary and it is not an administrative Beijing boundary.
+
+### Why the distinction matters
+
+The IANA time zone database does not define a timezone as a simple latitude/longitude rectangle around a city. Its tab files use representative geographic locations for timezone names. Coordinate-to-timezone assignment is more naturally handled with timezone boundary polygons.
+
+A stronger v2 audit candidate is therefore:
+
+```text
+each stay coordinate
+    -> point-in-timezone-polygon lookup
+    -> IANA tzid
+    -> ZoneInfo(tzid)
+    -> local arrival/departure time
+```
+
+This would let a Beijing-based user retain correct local time for travel stays instead of dropping them solely because they fall outside a Beijing radius.
+
+### Keep geography and timezone as separate gates
+
+If the product scope still requires a Beijing-specific cohort, evaluate that independently:
+
+- **timezone gate:** which IANA timezone contains each stay coordinate?
+- **Beijing geography gate:** does the stay fall inside the chosen Beijing geographic scope?
+
+For the latter, the strongest geographic contract would use an official Beijing administrative boundary polygon. A central-Beijing radius can remain as a simpler engineering cohort, but it must be described explicitly as an approximation.
+
+### Status
+
+This review does **not** change frozen CP2 v1 production behavior yet. Before replacing the current rule, rerun:
+
+- timezone-id distribution across the 5,821 frozen CP1 stays;
+- user-level stay-share and dwell-share by timezone;
+- Beijing-geography sensitivity if a Beijing-only cohort is still required;
+- downstream Home/Office emission counts;
+- direct-model and HTTP parity.
+
+References:
+
+- IANA time zone theory: https://www.iana.org/time-zones/theory
+- timezone-boundary-builder: https://github.com/evansiroky/timezone-boundary-builder
+- Beijing 2026 administrative-boundary base maps: https://ghzrzyw.beijing.gov.cn/zhengwuxinxi/tzgg/sj/202609/t20260911_4859523.html
+
