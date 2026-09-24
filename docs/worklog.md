@@ -648,3 +648,32 @@ This is a plausibility review, not an accuracy estimate. GeoLife still has no
 authoritative HOME/OFFICE ground truth.
 
 Evidence: `docs/evaluation/01_home_office_manual_plausibility.md`.
+
+## 2026-09-24 — Re-opened CP2 timezone/geography semantics
+
+A review of notebook 03 exposed an important modeling distinction that the frozen CP2 v1 narrative did not make sharply enough.
+
+The current rule uses an approximate Beijing reference point plus a 100 km radius to define a Beijing-focused cohort. That rule is an engineering cohort heuristic; it is **not** a timezone boundary and it does not prove that all retained coordinates are geographically inside Beijing.
+
+External reference review clarified that:
+
+- the IANA time zone database uses representative geographic locations to name zones; those coordinates are not rectangular latitude/longitude bounds;
+- practical coordinate-to-timezone lookup is a point-in-polygon problem over timezone boundary data;
+- timezone-boundary-builder publishes polygons keyed by IANA `tzid` values, and libraries such as `timezonefinder` can perform offline WGS84 coordinate → IANA timezone lookup;
+- Beijing administrative membership is a separate geography problem and should use an explicit Beijing boundary/polygon if that scope is required.
+
+Proposed next audit:
+
+1. assign each stay an IANA timezone from its own latitude/longitude;
+2. convert each stay with `zoneinfo.ZoneInfo(tzid)`;
+3. evaluate user-level timezone concentration separately from Beijing geographic concentration;
+4. if CP2 still needs a Beijing-only semantic cohort, use a Beijing administrative polygon or explicitly label a central-Beijing distance rule as a cohort heuristic;
+5. rerun full-release sensitivity and HTTP/direct-model parity before changing the frozen CP2 v1 production behavior.
+
+No production semantics changed in this review.
+
+References:
+- IANA tz theory: https://www.iana.org/time-zones/theory
+- timezone-boundary-builder: https://github.com/evansiroky/timezone-boundary-builder
+- Beijing official administrative-boundary maps: https://ghzrzyw.beijing.gov.cn/zhengwuxinxi/tzgg/sj/202609/t20260911_4859523.html
+
