@@ -304,3 +304,23 @@ Các con số v1 như 97 users, 4,197 semantic stays, 27 HOME và 16 OFFICE vì 
 
 Bài học: khi thay một upstream semantic contract, phải làm stale các downstream measured outputs và rerun chúng; giữ số cũ chỉ vì code phía sau chưa đổi sẽ tạo cảm giác reproducibility giả.
 
+## 2026-09-24 — Nếu đề không yêu cầu geography scope thì timezone không nên trở thành filter
+
+Run đầu của timezone-v2 cho thấy lookup theo coordinate hoạt động tốt: toàn bộ 5,821 stays đều xác định được IANA timezone, và phần lớn nằm trong Asia/Shanghai. Ban đầu tôi vẫn giữ rule 80/80 để chọn user "Asia/Shanghai-focused".
+
+Review tiếp theo cho thấy đây vẫn là một restriction không cần thiết nếu bài toán chỉ yêu cầu Home/Office inference và không yêu cầu Beijing-only hay China-only.
+
+Thiết kế cuối đơn giản hơn:
+
+```text
+mỗi stay
+→ coordinate → timezone
+→ UTC → local time của stay
+→ recurring location
+→ HOME/OFFICE evidence
+```
+
+Asia/Shanghai share vẫn có ích để mô tả dataset, nhưng không còn quyết định user có được vào pipeline hay không.
+
+Bài học quan trọng: **metadata cần để diễn giải observation không nhất thiết phải trở thành cohort filter**. Timezone trả lời "đọc đồng hồ nào"; abstention nên đến từ evidence liên quan trực tiếp đến task như history, recurrence, share, margin và repeated dates.
+
