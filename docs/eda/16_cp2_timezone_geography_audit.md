@@ -168,3 +168,29 @@ Implementation details:
 
 Production v1 is intentionally unchanged until the full notebook is rerun and the output delta is reviewed. A future Beijing-only geography gate, if required, should be audited independently from timezone assignment.
 
+## Final notebook scope — 2026-09-24
+
+The earlier 80/80 Asia/Shanghai-focused candidate has been superseded as an eligibility rule.
+
+The executed candidate established two useful facts:
+
+- all 5,821 frozen CP1 stays received an IANA timezone from coordinate lookup;
+- Asia/Shanghai is overwhelmingly dominant, confirming the China-centered nature of the release while still exposing travel stays in other zones.
+
+Because the Home/Office assignment does not require a Beijing-only or China-only cohort, the final notebook now keeps **all timezone-resolved stays**.
+
+Final timezone contract in the notebook:
+
+```text
+(latitude, longitude)
+→ IANA timezone_id
+→ ZoneInfo(timezone_id)
+→ local arrival/departure time
+```
+
+The Asia/Shanghai 50/80/90/95% concentration table remains in the notebook only as a descriptive diagnostic. It is not a geography or eligibility gate.
+
+A future product requirement for an explicit geographic scope should be modeled separately from timezone assignment.
+
+The production CP2 v1 code is not yet migrated to this contract; full notebook rerun, tests and parity are required before production refreeze.
+
