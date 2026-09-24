@@ -282,3 +282,25 @@ Nếu cần cohort Beijing thật sự, nên dùng Beijing administrative polygo
 
 Bài học tổng quát: **geographic scope và timezone scope có thể liên quan nhưng không phải cùng một contract**. Khi phát hiện hai semantics đang bị gộp chung, nên tách chúng trước khi tune threshold.
 
+## 2026-09-24 — Migration timezone nên thay một tầng logic mỗi lần
+
+Notebook 03 đã được sửa để lookup IANA timezone theo từng stay thay vì dùng vòng tròn 100 km quanh một điểm Beijing.
+
+Một điểm methodology quan trọng là **không retune mọi threshold cùng lúc**. Tôi giữ `80% stay share / 80% dwell share` như migration control:
+
+```text
+v1:
+Beijing-distance proxy + 80/80
+
+candidate:
+coordinate timezone lookup + 80/80
+```
+
+Nhờ vậy nếu cohort hoặc HOME/OFFICE output thay đổi, nguyên nhân dễ quy về timezone assignment hơn thay vì bị trộn với threshold tuning.
+
+Travel stays của user đủ điều kiện cũng không còn bị loại chỉ vì ở ngoài Beijing radius. Mỗi stay giữ IANA timezone riêng và được chuyển sang local wall time của chính nó.
+
+Các con số v1 như 97 users, 4,197 semantic stays, 27 HOME và 16 OFFICE vì vậy chỉ còn là **historical reference**. Chúng không được copy sang candidate notebook như thể parity vẫn phải đúng.
+
+Bài học: khi thay một upstream semantic contract, phải làm stale các downstream measured outputs và rerun chúng; giữ số cũ chỉ vì code phía sau chưa đổi sẽ tạo cảm giác reproducibility giả.
+
