@@ -247,3 +247,32 @@ This is stronger than checking only aggregate counts. Two serving layers could b
 The replay also produced useful abstention observability. HOME abstained for 39 geography cases, 24 recurring-history cases and 46 semantic-evidence cases; OFFICE had the same first two counts and 57 semantic-evidence abstentions. These are model outcomes, not error rates.
 
 A pandas FutureWarning appeared repeatedly for partial emissions because the model concatenated one non-empty frame with one empty frame. The values were correct, but the warning exposed a future dtype-risk. The production code now concatenates only non-empty frames and has a regression test for that case.
+
+## 2026-09-24 — Timezone lookup is a polygon problem, not a city-radius rule
+
+A review of notebook 03 exposed that I had mixed two different concepts: **timezone assignment** and **Beijing-focused cohort selection**.
+
+The current rule uses an approximate Beijing reference point and a 100 km radius. That can be a useful engineering scope, but it is neither a timezone boundary nor an administrative Beijing boundary.
+
+The more general lesson is that a timezone should not be modeled as a simple `lat_min / lat_max / lon_min / lon_max` rectangle. The IANA tz database provides timezone identifiers and representative locations; mapping a GPS coordinate to a timezone is a point-in-polygon problem. Datasets such as timezone-boundary-builder associate polygons with IANA `tzid` values, and libraries such as `timezonefinder` can perform offline WGS84 `(lat, lon)` lookup.
+
+A cleaner GeoLife design is:
+
+```text
+stay coordinate
+    ↓
+timezone polygon lookup
+    ↓
+IANA tzid per stay
+    ↓
+ZoneInfo(tzid)
+    ↓
+local behavioral time
+```
+
+Only after that should the pipeline answer a separate question: whether a user is Beijing-focused.
+
+If CP2 requires a true Beijing geographic cohort, an administrative Beijing polygon is the better contract. If it only needs a central-Beijing engineering cohort, a radius rule can remain, but it should be named and documented as an approximation rather than timezone truth.
+
+General lesson: **geographic scope and timezone scope can be related without being the same contract**.
+
