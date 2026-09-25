@@ -471,3 +471,82 @@ def test_materialize_rebuilds_an_invalid_checkpoint(
 
     assert len(stays) == 1
     assert len(point_days) == 1
+
+
+def _frozen_audit_stays(user_id: str, timestamps: list[str]) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "user_id": user_id,
+            "arrival_time_utc": pd.to_datetime(timestamps, utc=True),
+            "departure_time_utc": pd.to_datetime(timestamps, utc=True) + pd.Timedelta(hours=1),
+            "duration_s": 3600.0,
+            "latitude": 39.9042,
+            "longitude": 116.4074,
+        }
+    )
+
+
+def test_baseline_audit_keeps_user_without_stay_in_full_release_universe() -> None:
+    audit = behavior.build_baseline_user_audit(
+        {"000", "001"}, _frozen_audit_stays("001", ["2026-01-05T14:00:00Z"])
+    )
+
+    assert len(audit) == 4
+    missing = audit.query("user_id == '000' and label == 'HOME'").iloc[0]
+    assert missing["reject_reason"] == "no_cp1_stay"
+    assert audit["reject_reason"].isin(behavior.REASON_ORDER).all()
+
+
+def test_baseline_audit_prefers_no_overlap_before_insufficient_dates() -> None:
+    audit = behavior.build_baseline_user_audit(
+        {"001"},
+        _frozen_audit_stays("001", ["2026-01-05T02:00:00Z", "2026-01-06T02:00:00Z"]),
+    )
+
+    home = audit.query("label == 'HOME'").iloc[0]
+    assert home["reject_reason"] == "no_behavioral_window_overlap"
+
+
+def test_baseline_audit_marks_relevant_overlap_with_too_few_dates() -> None:
+    audit = behavior.build_baseline_user_audit(
+        {"001"}, _frozen_audit_stays("001", ["2026-01-05T14:00:00Z", "2026-01-06T14:00:00Z"])
+    )
+
+    home = audit.query("label == 'HOME'").iloc[0]
+    assert home["reject_reason"] == "insufficient_relevant_dates"
+
+
+def test_location_sensitivity_covers_all_requested_thresholds() -> None:
+    stays = _frozen_audit_stays(
+        "001", ["2026-01-05T14:00:00Z", "2026-01-06T14:00:00Z"]
+    )
+    stays["arrival_time_local"] = stays["arrival_time_utc"].dt.tz_convert("Asia/Shanghai")
+    stays["local_date"] = stays["arrival_time_local"].dt.date
+
+    sensitivity = behavior.run_location_sensitivity(stays)
+
+    assert sensitivity["threshold_m"].tolist() == [100.0, 200.0, 300.0]
+    assert {
+        "anchor_count_class",
+        "top_anchor_stability_vs_200",
+        "recurring_location_count",
+        "motif_membership_stability_vs_200",
+        "regime_membership_stability_vs_200",
+    }.issubset(sensitivity.columns)
+    assert len(sensitivity) == 3
+
+
+def test_location_sensitivity_detects_changed_top_anchor_membership() -> None:
+    stays = _frozen_audit_stays(
+        "001",
+        ["2026-01-05T14:00:00Z", "2026-01-06T14:00:00Z"],
+    )
+    stays.loc[1, "latitude"] += 0.00135
+    stays["arrival_time_local"] = stays["arrival_time_utc"].dt.tz_convert("Asia/Shanghai")
+    stays["local_date"] = stays["arrival_time_local"].dt.date
+
+    sensitivity = behavior.run_location_sensitivity(stays)
+
+    assert sensitivity.loc[
+        sensitivity["threshold_m"] == 100.0, "top_anchor_stability_vs_200"
+    ].iloc[0] < 1.0

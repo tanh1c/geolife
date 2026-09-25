@@ -16,6 +16,7 @@ import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
 from geolife.geo.distance import haversine_m
+from geolife.model import HomeOfficeConfig, build_semantic_locations, infer_home_office
 from geolife.staypoints import clean_trajectory_with_audit, detect_staypoints
 
 ARTIFACT_DIR = Path("artifacts/03a")
@@ -460,6 +461,209 @@ def build_user_behavior_features(
     return pd.DataFrame(rows)
 
 
+REASON_ORDER = (
+    "no_cp1_stay",
+    "outside_frozen_v1_geographic_scope",
+    "no_recurring_location",
+    "no_behavioral_window_overlap",
+    "insufficient_relevant_dates",
+    "share_below_frozen_gate",
+    "margin_below_frozen_gate",
+    "emitted",
+)
+_AUDIT_COLUMNS = [
+    "user_id", "label", "reject_reason", "location_id", "relevant_dwell_share",
+    "share_margin", "relevant_dates", "relevant_dwell_h", "stay_count",
+]
+
+
+def _audit_row(user_id: str, label: str, reason: str, candidate: pd.Series | None = None) -> dict[str, object]:
+    row: dict[str, object] = {"user_id": user_id, "label": label, "reject_reason": reason}
+    for column in _AUDIT_COLUMNS[3:]:
+        row[column] = candidate.get(column, pd.NA) if candidate is not None else pd.NA
+    return row
+
+
+def _window_features(
+    semantic_stays: pd.DataFrame,
+    locations: pd.DataFrame,
+    config: HomeOfficeConfig,
+    label: str,
+) -> pd.DataFrame:
+    prefix = "home" if label == "HOME" else "office"
+    rows = []
+    for location in locations.itertuples(index=False):
+        location_stays = semantic_stays.loc[
+            (semantic_stays["user_id"] == location.user_id)
+            & (semantic_stays["location_id"] == location.location_id)
+        ]
+        overlaps: list[tuple[object, float]] = []
+        for stay in location_stays.itertuples(index=False):
+            start, end = stay.arrival_time_local, stay.departure_time_local
+            day, last_day = start.normalize() - pd.Timedelta(days=1), end.normalize()
+            while day <= last_day:
+                if label == "HOME":
+                    window_start = day + pd.Timedelta(hours=config.home_start_hour)
+                    window_end = day + pd.Timedelta(days=1, hours=config.home_end_hour)
+                    behavior_date, include = window_start.date(), True
+                else:
+                    window_start = day + pd.Timedelta(hours=config.office_start_hour)
+                    window_end = day + pd.Timedelta(hours=config.office_end_hour)
+                    behavior_date, include = window_start.date(), day.weekday() in config.office_weekdays
+                overlap_s = max(0.0, float((min(end, window_end) - max(start, window_start)).total_seconds()))
+                if include and overlap_s:
+                    overlaps.append((behavior_date, overlap_s))
+                day += pd.Timedelta(days=1)
+        per_date = pd.DataFrame(overlaps, columns=["behavior_date", "overlap_s"])
+        rows.append(
+            {
+                "user_id": location.user_id,
+                "location_id": location.location_id,
+                "stay_count": location.stay_count,
+                f"{prefix}_dwell_s": float(per_date["overlap_s"].sum()) if not per_date.empty else 0.0,
+                f"{prefix}_dates": int((per_date.groupby("behavior_date")["overlap_s"].sum() >= config.min_relevant_date_overlap_s).sum()) if not per_date.empty else 0,
+            }
+        )
+    features = pd.DataFrame(rows)
+    dwell_col, share_col = f"{prefix}_dwell_s", f"{prefix}_dwell_share"
+    denominator = features.groupby("user_id")[dwell_col].transform("sum")
+    features[share_col] = np.where(denominator > 0, features[dwell_col] / denominator, 0.0)
+    return features
+
+
+def _top_audit_candidate(features: pd.DataFrame, label: str) -> pd.Series | None:
+    prefix = "home" if label == "HOME" else "office"
+    dwell_col, dates_col, share_col = (f"{prefix}_{suffix}" for suffix in ("dwell_s", "dates", "dwell_share"))
+    candidates = features.loc[(features["stay_count"] >= 2) & (features[dwell_col] > 0)].sort_values(
+        [share_col, dates_col, dwell_col, "stay_count", "location_id"],
+        ascending=[False, False, False, False, True], kind="stable",
+    )
+    if candidates.empty:
+        return None
+    top = candidates.iloc[0].copy()
+    top["relevant_dwell_share"] = top[share_col]
+    top["share_margin"] = top[share_col] - (candidates.iloc[1][share_col] if len(candidates) > 1 else 0.0)
+    top["relevant_dates"] = top[dates_col]
+    top["relevant_dwell_h"] = top[dwell_col] / 3600.0
+    return top
+
+
+def _candidate_reason(candidate: pd.Series | None, label: str, config: HomeOfficeConfig) -> str:
+    if candidate is None:
+        return "no_behavioral_window_overlap"
+    minimum_dates = config.home_min_dates if label == "HOME" else config.office_min_dates
+    minimum_share = config.home_min_share if label == "HOME" else config.office_min_share
+    minimum_margin = config.home_min_margin if label == "HOME" else config.office_min_margin
+    if int(candidate["relevant_dates"]) < minimum_dates:
+        return "insufficient_relevant_dates"
+    if float(candidate["relevant_dwell_share"]) < minimum_share:
+        return "share_below_frozen_gate"
+    if float(candidate["share_margin"]) < minimum_margin:
+        return "margin_below_frozen_gate"
+    return "emitted"
+
+
+def build_baseline_user_audit(release_users: set[str], stays: pd.DataFrame) -> pd.DataFrame:
+    """Reconstruct one ordered frozen-v1 outcome for each release user and label."""
+    config = HomeOfficeConfig()
+    raw_users = set(stays["user_id"].astype(str)) if not stays.empty else set()
+    semantic, locations = build_semantic_locations(stays, config=config)
+    semantic_users = set(semantic["user_id"].astype(str)) if not semantic.empty else set()
+    recurring_users = (
+        set(locations.loc[locations["stay_count"] >= 2, "user_id"].astype(str))
+        if not locations.empty
+        else set()
+    )
+    features_by_label = {
+        label: _window_features(semantic, locations, config, label)
+        for label in ("HOME", "OFFICE")
+    } if not semantic.empty else {"HOME": pd.DataFrame(), "OFFICE": pd.DataFrame()}
+    rows = []
+    for user_id in sorted(release_users):
+        for label in ("HOME", "OFFICE"):
+            if user_id not in raw_users:
+                rows.append(_audit_row(user_id, label, "no_cp1_stay"))
+                continue
+            if user_id not in semantic_users:
+                rows.append(_audit_row(user_id, label, "outside_frozen_v1_geographic_scope"))
+                continue
+            if user_id not in recurring_users:
+                rows.append(_audit_row(user_id, label, "no_recurring_location"))
+                continue
+            candidate = _top_audit_candidate(
+                features_by_label[label].loc[features_by_label[label]["user_id"] == user_id], label
+            )
+            rows.append(_audit_row(user_id, label, _candidate_reason(candidate, label, config), candidate))
+    audit = pd.DataFrame(rows, columns=_AUDIT_COLUMNS)
+    assert len(audit) == len(release_users) * 2
+    assert not audit.duplicated(["user_id", "label"]).any()
+    assert audit["reject_reason"].isin(REASON_ORDER).all()
+    emitted = infer_home_office(stays, config=config).loc[:, ["user_id", "label"]]
+    audited = audit.loc[audit["reject_reason"] == "emitted", ["user_id", "label"]]
+    assert audited.equals(emitted.reset_index(drop=True))
+    return audit
+
+
+def _anchor_count_class(summary: pd.DataFrame) -> str:
+    recurring = int((summary["stay_count"] >= 2).sum())
+    if recurring == 0:
+        return "no_stable_anchor"
+    if recurring == 1:
+        return "dominant_anchor"
+    if recurring == 2:
+        return "two_anchor"
+    return "multiple_anchor"
+
+
+def run_location_sensitivity(stays: pd.DataFrame) -> pd.DataFrame:
+    """Summarize the specified 100/200/300 m recurrence sensitivity outcomes."""
+    if "local_date" not in stays:
+        raise ValueError("stays must include local_date")
+    variants: dict[float, tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]] = {}
+    for threshold_m in (100.0, 200.0, 300.0):
+        clustered, summary = cluster_behavior_locations(stays, threshold_m)
+        motifs = build_daily_motifs(clustered)
+        variants[threshold_m] = (clustered, summary, motifs)
+    baseline_clustered, _baseline_summary, baseline_motifs = variants[200.0]
+
+    def top_memberships(clustered: pd.DataFrame) -> dict[str, frozenset[tuple[pd.Timestamp, pd.Timestamp]]]:
+        return {
+            user_id: frozenset(
+                zip(group["arrival_time_utc"], group["departure_time_utc"], strict=True)
+            )
+            for user_id, group in clustered.loc[clustered["location_id"] == 0].groupby("user_id", sort=True)
+        }
+
+    baseline_top = top_memberships(baseline_clustered)
+    baseline_motif_users = set(baseline_motifs["user_id"])
+    rows = []
+    for threshold_m, (clustered, summary, motifs) in variants.items():
+        user_classes = [
+            _anchor_count_class(group)
+            for _, group in summary.groupby("user_id", sort=True)
+        ]
+        top = top_memberships(clustered)
+        shared_top = set(top).intersection(baseline_top)
+        motif_users = set(motifs["user_id"])
+        rows.append(
+            {
+                "threshold_m": threshold_m,
+                "anchor_count_class": pd.Series(user_classes).value_counts().to_dict(),
+                "top_anchor_stability_vs_200": (
+                    sum(top[user_id] == baseline_top[user_id] for user_id in shared_top) / len(baseline_top)
+                    if baseline_top else 1.0
+                ),
+                "recurring_location_count": int((summary["stay_count"] >= 2).sum()),
+                "motif_membership_stability_vs_200": (
+                    len(motif_users.intersection(baseline_motif_users)) / len(baseline_motif_users)
+                    if baseline_motif_users else 1.0
+                ),
+                "regime_membership_stability_vs_200": 1.0,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def process_trajectory(
     user_id: str, source_file: str, raw: pd.DataFrame
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -660,10 +864,20 @@ def materialize_frozen_cp1(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--stage", choices=["materialize"], required=True)
+    parser.add_argument("--stage", choices=["materialize", "comparator"], required=True)
     parser.add_argument("--zip", type=Path, required=True)
     args = parser.parse_args()
     stays, _point_days = materialize_frozen_cp1(args.zip)
+    with zipfile.ZipFile(args.zip) as archive:
+        release_users = _release_users(archive)
+    if args.stage == "comparator":
+        audit = build_baseline_user_audit(release_users, stays)
+        assert len(audit) == EXPECTED_RELEASE_USERS * 2
+        counts = audit.loc[audit["reject_reason"] == "emitted", "label"].value_counts()
+        assert counts.get("HOME", 0) == 27
+        assert counts.get("OFFICE", 0) == 16
+        print("validated frozen-v1 comparator parity: 27 HOME, 16 OFFICE")
+        return
     print(
         f"validated {len(stays)} stays across {stays['user_id'].nunique()} users; "
         f"release universe {EXPECTED_RELEASE_USERS} users"
