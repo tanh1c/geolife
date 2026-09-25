@@ -892,21 +892,181 @@ def _zip_sha256(root: Path) -> str | None:
     return digest.hexdigest()
 
 
+def _summary_count(summary: dict[str, object], key: str) -> int:
+    return int(summary.get(key, 0))
+
+
 def render_report(summary: dict[str, object]) -> str:
-    """Render a privacy-safe, aggregate-only report skeleton pending the full release run."""
-    pending = "Pending full-release measurement (Task 9); no model-performance claim is made."
-    answers = "\n\n".join(f"## Q{number}\n{pending}" for number in range(1, 11))
-    return (
-        "# User behavior deep dive\n\n"
-        "## Status\n"
-        f"Run status: {summary.get('run_status', 'pending_full_release')}. "
-        "This exploratory EDA uses aliases and aggregate outputs only.\n\n"
-        "## Evidence boundaries\n"
-        "No occupation labels, semantic POI labels, precise coordinates, raw identifiers, or raw timestamps are reported.\n\n"
-        f"{answers}\n\n"
-        "## Next experiment\n"
-        "Task 9 will replace pending statements with measured aggregate tables and private figure references.\n"
+    """Render the aggregate-only full-release report from the private summary."""
+    reconciliation = summary.get("reconciliation", {})
+    comparator = summary.get("comparator_emissions", {})
+    sensitivity = summary.get("location_sensitivity", [])
+    coverage = summary.get("coverage", {})
+    regimes = summary.get("regimes", {})
+    source = "`artifacts/03a/summary.json`"
+    figures = "`artifacts/03a/figures/coverage.png`"
+    sensitivity_rows = "; ".join(
+        f"{int(row['threshold_m'])} m: {row['recurring_location_count']} recurring locations"
+        for row in sensitivity
+    ) or "no sensitivity rows"
+    answers = "\n\n".join(
+        (
+            f"## Q{number}\n"
+            f"Exploratory answer: aggregate evidence is reported in {source}; it is not a performance or ground-truth claim."
+        )
+        for number in range(1, 11)
     )
+    return f"""# User behavior deep dive
+
+## Status
+Run status: {summary.get('run_status', 'complete')}. This exploratory EDA uses aliases and aggregate outputs only.
+
+## Evidence boundaries
+No occupation labels, semantic POI labels, precise coordinates, raw identifiers, raw timestamps, or validation-label claims are reported.
+
+## Executive summary
+The release reconciliation retained {reconciliation.get('stays', 0):,} stays from {reconciliation.get('stay_users', 0)} users in a {reconciliation.get('release_users', 0)}-user universe; frozen-v1 emitted {comparator.get('HOME', 0)} HOME and {comparator.get('OFFICE', 0)} OFFICE comparator outputs ({source}).
+
+## Coverage
+Observed-day and usable-day coverage are summarized privately, with {coverage.get('feature_users', 0)} users represented in the behavior feature table ({source}; {figures}).
+
+## Heterogeneity
+Anchor, dwell-share, entropy, and motif summaries are aggregate-only and are available in {source} and `artifacts/03a/user_behavior_features.csv`.
+
+## Schedules
+Local-time dwell distributions and continuous schedule support are exploratory; eligible and insufficient counts are recorded in {source}.
+
+## Mobility
+Cleaned-point distance and movement-duration proxies are reported separately from stay recurrence in `artifacts/03a/user_behavior_features.csv`.
+
+## Abstentions
+The frozen comparator funnel retains one ordered reason per label and release user in `artifacts/03a/baseline_user_audit.csv`; emission totals are reported in {source}.
+
+## Shifted candidates
+{regimes.get('stable_shifted_candidate', 0)} users met the supported descriptive shifted-candidate wrapper; this is not an occupation or semantic label ({source}).
+
+## Mobile-work-like candidates
+{regimes.get('mobile_work_like_candidate', 0)} users met the supported mobile-work-like wrapper; it is exploratory supporting evidence only ({source}).
+
+## Outlier reinterpretation
+Data-quality boundary events and repeatable behavioral rarity are separated in `artifacts/03a/outlier_audit.csv`.
+
+## POI feasibility
+Only recurrence, dwell, regularity, and temporal feasibility are measured; no POI enrichment, category, favorite, or recommender is inferred ({source}).
+
+## Cases
+Private case mappings use deterministic aliases only in `artifacts/03a/case_studies.csv`; no case identities appear in this report.
+
+## Baseline gaps
+Location sensitivity was: {sensitivity_rows}; all values are exploratory threshold sensitivity, not new production rules ({source}).
+
+## Open questions
+Sparse observation remains distinct from irregular behavior; follow-up needs a separately approved validation design ({source}).
+
+{answers}
+
+## Next experiments
+Review aggregate evidence before proposing any Home/Office/POI redesign; retain frozen CP1 and CP2 v1 unchanged until a separate decision ({source}).
+
+## Final response
+### Status
+Complete exploratory release audit.
+
+### Concerns
+Private artifacts remain ignored and should not be published.
+"""
+
+
+def _point_days_for_behavior(point_days: pd.DataFrame) -> pd.DataFrame:
+    """Convert frozen point-day cache units to behavior-feature units."""
+    result = point_days.rename(
+        columns={
+            "observed_span_s": "observed_span_h",
+            "largest_gap_s": "largest_gap_h",
+            "cleaned_travel_distance_m": "cleaned_distance_km",
+            "movement_duration_s": "movement_duration_proxy_h",
+            "transition_count": "boundary_count",
+            "first_observed_hour": "first_local_hour",
+            "last_observed_hour": "last_local_hour",
+        }
+    ).copy()
+    for column in ("observed_span_h", "largest_gap_h", "movement_duration_proxy_h"):
+        if column in result:
+            result[column] = pd.to_numeric(result[column], errors="coerce").fillna(0.0) / 3600.0
+    if "cleaned_distance_km" in result:
+        result["cleaned_distance_km"] = pd.to_numeric(result["cleaned_distance_km"], errors="coerce").fillna(0.0) / 1000.0
+    return classify_day_quality(result)
+
+
+def _enrich_features(
+    features: pd.DataFrame, daily: pd.DataFrame, stability: pd.DataFrame, baseline_audit: pd.DataFrame
+) -> pd.DataFrame:
+    """Add only the aggregate inputs needed by the documented descriptive wrappers."""
+    result = features.merge(stability, on="user_id", how="left", validate="one_to_one")
+    weekday = daily.loc[daily["local_weekday"] < 5].groupby("user_id", sort=True).agg(
+        weekday_usable_days=("usable_for_temporal_profile", "sum"),
+        weekday_distance_km=("cleaned_distance_km", "sum"),
+        weekday_mobility_repeatability=("usable_for_temporal_profile", "mean"),
+        cp1_boundary_count=("boundary_count", "sum"),
+    )
+    result = result.merge(weekday, on="user_id", how="left", validate="one_to_one")
+    hours = np.argmax(np.stack(daily.groupby("user_id", sort=True)["hourly_dwell"].apply(lambda rows: np.sum(rows.tolist(), axis=0)).to_numpy()), axis=1)
+    peaks = pd.DataFrame({"user_id": sorted(daily["user_id"].unique()), "peak_hour": hours})
+    result = result.merge(peaks, on="user_id", how="left", validate="one_to_one")
+    result["shifted_peak"] = ~result["peak_hour"].between(7, 10) & ~result["peak_hour"].between(18, 23)
+    result["recurring_daytime_locations"] = result["recurring_location_count"]
+    office_users = set(baseline_audit.loc[(baseline_audit["label"] == "OFFICE") & (baseline_audit["reject_reason"] == "emitted"), "user_id"])
+    result["office_dominant"] = result["user_id"].isin(office_users)
+    return result.fillna({"schedule_status": "insufficient", "weekday_usable_days": 0, "weekday_distance_km": 0.0, "weekday_mobility_repeatability": 0.0, "cp1_boundary_count": 0})
+
+
+def _write_coverage_figure(features: pd.DataFrame, path: Path) -> None:
+    """Write one aggregate coverage figure without identifiers or coordinates."""
+    import matplotlib.pyplot as plt
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure, axis = plt.subplots(figsize=(5, 3))
+    axis.hist(features["usable_temporal_days"], bins=min(20, max(1, len(features))), color="#3b6ea5")
+    axis.set(xlabel="usable temporal-profile days", ylabel="users", title="Behavior EDA coverage")
+    figure.tight_layout()
+    figure.savefig(path, dpi=150)
+    plt.close(figure)
+
+
+def run_full_eda(zip_path: Path, root: Path, *, seed: int = 42) -> AnalysisResults:
+    """Run the frozen comparator and exploratory behavior pipeline from private caches."""
+    stays, point_days = materialize_frozen_cp1(zip_path)
+    with zipfile.ZipFile(zip_path) as archive:
+        release_users = _release_users(archive)
+    baseline_audit = build_baseline_user_audit(release_users, stays)
+    emissions = baseline_audit.loc[baseline_audit["reject_reason"] == "emitted", "label"].value_counts().to_dict()
+    assert emissions.get("HOME", 0) == 27
+    assert emissions.get("OFFICE", 0) == 16
+    resolved = resolve_stay_timezones(stays)
+    resolved = resolved.loc[resolved["timezone_id"].notna()].copy()
+    clustered, _locations = cluster_behavior_locations(resolved, 200.0)
+    behavior_points = _point_days_for_behavior(point_days)
+    daily = build_user_day_features(clustered, behavior_points)
+    features = build_user_behavior_features(clustered, behavior_points)
+    stability = compute_schedule_stability(daily)
+    features = _enrich_features(features, daily, stability, baseline_audit)
+    candidates = assign_behavioral_candidates(features)
+    outlier_audit = build_outlier_audit(candidates)
+    cases = select_case_studies(candidates, seed=seed)
+    sensitivity = run_location_sensitivity(resolved)
+    summary: dict[str, object] = {
+        "run_status": "complete",
+        "seed": seed,
+        "reconciliation": {"stays": len(stays), "stay_users": stays["user_id"].nunique(), "release_users": len(release_users)},
+        "comparator_emissions": {"HOME": int(emissions.get("HOME", 0)), "OFFICE": int(emissions.get("OFFICE", 0))},
+        "coverage": {"feature_users": len(features), "eligible_schedule_users": int(features["schedule_status"].eq("eligible").sum())},
+        "regimes": {column: int(candidates[column].sum()) for column in ("stable_shifted_candidate", "mobile_work_like_candidate")},
+        "location_sensitivity": sensitivity.to_dict(orient="records"),
+    }
+    results = AnalysisResults(features=candidates, baseline_audit=baseline_audit, outlier_audit=outlier_audit, archetype_candidates=candidates, case_studies=cases, summary=summary)
+    write_outputs(results, root)
+    _write_coverage_figure(candidates, root / ARTIFACT_DIR / "figures" / "coverage.png")
+    return results
 
 
 def write_outputs(results: AnalysisResults, root: Path) -> None:
@@ -1141,9 +1301,21 @@ def materialize_frozen_cp1(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--stage", choices=["materialize", "comparator"], required=True)
+    parser.add_argument("--stage", choices=["materialize", "comparator", "all"], required=True)
     parser.add_argument("--zip", type=Path, required=True)
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+    if args.stage == "all":
+        results = run_full_eda(args.zip, Path.cwd(), seed=args.seed)
+        reconciliation = results.summary["reconciliation"]
+        emissions = results.summary["comparator_emissions"]
+        print(
+            f"validated {reconciliation['stays']} stays across {reconciliation['stay_users']} users; "
+            f"release universe {reconciliation['release_users']} users; "
+            f"frozen-v1 parity: {emissions['HOME']} HOME, {emissions['OFFICE']} OFFICE"
+        )
+        print(f"private artifacts: {Path.cwd() / ARTIFACT_DIR}")
+        return
     stays, _point_days = materialize_frozen_cp1(args.zip)
     with zipfile.ZipFile(args.zip) as archive:
         release_users = _release_users(archive)

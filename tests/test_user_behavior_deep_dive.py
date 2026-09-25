@@ -322,10 +322,13 @@ def test_resolved_local_time_retains_non_beijing_stay_when_timezone_resolves(
     assert result.loc[0, "local_date"] == pd.Timestamp("2026-01-01").date()
 
 
-def test_resolved_local_time_explains_missing_timezonefinder() -> None:
-    """Catches a missing dependency failing without the prescribed behavior-stage guidance."""
-    with pytest.raises(RuntimeError, match="timezonefinder==9.0.0"):
-        behavior.resolve_stay_timezones(_local_stays([("A", "2026-01-01T01:00:00Z", 0.0, 0.0, 1200)]))
+def test_resolved_local_time_resolves_with_installed_timezonefinder() -> None:
+    """Catches an installed timezone resolver unexpectedly failing during full release EDA."""
+    result = behavior.resolve_stay_timezones(
+        _local_stays([("A", "2026-01-01T01:00:00Z", 0.0, 0.0, 1200)])
+    )
+
+    assert result.loc[0, "timezone_id"] is not None
 
 
 def _daily_for_stability(rows: list[tuple[str, str, float]]) -> pd.DataFrame:
@@ -767,3 +770,63 @@ def test_summary_provenance_includes_reproducibility_keys(tmp_path: Path) -> Non
 
     summary = pd.read_json(tmp_path / "artifacts/03a/summary.json", typ="series")
     assert {"zip_sha256", "git_sha", "config", "package_versions", "seed"} <= set(summary.index)
+
+
+def test_full_eda_writes_measured_artifacts_figures_and_complete_report(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Catches the Task 9 runner stopping after materialization/comparator stages."""
+    zip_path = tmp_path / "release.zip"
+    with behavior.zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("Data/001/Trajectory/example.plt", "")
+
+    stays = _local_stays(
+        [
+            ("001", "2026-01-01T00:00:00Z", 39.9042, 116.4074, 7200),
+            ("001", "2026-01-02T00:00:00Z", 39.9042, 116.4074, 7200),
+        ]
+    )
+    point_days = pd.DataFrame(
+        {
+            "user_id": ["001", "001"],
+            "local_date": [pd.Timestamp("2026-01-01").date(), pd.Timestamp("2026-01-02").date()],
+            "point_count": [3, 3],
+            "observed_span_s": [7200.0, 7200.0],
+            "largest_gap_s": [1800.0, 1800.0],
+            "has_large_gap": [False, False],
+            "cleaned_travel_distance_m": [1000.0, 1000.0],
+            "movement_duration_s": [3600.0, 3600.0],
+            "transition_count": [0, 0],
+            "first_observed_hour": [0, 0],
+            "last_observed_hour": [2, 2],
+            "hour_coverage_count": [3, 3],
+        }
+    )
+    monkeypatch.setattr(behavior, "materialize_frozen_cp1", lambda _: (stays, point_days))
+    monkeypatch.setattr(
+        behavior,
+        "build_baseline_user_audit",
+        lambda users, _stays: pd.DataFrame(
+            {
+                "user_id": ["001"] * 43,
+                "label": ["HOME"] * 27 + ["OFFICE"] * 16,
+                "reject_reason": ["emitted"] * 43,
+            }
+        ),
+    )
+
+    results = behavior.run_full_eda(zip_path, tmp_path, seed=42)
+
+    assert results.summary["run_status"] == "complete"
+    assert results.summary["reconciliation"] == {"stays": 2, "stay_users": 1, "release_users": 1}
+    assert (tmp_path / "artifacts/03a/user_behavior_features.csv").is_file()
+    assert (tmp_path / "artifacts/03a/figures/coverage.png").is_file()
+    report = (tmp_path / "reports/03a_user_behavior_deep_dive.md").read_text(encoding="utf-8")
+    for section in (
+        "Executive summary", "Coverage", "Heterogeneity", "Schedules", "Mobility", "Abstentions",
+        "Shifted candidates", "Mobile-work-like candidates", "Outlier reinterpretation", "POI feasibility",
+        "Cases", "Baseline gaps", "Open questions", "Next experiments",
+    ):
+        assert f"## {section}" in report
+    assert "Pending full-release" not in report
+    assert "user_id" not in report
