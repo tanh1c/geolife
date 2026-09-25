@@ -826,6 +826,34 @@ def test_report_answers_all_required_questions_without_raw_user_ids() -> None:
     assert "accuracy" not in report.lower()
 
 
+def test_rendered_report_has_measured_question_answers_and_aggregate_references() -> None:
+    """Catches Task 9 report answers regressing to generic placeholders."""
+    report = behavior.render_report(
+        {
+            "reconciliation": {"stays": 10, "stay_users": 2, "release_users": 3},
+            "comparator_emissions": {"HOME": 1, "OFFICE": 1},
+            "coverage": {"feature_users": 3, "eligible_schedule_users": 2, "insufficient_schedule_users": 1},
+            "schedule": {"eligible_jsd_median": 0.12, "non_window_repeated_users": 2},
+            "anchors": {"dominant_anchor": 1, "two_anchor": 1, "multiple_anchor": 1},
+            "comparator_reasons": {"HOME": {"emitted": 1}, "OFFICE": {"no_cp1_stay": 2}},
+            "abstention_support": {"sparse_or_insufficient": 1, "coherent_non_emitting": 1},
+            "regimes": {"stable_shifted_candidate": 1, "mobile_work_like_candidate": 1},
+            "outliers": {"rare_but_coherent": 1, "data_quality_event": 1},
+            "poi_feasibility": {"recurring_anchor_users": 2, "repeatable_motif_users": 1},
+            "location_sensitivity": [],
+        }
+    )
+
+    assert "Exploratory answer: aggregate evidence" not in report
+    assert "HOME [emitted=1]" in report
+    assert "OFFICE [no_cp1_stay=2]" in report
+    for number in range(1, 11):
+        section = report.split(f"## Q{number}\n", 1)[1].split("\n## ", 1)[0]
+        assert "artifacts/03a/summary.json" in section
+        assert any(character.isdigit() for character in section)
+    assert "user_id" not in report
+
+
 def test_summary_provenance_includes_reproducibility_keys(tmp_path: Path) -> None:
     """Catches summary output missing the provenance needed to reproduce a later full run."""
     behavior.write_outputs(_minimal_results_with_coordinates(), tmp_path)
@@ -883,6 +911,9 @@ def test_full_eda_writes_measured_artifacts_figures_and_complete_report(
     assert results.summary["reconciliation"] == {"stays": 2, "stay_users": 1, "release_users": 1}
     assert (tmp_path / "artifacts/03a/user_behavior_features.csv").is_file()
     assert (tmp_path / "artifacts/03a/figures/coverage.png").is_file()
+    case_figures = list((tmp_path / "artifacts/03a/figures").glob("case_*.png"))
+    assert len(case_figures) == len(results.case_studies)
+    assert all("user" not in figure.name.lower() for figure in case_figures)
     report = (tmp_path / "reports/03a_user_behavior_deep_dive.md").read_text(encoding="utf-8")
     for section in (
         "Executive summary", "Coverage", "Heterogeneity", "Schedules", "Mobility", "Abstentions",
@@ -892,3 +923,4 @@ def test_full_eda_writes_measured_artifacts_figures_and_complete_report(
         assert f"## {section}" in report
     assert "Pending full-release" not in report
     assert "user_id" not in report
+    assert "001" not in report

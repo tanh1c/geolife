@@ -896,26 +896,93 @@ def _summary_count(summary: dict[str, object], key: str) -> int:
     return int(summary.get(key, 0))
 
 
+def _median(features: pd.DataFrame, column: str) -> float:
+    values = pd.to_numeric(features.get(column), errors="coerce").dropna()
+    return float(values.median()) if not values.empty else 0.0
+
+
+def _reason_text(values: dict[str, int]) -> str:
+    return ", ".join(f"{key}={value}" for key, value in values.items()) or "none"
+
+
+def _aggregate_summary(
+    features: pd.DataFrame, baseline_audit: pd.DataFrame, outlier_audit: pd.DataFrame
+) -> dict[str, object]:
+    """Summarize private behavioral tables into report-safe cohort evidence."""
+    status = features.get("schedule_status", pd.Series("insufficient", index=features.index))
+    eligible = features.loc[status.eq("eligible")]
+    anchor_class = pd.cut(
+        pd.to_numeric(features.get("recurring_location_count", 0), errors="coerce").fillna(0),
+        bins=[-1, 0, 1, 2, np.inf], labels=["no_stable_anchor", "dominant_anchor", "two_anchor", "multiple_anchor"],
+    )
+    non_window = features.get("shifted_peak", pd.Series(False, index=features.index)).fillna(False).astype(bool)
+    sparse = features.get("behavioral_regime", pd.Series("unknown_or_insufficient", index=features.index)).eq("unknown_or_insufficient")
+    coherent = features.get("outlier_interpretation", pd.Series("insufficient_evidence", index=features.index)).eq("rare_but_coherent")
+    reasons = {
+        label: {
+            str(reason): int(count)
+            for reason, count in baseline_audit.loc[baseline_audit["label"].eq(label), "reject_reason"].value_counts().sort_index().items()
+        }
+        for label in ("HOME", "OFFICE")
+    }
+    return {
+        "coverage": {
+            "feature_users": len(features),
+            "eligible_schedule_users": int(status.eq("eligible").sum()),
+            "insufficient_schedule_users": int(status.ne("eligible").sum()),
+            "median_active_days": _median(features, "active_days"),
+            "median_usable_temporal_days": _median(features, "usable_temporal_days"),
+        },
+        "schedule": {
+            "eligible_jsd_median": _median(eligible, "weekly_jsd_median"),
+            "non_window_repeated_users": int((non_window & status.eq("eligible")).sum()),
+            "shifted_peak_users": int(non_window.sum()),
+        },
+        "anchors": {str(key): int(value) for key, value in anchor_class.value_counts().items()},
+        "comparator_reasons": reasons,
+        "abstention_support": {
+            "sparse_or_insufficient": int(sparse.sum()),
+            "coherent_non_emitting": int(coherent.sum()),
+        },
+        "outliers": {
+            "data_quality_event": int(features.get("outlier_interpretation", pd.Series()).eq("data_quality_event").sum()),
+            "rare_but_coherent": int(coherent.sum()),
+            "needs_manual_review": int(outlier_audit.get("needs_manual_review", pd.Series(dtype=bool)).sum()),
+        },
+        "poi_feasibility": {
+            "recurring_anchor_users": int(pd.to_numeric(features.get("recurring_location_count", 0), errors="coerce").fillna(0).ge(1).sum()),
+            "repeatable_motif_users": int(pd.to_numeric(features.get("motif_frequency", 0), errors="coerce").fillna(0).ge(0.5).sum()),
+        },
+        "mobility": {
+            "median_cleaned_distance_km": _median(features, "cleaned_distance_km"),
+            "median_movement_proxy_h": _median(features, "movement_duration_proxy_h"),
+        },
+    }
+
+
 def render_report(summary: dict[str, object]) -> str:
     """Render the aggregate-only full-release report from the private summary."""
     reconciliation = summary.get("reconciliation", {})
     comparator = summary.get("comparator_emissions", {})
     sensitivity = summary.get("location_sensitivity", [])
     coverage = summary.get("coverage", {})
+    schedule = summary.get("schedule", {})
+    anchors = summary.get("anchors", {})
+    reasons = summary.get("comparator_reasons", {})
+    abstention = summary.get("abstention_support", {})
     regimes = summary.get("regimes", {})
+    outliers = summary.get("outliers", {})
+    poi = summary.get("poi_feasibility", {})
+    mobility = summary.get("mobility", {})
     source = "`artifacts/03a/summary.json`"
-    figures = "`artifacts/03a/figures/coverage.png`"
+    coverage_figure = "`artifacts/03a/figures/coverage.png`"
+    case_figure = "`artifacts/03a/figures/case_a.png`"
     sensitivity_rows = "; ".join(
         f"{int(row['threshold_m'])} m: {row['recurring_location_count']} recurring locations"
         for row in sensitivity
     ) or "no sensitivity rows"
-    answers = "\n\n".join(
-        (
-            f"## Q{number}\n"
-            f"Exploratory answer: aggregate evidence is reported in {source}; it is not a performance or ground-truth claim."
-        )
-        for number in range(1, 11)
-    )
+    home_reasons = reasons.get("HOME", {})
+    office_reasons = reasons.get("OFFICE", {})
     return f"""# User behavior deep dive
 
 ## Status
@@ -928,45 +995,73 @@ No occupation labels, semantic POI labels, precise coordinates, raw identifiers,
 The release reconciliation retained {reconciliation.get('stays', 0):,} stays from {reconciliation.get('stay_users', 0)} users in a {reconciliation.get('release_users', 0)}-user universe; frozen-v1 emitted {comparator.get('HOME', 0)} HOME and {comparator.get('OFFICE', 0)} OFFICE comparator outputs ({source}).
 
 ## Coverage
-Observed-day and usable-day coverage are summarized privately, with {coverage.get('feature_users', 0)} users represented in the behavior feature table ({source}; {figures}).
+All {coverage.get('feature_users', 0)} release users are represented; {coverage.get('eligible_schedule_users', 0)} meet schedule support and {coverage.get('insufficient_schedule_users', 0)} remain insufficient. Median coverage was {coverage.get('median_active_days', 0):.1f} active days and {coverage.get('median_usable_temporal_days', 0):.1f} usable temporal days ({source}; {coverage_figure}).
 
 ## Heterogeneity
-Anchor, dwell-share, entropy, and motif summaries are aggregate-only and are available in {source} and `artifacts/03a/user_behavior_features.csv`.
+At 200 m, anchor classes were {anchors.get('dominant_anchor', 0)} dominant, {anchors.get('two_anchor', 0)} two-anchor, {anchors.get('multiple_anchor', 0)} multiple-anchor, and {anchors.get('no_stable_anchor', 0)} without a stable anchor ({source}).
 
 ## Schedules
-Local-time dwell distributions and continuous schedule support are exploratory; eligible and insufficient counts are recorded in {source}.
+Among supported users, median weekly schedule JSD was {schedule.get('eligible_jsd_median', 0):.3f}; {schedule.get('non_window_repeated_users', 0)} supported users had repeatable peaks outside frozen comparison windows ({source}).
 
 ## Mobility
-Cleaned-point distance and movement-duration proxies are reported separately from stay recurrence in `artifacts/03a/user_behavior_features.csv`.
+Median cleaned-point distance was {mobility.get('median_cleaned_distance_km', 0):.1f} km and median movement-duration proxy was {mobility.get('median_movement_proxy_h', 0):.1f} h; these are cleaned-point proxies, not stay-to-stay travel ({source}).
 
 ## Abstentions
-The frozen comparator funnel retains one ordered reason per label and release user in `artifacts/03a/baseline_user_audit.csv`; emission totals are reported in {source}.
+Comparator gates were HOME [{_reason_text(home_reasons)}] and OFFICE [{_reason_text(office_reasons)}], with one ordered reason per label and release user ({source}; `artifacts/03a/baseline_user_audit.csv`).
 
 ## Shifted candidates
-{regimes.get('stable_shifted_candidate', 0)} users met the supported descriptive shifted-candidate wrapper; this is not an occupation or semantic label ({source}).
+{regimes.get('stable_shifted_candidate', 0)} users met the supported descriptive shifted-candidate wrapper; {schedule.get('shifted_peak_users', 0)} had a shifted peak before support filtering. Neither count is an occupation or semantic label ({source}).
 
 ## Mobile-work-like candidates
 {regimes.get('mobile_work_like_candidate', 0)} users met the supported mobile-work-like wrapper; it is exploratory supporting evidence only ({source}).
 
 ## Outlier reinterpretation
-Data-quality boundary events and repeatable behavioral rarity are separated in `artifacts/03a/outlier_audit.csv`.
+The aggregate separates {outliers.get('data_quality_event', 0)} data-quality boundary cases from {outliers.get('rare_but_coherent', 0)} rare-but-coherent patterns; {outliers.get('needs_manual_review', 0)} aggregate audit rows retain a manual-review condition ({source}; `artifacts/03a/outlier_audit.csv`).
 
 ## POI feasibility
-Only recurrence, dwell, regularity, and temporal feasibility are measured; no POI enrichment, category, favorite, or recommender is inferred ({source}).
+{poi.get('recurring_anchor_users', 0)} users had at least one recurring anchor and {poi.get('repeatable_motif_users', 0)} had a motif occurring on at least half of observed motif days. This supports recurrence feasibility only, not category, favorite, or recommender claims ({source}).
 
 ## Cases
-Private case mappings use deterministic aliases only in `artifacts/03a/case_studies.csv`; no case identities appear in this report.
+The private case set contains deterministic aliases only. Each alias figure combines temporal histogram, weekday-hour dwell heatmap, top `L*` dwell shares, daily distance/proxy, and daily motifs; it is private and non-map-based ({case_figure}; `artifacts/03a/case_studies.csv`).
 
 ## Baseline gaps
 Location sensitivity was: {sensitivity_rows}; all values are exploratory threshold sensitivity, not new production rules ({source}).
 
 ## Open questions
-Sparse observation remains distinct from irregular behavior; follow-up needs a separately approved validation design ({source}).
+{abstention.get('sparse_or_insufficient', 0)} users were sparse or insufficient while {abstention.get('coherent_non_emitting', 0)} showed rare coherent patterns, so non-emission cannot be reduced to one behavioral explanation ({source}).
 
-{answers}
+## Q1
+How heterogeneous are anchors? The 200 m distribution is {anchors.get('dominant_anchor', 0)}/{anchors.get('two_anchor', 0)}/{anchors.get('multiple_anchor', 0)}/{anchors.get('no_stable_anchor', 0)} across dominant/two/multiple/no-stable classes ({source}).
+
+## Q2
+Is schedule evidence well supported? {coverage.get('eligible_schedule_users', 0)} users met all support gates versus {coverage.get('insufficient_schedule_users', 0)} insufficient users; supported median weekly JSD was {schedule.get('eligible_jsd_median', 0):.3f} ({source}; {coverage_figure}).
+
+## Q3
+Do repeated non-window patterns exist? {schedule.get('non_window_repeated_users', 0)} supported users had repeatable non-window peaks; this is descriptive schedule evidence, not a replacement label ({source}).
+
+## Q4
+Are abstentions sparse or coherent? {abstention.get('sparse_or_insufficient', 0)} are sparse/insufficient and {abstention.get('coherent_non_emitting', 0)} are rare-but-coherent, preserving both explanations ({source}).
+
+## Q5
+Are shifted or mobile candidates present? {regimes.get('stable_shifted_candidate', 0)} stable shifted and {regimes.get('mobile_work_like_candidate', 0)} mobile-work-like candidates meet their separate descriptive wrappers ({source}).
+
+## Q6
+What anchor evidence is available for feasibility? {poi.get('recurring_anchor_users', 0)} users have recurring anchors, but only recurrence, dwell, and temporal regularity are measured ({source}).
+
+## Q7
+Which comparator gates dominate? HOME [{_reason_text(home_reasons)}] and OFFICE [{_reason_text(office_reasons)}] retain every observed gate count in the ordered audit ({source}; `artifacts/03a/baseline_user_audit.csv`).
+
+## Q8
+Can rare patterns be separated from quality events? {outliers.get('rare_but_coherent', 0)} repeatable rare patterns are separated from {outliers.get('data_quality_event', 0)} boundary-quality cases ({source}; `artifacts/03a/outlier_audit.csv`).
+
+## Q9
+What do private cases add? The deterministic case set provides {summary.get('case_count', 0)} alias-only visual audits with the required five compact evidence views, without raw identifiers or coordinates ({source}; {case_figure}).
+
+## Q10
+What limits POI conclusions? {poi.get('repeatable_motif_users', 0)} users have repeatable motifs, but no enrichment, categories, favorites, or recommendations were queried or inferred ({source}).
 
 ## Next experiments
-Review aggregate evidence before proposing any Home/Office/POI redesign; retain frozen CP1 and CP2 v1 unchanged until a separate decision ({source}).
+Preserve frozen CP1 and CP2 v1. First evaluate the ordered comparator reason counts against separately approved validation; then test schedule-window and recurrence sensitivity only among adequately supported users; finally, consider POI enrichment only after an approved privacy and evaluation design ({source}).
 
 ## Final response
 ### Status
@@ -975,6 +1070,46 @@ Complete exploratory release audit.
 ### Concerns
 Private artifacts remain ignored and should not be published.
 """
+
+
+def _write_case_figures(cases: pd.DataFrame, clustered: pd.DataFrame, daily: pd.DataFrame, path: Path) -> None:
+    """Write deterministic alias-only compact evidence figures for selected private cases."""
+    import matplotlib.pyplot as plt
+
+    mapping = cases.attrs.get("private_case_mapping")
+    if not isinstance(mapping, pd.DataFrame):
+        return
+    path.mkdir(parents=True, exist_ok=True)
+    for case in mapping.itertuples(index=False):
+        user_stays = clustered.loc[clustered["user_id"].eq(case.user_id)]
+        user_days = daily.loc[daily["user_id"].eq(case.user_id)]
+        figure, axes = plt.subplots(3, 2, figsize=(9, 9))
+        hourly = np.sum(user_days["hourly_dwell"].tolist(), axis=0) if not user_days.empty else np.zeros(24)
+        axes[0, 0].bar(range(24), hourly / 3600, color="#3b6ea5")
+        axes[0, 0].set(title=f"{case.case_alias}: local dwell by hour", xlabel="hour", ylabel="dwell h")
+        heatmap = np.zeros((7, 24))
+        for row in user_days.itertuples(index=False):
+            heatmap[int(row.local_weekday)] += np.asarray(row.hourly_dwell, dtype=float) / 3600
+        axes[0, 1].imshow(heatmap, aspect="auto", cmap="Blues")
+        axes[0, 1].set(title="weekday-hour dwell", xlabel="hour", ylabel="weekday")
+        shares = user_stays.groupby("location_id")["duration_s"].sum().sort_values(ascending=False).head(5)
+        axes[1, 0].bar([f"L{index}" for index in shares.index], shares.to_numpy() / max(shares.sum(), 1), color="#6a9f58")
+        axes[1, 0].set(title="top dwell shares", ylabel="share")
+        distance = pd.to_numeric(user_days.get("cleaned_distance_km"), errors="coerce").fillna(0.0)
+        proxy = pd.to_numeric(user_days.get("movement_duration_proxy_h"), errors="coerce").fillna(0.0)
+        axes[1, 1].plot(range(len(user_days)), distance, label="distance km", color="#b55d60")
+        axes[1, 1].plot(range(len(user_days)), proxy, label="proxy h", color="#8064a2")
+        axes[1, 1].set(title="daily distance/proxy", xlabel="active-day index")
+        axes[1, 1].legend(fontsize=7)
+        motifs = build_daily_motifs(user_stays)
+        counts = motifs["motif"].value_counts().head(5) if not motifs.empty else pd.Series(dtype=int)
+        axes[2, 0].barh(range(len(counts)), counts.to_numpy(), color="#c9983e")
+        axes[2, 0].set(yticks=range(len(counts)), yticklabels=list(counts.index), title="daily motifs", xlabel="days")
+        axes[2, 1].axis("off")
+        axes[2, 1].text(0, 0.7, f"{case.case_alias}\n{case.selection_reason}\nAlias-only private evidence", fontsize=11)
+        figure.tight_layout()
+        figure.savefig(path / f"case_{case.case_alias.split()[-1].lower()}.png", dpi=150)
+        plt.close(figure)
 
 
 def _point_days_for_behavior(point_days: pd.DataFrame) -> pd.DataFrame:
@@ -1059,13 +1194,16 @@ def run_full_eda(zip_path: Path, root: Path, *, seed: int = 42) -> AnalysisResul
         "seed": seed,
         "reconciliation": {"stays": len(stays), "stay_users": stays["user_id"].nunique(), "release_users": len(release_users)},
         "comparator_emissions": {"HOME": int(emissions.get("HOME", 0)), "OFFICE": int(emissions.get("OFFICE", 0))},
-        "coverage": {"feature_users": len(features), "eligible_schedule_users": int(features["schedule_status"].eq("eligible").sum())},
         "regimes": {column: int(candidates[column].sum()) for column in ("stable_shifted_candidate", "mobile_work_like_candidate")},
         "location_sensitivity": sensitivity.to_dict(orient="records"),
+        "case_count": len(cases),
+        **_aggregate_summary(candidates, baseline_audit, outlier_audit),
     }
     results = AnalysisResults(features=candidates, baseline_audit=baseline_audit, outlier_audit=outlier_audit, archetype_candidates=candidates, case_studies=cases, summary=summary)
     write_outputs(results, root)
-    _write_coverage_figure(candidates, root / ARTIFACT_DIR / "figures" / "coverage.png")
+    figure_root = root / ARTIFACT_DIR / "figures"
+    _write_coverage_figure(candidates, figure_root / "coverage.png")
+    _write_case_figures(cases, clustered, daily, figure_root)
     return results
 
 
@@ -1098,7 +1236,7 @@ def write_outputs(results: AnalysisResults, root: Path) -> None:
     (artifact_root / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
     report_path = root / "reports" / "03a_user_behavior_deep_dive.md"
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(render_report(summary), encoding="utf-8")
+    report_path.write_text(render_report(summary), encoding="utf-8", newline="")
 
 
 def process_trajectory(
