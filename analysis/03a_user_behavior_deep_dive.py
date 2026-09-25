@@ -306,7 +306,12 @@ def _stay_day_contributions(stays: pd.DataFrame) -> pd.DataFrame:
         departure = stay.get("departure_time_local", arrival + pd.Timedelta(seconds=stay["duration_s"]))
         start, end = arrival, departure
         while start < end:
-            boundary = min(end, start.normalize() + pd.Timedelta(hours=start.hour + 1))
+            next_local_hour = start.tz_localize(None).floor("h") + pd.Timedelta(hours=1)
+            boundaries = [
+                next_local_hour.tz_localize(start.tz, ambiguous=ambiguous, nonexistent="shift_forward")
+                for ambiguous in (True, False)
+            ]
+            boundary = min(end, min((candidate for candidate in boundaries if candidate > start), default=end))
             rows.append(
                 {
                     "user_id": stay["user_id"],

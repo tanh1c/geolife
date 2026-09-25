@@ -624,6 +624,36 @@ def test_temporal_features_split_stay_dwell_across_local_hours_and_dates() -> No
     assert saturday["hourly_dwell"][0] == 3600.0
 
 
+def test_temporal_features_allocate_dst_fall_back_stay_without_stalling() -> None:
+    arrival = pd.Timestamp("2026-11-01T05:30:00Z").tz_convert("America/New_York")
+    departure = pd.Timestamp("2026-11-01T07:30:00Z").tz_convert("America/New_York")
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A"],
+            "local_date": [arrival.date()],
+            "location_id": [0],
+            "duration_s": [7200.0],
+            "arrival_time_local": [arrival],
+            "departure_time_local": [departure],
+        }
+    )
+    point_days = pd.DataFrame(
+        {
+            "user_id": ["A"],
+            "local_date": [arrival.date()],
+            "point_count": [3],
+            "observed_span_h": [3.0],
+            "largest_gap_h": [1.0],
+        }
+    )
+
+    daily = behavior.build_user_day_features(stays, point_days)
+
+    assert daily.loc[0, "dwell_h"] == 2.0
+    assert daily.loc[0, "hourly_dwell"][1] == 5400.0
+    assert daily.loc[0, "hourly_dwell"][2] == 1800.0
+
+
 def test_daily_stay_span_ends_at_last_departure() -> None:
     stays = pd.DataFrame(
         {
