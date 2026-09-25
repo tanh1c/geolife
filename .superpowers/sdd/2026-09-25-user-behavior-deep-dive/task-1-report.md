@@ -76,3 +76,26 @@ All checks passed!
 git -c core.whitespace=cr-at-eol diff --check
 (exit 0; required because the existing test file uses CRLF)
 ```
+
+### Re-review fix round 2
+
+- `process_trajectory()` now constructs daily keys from the union of retained cleaned-point UTC-stage dates and audit-event UTC-stage dates. An audit-only day retains zero point and movement metrics, null observed-hour bounds, and its audit transition count.
+- Added a regression with a valid Jan 1 point and invalid terminal Jan 2 point, proving the Jan 2 UTC-stage day remains in the output with zero point/movement metrics and `transition_count == 1`.
+
+```text
+RED: python -m pytest tests/test_user_behavior_deep_dive.py -q
+11 passed, 1 failed: test_process_trajectory_emits_audit_only_utc_day
+IndexError: single positional indexer is out-of-bounds (no Jan 2 row)
+
+GREEN: python -m pytest tests/test_user_behavior_deep_dive.py -v
+12 passed in 0.95s
+
+python -m ruff check analysis/03a_user_behavior_deep_dive.py tests/test_user_behavior_deep_dive.py
+All checks passed!
+
+git -c core.whitespace=cr-at-eol diff --check
+(exit 0)
+
+python -m pytest
+59 passed in 6.11s
+```

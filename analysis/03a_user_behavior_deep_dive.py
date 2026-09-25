@@ -139,15 +139,35 @@ def process_trajectory(
         ).assign(user_id=user_id, source_file=source_file)
         stays = stays.loc[:, STAY_COLUMNS]
 
-    if cleaned.empty:
-        return stays, _empty_point_days()
-
     points = cleaned.copy()
     points["local_date"] = points["timestamp"].dt.date
     points["local_hour"] = points["timestamp"].dt.hour
     audit_counts = _audit_counts_by_day(audit)
+    point_days = {local_date: day for local_date, day in points.groupby("local_date", sort=True)}
     rows = []
-    for local_date, day in points.groupby("local_date", sort=True):
+    for local_date in sorted(set(point_days).union(audit_counts.index)):
+        day = point_days.get(local_date)
+        if day is None:
+            rows.append(
+                {
+                    "user_id": user_id,
+                    "local_date": local_date,
+                    "point_count": 0,
+                    "observed_span_s": 0.0,
+                    "largest_gap_s": 0.0,
+                    "has_large_gap": False,
+                    "cleaned_travel_distance_m": 0.0,
+                    "movement_duration_s": 0.0,
+                    "transition_count": int(audit_counts[local_date]),
+                    "first_observed_hour": pd.NA,
+                    "last_observed_hour": pd.NA,
+                    "hour_coverage_count": 0,
+                    "_first_timestamp": pd.NaT,
+                    "_last_timestamp": pd.NaT,
+                    "_observed_hours": frozenset(),
+                }
+            )
+            continue
         timestamps = day["timestamp"]
         gaps = timestamps.diff().dt.total_seconds().iloc[1:]
         lat = day["latitude"].to_numpy(dtype=float)

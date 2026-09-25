@@ -176,6 +176,29 @@ def test_process_trajectory_allocates_terminal_audit_event_to_its_day() -> None:
     assert point_days.loc[0, "transition_count"] == 1
 
 
+def test_process_trajectory_emits_audit_only_utc_day() -> None:
+    raw = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime(
+                ["2008-01-01T00:00:00Z", "2008-01-02T00:00:00Z"]
+            ),
+            "latitude": [39.0, 999.0],
+            "longitude": [116.0, 116.0],
+        }
+    )
+
+    _stays, point_days = behavior.process_trajectory(
+        "001", "Data/001/Trajectory/example.plt", raw
+    )
+
+    jan_2 = point_days.loc[point_days["local_date"] == pd.Timestamp("2008-01-02").date()].iloc[0]
+    assert jan_2["point_count"] == 0
+    assert jan_2["observed_span_s"] == 0.0
+    assert jan_2["cleaned_travel_distance_m"] == 0.0
+    assert jan_2["movement_duration_s"] == 0.0
+    assert jan_2["transition_count"] == 1
+
+
 def test_materialize_rebuilds_an_invalid_checkpoint(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
