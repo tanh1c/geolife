@@ -9,9 +9,11 @@ import re
 import tempfile
 import zipfile
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
+from sklearn.cluster import AgglomerativeClustering
 
 from geolife.geo.distance import haversine_m
 from geolife.staypoints import clean_trajectory_with_audit, detect_staypoints
@@ -122,6 +124,340 @@ def _empty_stays() -> pd.DataFrame:
 
 def _empty_point_days() -> pd.DataFrame:
     return pd.DataFrame(columns=POINT_DAY_COLUMNS)
+
+
+def classify_day_quality(point_day: pd.DataFrame) -> pd.DataFrame:
+    """Apply exploratory observation-support gates without interpreting gaps as behavior."""
+    result = point_day.copy()
+    result["usable_for_temporal_profile"] = (
+        (result.get("point_count", 0) >= 3)
+        & (result.get("observed_span_h", 0.0) >= 2.0)
+        & (result.get("largest_gap_h", 0.0) <= 6.0)
+    )
+    result["usable_for_motif"] = (
+        (result.get("stay_count", 0) >= 1) & (result.get("stay_observed_span_h", 0.0) >= 2.0)
+    )
+    return result
+
+
+def summarize_cleaned_point_days(cleaned: pd.DataFrame, timezone_id: str) -> pd.DataFrame:
+    """Summarize cleaned trajectories by local day without crossing CP1 sequences."""
+    required = {"timestamp", "latitude", "longitude", "sequence_id"}
+    missing = required.difference(cleaned.columns)
+    if missing:
+        raise ValueError(f"cleaned points are missing columns: {sorted(missing)}")
+    if cleaned.empty:
+        return classify_day_quality(pd.DataFrame())
+
+    points = cleaned.copy()
+    points["timestamp"] = pd.to_datetime(points["timestamp"], utc=True)
+    local = points["timestamp"].dt.tz_convert(timezone_id)
+    points["local_date"] = local.dt.date
+    points["local_hour"] = local.dt.hour
+    rows = []
+    group_columns = ["local_date"] if "user_id" not in points else ["user_id", "local_date"]
+    for key, day in points.groupby(group_columns, sort=True):
+        if "user_id" in points:
+            user_id, local_date = key
+        else:
+            user_id, local_date = None, key
+        timestamps = day["timestamp"]
+        gaps_s = timestamps.diff().dt.total_seconds().iloc[1:]
+        lat = day["latitude"].to_numpy(dtype=float)
+        lon = day["longitude"].to_numpy(dtype=float)
+        sequences = day["sequence_id"].to_numpy()
+        if len(day) > 1:
+            distances_m = np.asarray(haversine_m(lat[:-1], lon[:-1], lat[1:], lon[1:]), dtype=float)
+            valid_segments = (gaps_s.to_numpy(dtype=float) > 0) & (sequences[:-1] == sequences[1:])
+            distance_m = float(distances_m[valid_segments].sum())
+            movement_duration_h = float(gaps_s.to_numpy(dtype=float)[valid_segments].sum() / 3600)
+        else:
+            distance_m = movement_duration_h = 0.0
+        observed_span_h = float((timestamps.max() - timestamps.min()).total_seconds() / 3600)
+        boundary_count = (
+            int(day["boundary_before_reason"].notna().sum())
+            if "boundary_before_reason" in day
+            else 0
+        )
+        rows.append(
+            {
+                "user_id": user_id,
+                "local_date": local_date,
+                "point_count": len(day),
+                "observed_span_h": observed_span_h,
+                "largest_gap_h": float(gaps_s[gaps_s > 0].max() / 3600) if (gaps_s > 0).any() else 0.0,
+                "has_large_gap": bool((gaps_s > 6 * 3600).any()),
+                "cleaned_distance_km": distance_m / 1000,
+                "movement_duration_proxy_h": min(movement_duration_h, observed_span_h),
+                "boundary_count": boundary_count,
+                "first_local_hour": int(day["local_hour"].min()),
+                "last_local_hour": int(day["local_hour"].max()),
+                "hour_coverage_count": int(day["local_hour"].nunique()),
+            }
+        )
+    return classify_day_quality(pd.DataFrame(rows))
+
+
+def resolve_stay_timezones(stays: pd.DataFrame) -> pd.DataFrame:
+    """Add per-stay IANA wall-clock fields for the exploratory all-resolved view."""
+    try:
+        from timezonefinder import TimezoneFinder
+    except ImportError as error:
+        raise RuntimeError(
+            "timezonefinder==9.0.0 is required for all-resolved behavior EDA; "
+            "install it before running --stage behavior"
+        ) from error
+
+    result = stays.copy()
+    finder = TimezoneFinder(in_memory=True)
+    timezone_ids = [
+        finder.timezone_at(lng=float(longitude), lat=float(latitude))
+        for latitude, longitude in zip(result["latitude"], result["longitude"], strict=True)
+    ]
+    result["timezone_id"] = timezone_ids
+    resolved = result["timezone_id"].notna()
+    result["arrival_time_local"] = pd.Series([pd.NaT] * len(result), dtype="object")
+    result["departure_time_local"] = pd.Series([pd.NaT] * len(result), dtype="object")
+    for timezone_id, indices in result.loc[resolved].groupby("timezone_id").groups.items():
+        result.loc[indices, "arrival_time_local"] = pd.to_datetime(
+            result.loc[indices, "arrival_time_utc"], utc=True
+        ).dt.tz_convert(ZoneInfo(timezone_id)).astype(object)
+        result.loc[indices, "departure_time_local"] = pd.to_datetime(
+            result.loc[indices, "departure_time_utc"], utc=True
+        ).dt.tz_convert(ZoneInfo(timezone_id)).astype(object)
+    result["local_date"] = result["arrival_time_local"].map(
+        lambda value: value.date() if pd.notna(value) else pd.NaT
+    )
+    result["local_weekday"] = result["arrival_time_local"].map(
+        lambda value: value.weekday() if pd.notna(value) else pd.NA
+    )
+    return result
+
+
+def relabel_locations_deterministically(clustered: pd.DataFrame) -> pd.DataFrame:
+    """Rank within-user clusters by dwell, support, first arrival, then internal key."""
+    result = clustered.copy()
+    ranking = (
+        result.groupby(["user_id", "internal_cluster_key"], as_index=False)
+        .agg(
+            total_dwell_s=("duration_s", "sum"),
+            stay_count=("duration_s", "size"),
+            first_arrival=("arrival_time_utc", "min"),
+        )
+        .sort_values(
+            ["user_id", "total_dwell_s", "stay_count", "first_arrival", "internal_cluster_key"],
+            ascending=[True, False, False, True, True],
+            kind="stable",
+        )
+    )
+    ranking["location_id"] = ranking.groupby("user_id", sort=False).cumcount()
+    return result.merge(
+        ranking.loc[:, ["user_id", "internal_cluster_key", "location_id"]],
+        on=["user_id", "internal_cluster_key"],
+        how="left",
+        validate="many_to_one",
+    )
+
+
+def cluster_behavior_locations(
+    stays: pd.DataFrame, threshold_m: float
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Complete-link cluster stays per user and return deterministic coordinate-free labels."""
+    clustered_parts = []
+    summary_parts = []
+    for user_id, user_stays in stays.groupby("user_id", sort=True):
+        user_stays = user_stays.copy()
+        latitude = user_stays["latitude"].to_numpy(dtype=float)
+        longitude = user_stays["longitude"].to_numpy(dtype=float)
+        distances = np.asarray(
+            haversine_m(latitude[:, None], longitude[:, None], latitude[None, :], longitude[None, :]),
+            dtype=float,
+        )
+        if len(user_stays) == 1:
+            labels = np.zeros(1, dtype=int)
+        else:
+            labels = AgglomerativeClustering(
+                metric="precomputed",
+                linkage="complete",
+                distance_threshold=threshold_m,
+                n_clusters=None,
+            ).fit_predict(distances)
+        user_stays["internal_cluster_key"] = labels
+        clustered_parts.append(relabel_locations_deterministically(user_stays))
+    clustered = pd.concat(clustered_parts, ignore_index=True) if clustered_parts else stays.copy()
+    if not clustered.empty:
+        summary_parts.append(
+            clustered.groupby(["user_id", "location_id"], as_index=False).agg(
+                total_dwell_s=("duration_s", "sum"), stay_count=("duration_s", "size")
+            )
+        )
+    summary = pd.concat(summary_parts, ignore_index=True) if summary_parts else pd.DataFrame(
+        columns=["user_id", "location_id", "total_dwell_s", "stay_count"]
+    )
+    return clustered, summary
+
+
+def build_user_day_features(stays: pd.DataFrame, point_days: pd.DataFrame) -> pd.DataFrame:
+    """Join stay-based recurrence and dwell to cleaned-point movement by user/local day."""
+    day_columns = ["user_id", "local_date"]
+    stay_days = (
+        stays.groupby(day_columns, as_index=False)
+        .agg(
+            stay_count=("duration_s", "size"),
+            recurring_location_count=("location_id", "nunique"),
+            dwell_h=("duration_s", lambda values: values.sum() / 3600),
+            stay_observed_span_h=(
+                "arrival_time_local",
+                lambda values: (values.max() - values.min()).total_seconds() / 3600 if len(values) > 1 else 0.0,
+            ),
+        )
+        if not stays.empty
+        else pd.DataFrame(columns=day_columns + ["stay_count", "recurring_location_count", "dwell_h", "stay_observed_span_h"])
+    )
+    result = point_days.merge(stay_days, on=day_columns, how="outer", validate="one_to_one")
+    if "hourly_dwell" not in result:
+        result["hourly_dwell"] = [np.zeros(24).tolist() for _ in range(len(result))]
+    for _, stay in stays.iterrows():
+        mask = (result["user_id"] == stay["user_id"]) & (result["local_date"] == stay["local_date"])
+        if not mask.any():
+            continue
+        index = result.index[mask][0]
+        hourly_dwell = np.asarray(result.at[index, "hourly_dwell"], dtype=float)
+        hourly_dwell[stay["arrival_time_local"].hour] += stay["duration_s"]
+        result.at[index, "hourly_dwell"] = hourly_dwell.tolist()
+    result["local_weekday"] = pd.to_datetime(result["local_date"]).dt.weekday
+    for column in ("stay_count", "recurring_location_count", "dwell_h", "stay_observed_span_h"):
+        result[column] = result[column].fillna(0)
+    return classify_day_quality(result)
+
+
+def _jsd(left: np.ndarray, right: np.ndarray) -> float:
+    left = np.asarray(left, dtype=float)
+    right = np.asarray(right, dtype=float)
+    if left.sum() == 0 or right.sum() == 0:
+        return float("nan")
+    left /= left.sum()
+    right /= right.sum()
+    midpoint = (left + right) / 2
+
+    def divergence(values: np.ndarray) -> float:
+        positive = values > 0
+        return float((values[positive] * np.log2(values[positive] / midpoint[positive])).sum())
+
+    return (divergence(left) + divergence(right)) / 2
+
+
+def compute_schedule_stability(daily: pd.DataFrame) -> pd.DataFrame:
+    """Compute continuous schedule evidence only for users meeting all support gates."""
+    rows = []
+    for user_id, user_days in daily.loc[daily["usable_for_temporal_profile"]].groupby("user_id", sort=True):
+        user_days = user_days.sort_values("local_date", kind="stable").copy()
+        user_days["week"] = pd.to_datetime(user_days["local_date"]).dt.to_period("W").astype(str)
+        midpoint = len(user_days) // 2
+        early, late = user_days.iloc[:midpoint], user_days.iloc[midpoint:]
+        eligible = (
+            user_days["week"].nunique() >= 2
+            and len(early) >= 3
+            and len(late) >= 3
+            and early["dwell_h"].sum() >= 6.0
+            and late["dwell_h"].sum() >= 6.0
+        )
+        jsd = (
+            _jsd(np.sum(early["hourly_dwell"].tolist(), axis=0), np.sum(late["hourly_dwell"].tolist(), axis=0))
+            if eligible
+            else float("nan")
+        )
+        weekly_profiles = [
+            np.sum(week["hourly_dwell"].tolist(), axis=0)
+            for _, week in user_days.groupby("week", sort=True)
+        ]
+        weekly_jsds = [
+            _jsd(weekly_profiles[index], weekly_profiles[other])
+            for index in range(len(weekly_profiles))
+            for other in range(index + 1, len(weekly_profiles))
+        ]
+        rows.append(
+            {
+                "user_id": user_id,
+                "schedule_status": "eligible" if eligible else "insufficient",
+                "early_late_jsd": jsd,
+                "weekly_jsd_median": float(np.median(weekly_jsds)) if eligible and weekly_jsds else float("nan"),
+                "active_calendar_weeks": user_days["week"].nunique(),
+                "early_usable_days": len(early),
+                "late_usable_days": len(late),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def build_daily_motifs(stays: pd.DataFrame) -> pd.DataFrame:
+    """Encode ordered daily stays with deterministic labels, never coordinate values."""
+    rows = []
+    for (user_id, local_date), day in stays.groupby(["user_id", "local_date"], sort=True):
+        sequence = day.sort_values("arrival_time_local", kind="stable")["location_id"].tolist()
+        rows.append(
+            {"user_id": user_id, "local_date": local_date, "motif": "→".join(f"L{location}" for location in sequence)}
+        )
+    return pd.DataFrame(rows, columns=["user_id", "local_date", "motif"])
+
+
+def build_user_behavior_features(
+    stays: pd.DataFrame, point_days: pd.DataFrame
+) -> pd.DataFrame:
+    """Produce compact coverage, recurrence, and movement summaries for the exploratory EDA."""
+    daily = build_user_day_features(stays, point_days)
+    motifs = build_daily_motifs(stays)
+    rows = []
+    for user_id, user_days in daily.groupby("user_id", sort=True):
+        user_stays = stays.loc[stays["user_id"] == user_id]
+        location_dwell = user_stays.groupby("location_id")["duration_s"].sum().sort_values(ascending=False)
+        shares = location_dwell / location_dwell.sum() if not location_dwell.empty else pd.Series(dtype=float)
+        user_motifs = motifs.loc[motifs["user_id"] == user_id, "motif"]
+        motif_counts = user_motifs.value_counts()
+        motif_shares = motif_counts / motif_counts.sum() if not motif_counts.empty else pd.Series(dtype=float)
+        hourly_dwell = np.zeros(24)
+        for _, stay in user_stays.iterrows():
+            hourly_dwell[stay["arrival_time_local"].hour] += stay["duration_s"]
+        hour_shares = hourly_dwell / hourly_dwell.sum() if hourly_dwell.sum() else hourly_dwell
+        hour_entropy = float(-(hour_shares[hour_shares > 0] * np.log2(hour_shares[hour_shares > 0])).sum())
+        weekday_dwell_h = float(user_days.loc[user_days["local_weekday"] < 5, "dwell_h"].sum())
+        weekend_dwell_h = float(user_days.loc[user_days["local_weekday"] >= 5, "dwell_h"].sum())
+        total_dwell_h = weekday_dwell_h + weekend_dwell_h
+        weekday_motifs = motifs.loc[
+            (motifs["user_id"] == user_id)
+            & (pd.to_datetime(motifs["local_date"]).dt.weekday < 5),
+            "motif",
+        ]
+        weekend_motifs = motifs.loc[
+            (motifs["user_id"] == user_id)
+            & (pd.to_datetime(motifs["local_date"]).dt.weekday >= 5),
+            "motif",
+        ]
+        rows.append(
+            {
+                "user_id": user_id,
+                "active_days": len(user_days),
+                "usable_temporal_days": int(user_days["usable_for_temporal_profile"].sum()),
+                "usable_motif_days": int(user_days["usable_for_motif"].sum()),
+                "cp1_stay_count": len(user_stays),
+                "recurring_location_count": len(location_dwell),
+                "top_1_dwell_share": float(shares.iloc[:1].sum()) if not shares.empty else 0.0,
+                "top_2_dwell_share": float(shares.iloc[:2].sum()) if not shares.empty else 0.0,
+                "top_3_dwell_share": float(shares.iloc[:3].sum()) if not shares.empty else 0.0,
+                "hour_entropy": hour_entropy,
+                "temporal_concentration": float(hour_shares.max()) if hourly_dwell.sum() else 0.0,
+                "weekday_dwell_proportion": weekday_dwell_h / total_dwell_h if total_dwell_h else 0.0,
+                "weekend_dwell_proportion": weekend_dwell_h / total_dwell_h if total_dwell_h else 0.0,
+                "most_frequent_motif": motif_counts.index[0] if not motif_counts.empty else pd.NA,
+                "motif_frequency": float(motif_shares.iloc[0]) if not motif_shares.empty else 0.0,
+                "motif_entropy": float(-(motif_shares * np.log2(motif_shares)).sum()) if not motif_shares.empty else 0.0,
+                "weekday_motif_stability": float(weekday_motifs.value_counts(normalize=True).iloc[0]) if not weekday_motifs.empty else 0.0,
+                "weekend_motif_stability": float(weekend_motifs.value_counts(normalize=True).iloc[0]) if not weekend_motifs.empty else 0.0,
+                "cleaned_distance_km": float(user_days.get("cleaned_distance_km", pd.Series(dtype=float)).sum()),
+                "movement_duration_proxy_h": float(user_days.get("movement_duration_proxy_h", pd.Series(dtype=float)).sum()),
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def process_trajectory(

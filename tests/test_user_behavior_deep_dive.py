@@ -1,5 +1,7 @@
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -197,6 +199,244 @@ def test_process_trajectory_emits_audit_only_utc_day() -> None:
     assert jan_2["cleaned_travel_distance_m"] == 0.0
     assert jan_2["movement_duration_s"] == 0.0
     assert jan_2["transition_count"] == 1
+
+
+def _cleaned_points(rows: list[tuple[str, float, float, int, str | None]]) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "user_id": "A",
+            "timestamp": pd.to_datetime([row[0] for row in rows], utc=True),
+            "latitude": [row[1] for row in rows],
+            "longitude": [row[2] for row in rows],
+            "sequence_id": [row[3] for row in rows],
+            "boundary_before_reason": [row[4] for row in rows],
+        }
+    )
+
+
+def test_cleaned_point_day_distance_uses_adjacent_cleaned_points_not_stays() -> None:
+    """Catches a regression that substitutes stay displacement for point movement."""
+    cleaned = _cleaned_points(
+        [
+            ("2026-01-01T00:00:00Z", 39.9000, 116.4000, 0, None),
+            ("2026-01-01T01:00:00Z", 39.9100, 116.4000, 0, None),
+            ("2026-01-01T02:00:00Z", 39.9200, 116.4000, 0, None),
+        ]
+    )
+
+    row = behavior.summarize_cleaned_point_days(cleaned, "Asia/Shanghai").iloc[0]
+
+    assert row["cleaned_distance_km"] > 2.0
+    assert row["point_count"] == 3
+    assert row["movement_duration_proxy_h"] == 2.0
+
+
+def test_cleaned_point_days_do_not_bridge_sequences_or_non_positive_time() -> None:
+    """Catches movement segments that cross CP1 boundaries or reversed timestamps."""
+    cleaned = _cleaned_points(
+        [
+            ("2026-01-01T00:00:00Z", 39.9000, 116.4000, 0, None),
+            ("2026-01-01T01:00:00Z", 39.9100, 116.4000, 0, None),
+            ("2026-01-01T02:00:00Z", 40.9100, 116.4000, 1, "gap"),
+            ("2026-01-01T01:30:00Z", 40.9200, 116.4000, 1, None),
+        ]
+    )
+
+    row = behavior.summarize_cleaned_point_days(cleaned, "Asia/Shanghai").iloc[0]
+
+    assert 1.0 < row["cleaned_distance_km"] < 2.0
+    assert row["movement_duration_proxy_h"] == 1.0
+    assert row["boundary_count"] == 1
+
+
+def test_day_quality_marks_sparse_or_gappy_day_not_usable() -> None:
+    """Catches temporal-profile eligibility that ignores sparse or gappy observation."""
+    day = pd.DataFrame(
+        [{"point_count": 2, "observed_span_h": 1.0, "largest_gap_h": 7.0}]
+    )
+
+    result = behavior.classify_day_quality(day).iloc[0]
+
+    assert not result["usable_for_temporal_profile"]
+
+
+def test_day_quality_requires_stay_span_for_motif_eligibility() -> None:
+    """Catches motif eligibility inferred from cleaned points instead of stay evidence."""
+    day = pd.DataFrame(
+        [{"stay_count": 1, "stay_observed_span_h": 1.5, "point_count": 3,
+          "observed_span_h": 3.0, "largest_gap_h": 1.0}]
+    )
+
+    result = behavior.classify_day_quality(day).iloc[0]
+
+    assert not result["usable_for_motif"]
+
+
+def _local_stays(rows: list[tuple[str, str, float, float, float]]) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "user_id": [row[0] for row in rows],
+            "arrival_time_utc": pd.to_datetime([row[1] for row in rows], utc=True),
+            "departure_time_utc": pd.to_datetime([row[1] for row in rows], utc=True)
+            + pd.to_timedelta([row[4] for row in rows], unit="s"),
+            "latitude": [row[2] for row in rows],
+            "longitude": [row[3] for row in rows],
+            "duration_s": [row[4] for row in rows],
+        }
+    )
+
+
+def test_location_ids_rank_dwell_before_first_seen() -> None:
+    """Catches deterministic labels ranked by arrival rather than accumulated dwell."""
+    stays = _local_stays(
+        [
+            ("A", "2026-01-01T01:00:00Z", 39.90, 116.40, 3600),
+            ("A", "2026-01-02T01:00:00Z", 39.90, 116.40, 3600),
+            ("A", "2026-01-01T02:00:00Z", 39.91, 116.40, 1200),
+        ]
+    )
+
+    clustered, _ = behavior.cluster_behavior_locations(stays, 200.0)
+
+    assert clustered.groupby("location_id")["duration_s"].sum().idxmax() == 0
+
+
+def test_resolved_local_time_retains_non_beijing_stay_when_timezone_resolves(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches an all-resolved exploratory view that filters valid non-Beijing stays."""
+    class Finder:
+        def __init__(self, *, in_memory: bool) -> None:
+            assert in_memory
+
+        def timezone_at(self, *, lng: float, lat: float) -> str:
+            assert (lat, lng) == (35.6762, 139.6503)
+            return "Asia/Tokyo"
+
+    monkeypatch.setitem(sys.modules, "timezonefinder", SimpleNamespace(TimezoneFinder=Finder))
+    stays = _local_stays([("A", "2026-01-01T01:00:00Z", 35.6762, 139.6503, 1200)])
+
+    result = behavior.resolve_stay_timezones(stays)
+
+    assert result.loc[0, "timezone_id"] == "Asia/Tokyo"
+    assert result.loc[0, "local_date"] == pd.Timestamp("2026-01-01").date()
+
+
+def test_resolved_local_time_explains_missing_timezonefinder() -> None:
+    """Catches a missing dependency failing without the prescribed behavior-stage guidance."""
+    with pytest.raises(RuntimeError, match="timezonefinder==9.0.0"):
+        behavior.resolve_stay_timezones(_local_stays([("A", "2026-01-01T01:00:00Z", 0.0, 0.0, 1200)]))
+
+
+def _daily_for_stability(rows: list[tuple[str, str, float]]) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "user_id": [row[0] for row in rows],
+            "local_date": pd.to_datetime([row[1] for row in rows]).date,
+            "usable_for_temporal_profile": True,
+            "dwell_h": [row[2] for row in rows],
+            "hourly_dwell": [[row[2]] + [0.0] * 23 for row in rows],
+        }
+    )
+
+
+def test_schedule_stability_requires_weeks_days_and_dwell_in_each_half() -> None:
+    """Catches a schedule result emitted without support in both observation halves."""
+    daily = _daily_for_stability(
+        [("A", "2026-01-01", 2.0), ("A", "2026-01-08", 2.0), ("A", "2026-01-15", 2.0)]
+    )
+
+    stability = behavior.compute_schedule_stability(daily)
+
+    assert stability.loc[0, "schedule_status"] == "insufficient"
+
+
+def test_daily_motif_uses_deterministic_location_ids_only() -> None:
+    """Catches motif exports that expose coordinates instead of deterministic L labels."""
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A", "A", "A"],
+            "local_date": [pd.Timestamp("2026-01-01").date()] * 3,
+            "arrival_time_local": pd.to_datetime(
+                ["2026-01-01 08:00", "2026-01-01 12:00", "2026-01-01 18:00"]
+            ),
+            "location_id": [0, 1, 0],
+            "duration_s": [1200.0, 1200.0, 1200.0],
+            "latitude": [39.9, 39.91, 39.9],
+        }
+    )
+
+    motifs = behavior.build_daily_motifs(stays)
+
+    assert motifs.loc[0, "motif"] == "L0→L1→L0"
+    assert "latitude" not in motifs.columns
+
+
+def test_user_day_features_join_stay_dwell_to_cleaned_point_movement() -> None:
+    """Catches user-day features built from stay displacement rather than cleaned metrics."""
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A"], "local_date": [pd.Timestamp("2026-01-01").date()],
+            "location_id": [0], "duration_s": [7200.0], "arrival_time_local": [pd.Timestamp("2026-01-01 09:00")],
+        }
+    )
+    point_days = pd.DataFrame(
+        {
+            "user_id": ["A"], "local_date": [pd.Timestamp("2026-01-01").date()],
+            "cleaned_distance_km": [12.5], "movement_duration_proxy_h": [3.0],
+        }
+    )
+
+    daily = behavior.build_user_day_features(stays, point_days)
+
+    assert daily.loc[0, "cleaned_distance_km"] == 12.5
+    assert daily.loc[0, "dwell_h"] == 2.0
+
+
+def test_schedule_stability_returns_continuous_jsd_after_support_gates() -> None:
+    """Catches eligible schedule profiles that omit the continuous early-late comparison."""
+    daily = _daily_for_stability(
+        [
+            ("A", "2026-01-01", 2.0), ("A", "2026-01-02", 2.0), ("A", "2026-01-03", 2.0),
+            ("A", "2026-01-08", 2.0), ("A", "2026-01-09", 2.0), ("A", "2026-01-10", 2.0),
+        ]
+    )
+
+    stability = behavior.compute_schedule_stability(daily)
+
+    assert stability.loc[0, "schedule_status"] == "eligible"
+    assert stability.loc[0, "early_late_jsd"] == 0.0
+    assert stability.loc[0, "weekly_jsd_median"] == 0.0
+
+
+def test_behavior_features_report_temporal_and_motif_summaries() -> None:
+    """Catches user summaries that lose dwell schedules or deterministic motif support."""
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A", "A", "A", "A"],
+            "local_date": [pd.Timestamp("2026-01-01").date()] * 2
+            + [pd.Timestamp("2026-01-02").date()] * 2,
+            "location_id": [0, 1, 0, 1],
+            "duration_s": [3600.0] * 4,
+            "arrival_time_local": pd.to_datetime(
+                ["2026-01-01 08:00", "2026-01-01 12:00", "2026-01-02 08:00", "2026-01-02 12:00"]
+            ),
+        }
+    )
+    point_days = pd.DataFrame(
+        {
+            "user_id": ["A", "A"],
+            "local_date": [pd.Timestamp("2026-01-01").date(), pd.Timestamp("2026-01-02").date()],
+            "point_count": [3, 3], "observed_span_h": [3.0, 3.0], "largest_gap_h": [1.0, 1.0],
+            "cleaned_distance_km": [2.0, 2.0], "movement_duration_proxy_h": [2.0, 2.0],
+        }
+    )
+
+    features = behavior.build_user_behavior_features(stays, point_days)
+
+    assert features.loc[0, "most_frequent_motif"] == "L0→L1"
+    assert features.loc[0, "motif_frequency"] == 1.0
+    assert features.loc[0, "hour_entropy"] > 0.0
 
 
 def test_materialize_rebuilds_an_invalid_checkpoint(
