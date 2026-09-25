@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
+import json
 import os
 import re
+import subprocess
 import tempfile
 import zipfile
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -69,11 +74,11 @@ _MEMBER_RE = re.compile(r"(?:^|/)Data/(\d{3})/Trajectory/([^/]+\.plt)$")
 
 
 def ensure_private_artifact_path(path: Path) -> None:
-    """Reject EDA artifact writes outside the private artifact directory."""
-    try:
-        path.resolve().relative_to(ARTIFACT_DIR.resolve())
-    except ValueError as error:
-        raise ValueError("private artifacts must be written beneath artifacts/03a") from error
+    """Reject EDA artifact writes outside an artifacts/03a private directory."""
+    parts = path.resolve().parts
+    private_parts = ARTIFACT_DIR.parts
+    if not any(parts[index : index + len(private_parts)] == private_parts for index in range(len(parts))):
+        raise ValueError("private artifacts must be written beneath artifacts/03a")
 
 
 _POINT_DAY_HELPER_COLUMNS = ["_first_timestamp", "_last_timestamp", "_observed_hours"]
@@ -715,6 +720,225 @@ def run_location_sensitivity(stays: pd.DataFrame) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+class AnalysisResults:
+    """Private tables and aggregate summary emitted by the behavior EDA."""
+
+    def __init__(
+        self,
+        *,
+        features: pd.DataFrame,
+        baseline_audit: pd.DataFrame,
+        outlier_audit: pd.DataFrame,
+        archetype_candidates: pd.DataFrame,
+        case_studies: pd.DataFrame,
+        summary: dict[str, object],
+    ) -> None:
+        self.features = features
+        self.baseline_audit = baseline_audit
+        self.outlier_audit = outlier_audit
+        self.archetype_candidates = archetype_candidates
+        self.case_studies = case_studies
+        self.summary = summary
+
+
+def _empirical_thresholds(features: pd.DataFrame) -> dict[str, float]:
+    def quantile(column: str, default: float) -> float:
+        values = pd.to_numeric(features.get(column), errors="coerce").dropna()
+        return float(values.quantile(0.75)) if not values.empty else default
+
+    return {
+        "high_weekday_distance_km": quantile("weekday_distance_km", 0.0),
+        "high_recurring_locations": quantile("recurring_location_count", 0.0),
+        "low_weekly_jsd": float(
+            pd.to_numeric(features.get("weekly_jsd_median"), errors="coerce").dropna().quantile(0.25)
+        ) if "weekly_jsd_median" in features and features["weekly_jsd_median"].notna().any() else 0.0,
+    }
+
+
+def assign_behavioral_candidates(features: pd.DataFrame) -> pd.DataFrame:
+    """Assign non-exclusive, supported descriptive candidate flags from cohort features."""
+    result = features.copy()
+    thresholds = _empirical_thresholds(result)
+    temporal_days = pd.to_numeric(result.get("usable_temporal_days", 0), errors="coerce").fillna(0)
+    weekday_days = pd.to_numeric(result.get("weekday_usable_days", temporal_days), errors="coerce").fillna(0)
+    repeatability = pd.to_numeric(result.get("weekday_mobility_repeatability", 0), errors="coerce").fillna(0)
+    weekday_distance = pd.to_numeric(result.get("weekday_distance_km", 0), errors="coerce").fillna(0)
+    recurring_daytime = pd.to_numeric(result.get("recurring_daytime_locations", 0), errors="coerce").fillna(0)
+    office_dominant = result.get("office_dominant", pd.Series(False, index=result.index)).fillna(False).astype(bool)
+    stable = (
+        result.get("schedule_status", pd.Series("insufficient", index=result.index)).eq("eligible")
+        & pd.to_numeric(result.get("weekly_jsd_median", np.nan), errors="coerce").le(thresholds["low_weekly_jsd"])
+    )
+    shifted = result.get("shifted_peak", pd.Series(False, index=result.index)).fillna(False).astype(bool)
+    result["stable_shifted_candidate"] = stable & shifted & (temporal_days >= 6)
+    result["mobile_work_like_candidate"] = (
+        (weekday_days >= 5)
+        & (repeatability >= 0.75)
+        & (weekday_distance >= thresholds["high_weekday_distance_km"])
+        & (recurring_daytime >= 2)
+        & ~office_dominant
+    )
+    result["multiple_meaningful_anchors_candidate"] = (
+        pd.to_numeric(result.get("recurring_location_count", 0), errors="coerce").fillna(0)
+        >= thresholds["high_recurring_locations"]
+    )
+    result["behavioral_regime"] = np.where(
+        temporal_days >= 6, "supported_descriptive_candidates", "unknown_or_insufficient"
+    )
+    boundary_count = pd.to_numeric(result.get("cp1_boundary_count", 0), errors="coerce").fillna(0)
+    repeatable = result["mobile_work_like_candidate"] | result["stable_shifted_candidate"]
+    result["outlier_interpretation"] = np.select(
+        [boundary_count.gt(0), repeatable],
+        ["data_quality_event", "rare_but_coherent"],
+        default="insufficient_evidence",
+    )
+    result.attrs["empirical_thresholds"] = thresholds
+    return result
+
+
+def build_outlier_audit(candidates: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate quality events separately from repeatable behavioral rarity."""
+    rows = []
+    for outlier_type, subset, quality, behavioral in (
+        (
+            "cp1_boundary_event",
+            candidates.loc[candidates["outlier_interpretation"] == "data_quality_event"],
+            True,
+            False,
+        ),
+        (
+            "behavioral_rarity",
+            candidates.loc[candidates["outlier_interpretation"] != "data_quality_event"],
+            False,
+            True,
+        ),
+    ):
+        rows.append(
+            {
+                "outlier_type": outlier_type,
+                "user_count": len(subset),
+                "repeatable_user_count": int((subset["outlier_interpretation"] == "rare_but_coherent").sum()),
+                "likely_data_quality_issue": quality,
+                "likely_behavioral_pattern": behavioral,
+                "needs_manual_review": bool((subset["outlier_interpretation"] == "insufficient_evidence").any()),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def select_case_studies(features: pd.DataFrame, seed: int = 42) -> pd.DataFrame:
+    """Choose deterministic, non-identifying case inputs; retain the mapping privately elsewhere."""
+    ranked = features.copy()
+    if "user_id" not in ranked:
+        raise ValueError("case selection requires private user_id")
+    ranked["_rank"] = np.random.default_rng(seed).permutation(len(ranked))
+    selected = ranked.sort_values(["_rank", "user_id"], kind="stable").head(20).copy()
+    selected["case_alias"] = [f"Case {chr(65 + index)}" for index in range(len(selected))]
+    selected["selection_reason"] = np.select(
+        [
+            selected.get("mobile_work_like_candidate", pd.Series(False, index=selected.index)),
+            selected.get("stable_shifted_candidate", pd.Series(False, index=selected.index)),
+        ],
+        ["mobile_work_like_candidate", "stable_shifted_candidate"],
+        default="coverage_and_anchor_comparator",
+    )
+    private_mapping = selected.loc[:, ["case_alias", "user_id", "selection_reason"]].copy()
+    public_cases = selected.drop(columns=["user_id", "latitude", "longitude", "_rank"], errors="ignore")
+    public_cases.attrs["private_case_mapping"] = private_mapping
+    return public_cases
+
+
+_SENSITIVE_EXPORT_COLUMNS = {"latitude", "longitude", "source_file", "user_id"}
+
+
+def _safe_csv(frame: pd.DataFrame, path: Path, *, retain_user_id: bool = False) -> None:
+    ensure_private_artifact_path(path)
+    drop = _SENSITIVE_EXPORT_COLUMNS - ({"user_id"} if retain_user_id else set())
+    time_columns = [column for column in frame if "timestamp" in column or column.startswith(("arrival_", "departure_"))]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frame.drop(columns=list(drop) + time_columns, errors="ignore").to_csv(path, index=False)
+
+
+def _package_versions() -> dict[str, str | None]:
+    names = ("numpy", "pandas", "scikit-learn", "timezonefinder", "tzdata")
+    versions = {}
+    for name in names:
+        try:
+            versions[name] = version(name)
+        except PackageNotFoundError:
+            versions[name] = None
+    return versions
+
+
+def _git_sha(root: Path) -> str | None:
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(root), "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _zip_sha256(root: Path) -> str | None:
+    zip_path = root / "data" / "Geolife Trajectories 1.3.zip"
+    if not zip_path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with zip_path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def render_report(summary: dict[str, object]) -> str:
+    """Render a privacy-safe, aggregate-only report skeleton pending the full release run."""
+    pending = "Pending full-release measurement (Task 9); no model-performance claim is made."
+    answers = "\n\n".join(f"## Q{number}\n{pending}" for number in range(1, 11))
+    return (
+        "# User behavior deep dive\n\n"
+        "## Status\n"
+        f"Run status: {summary.get('run_status', 'pending_full_release')}. "
+        "This exploratory EDA uses aliases and aggregate outputs only.\n\n"
+        "## Evidence boundaries\n"
+        "No occupation labels, semantic POI labels, precise coordinates, raw identifiers, or raw timestamps are reported.\n\n"
+        f"{answers}\n\n"
+        "## Next experiment\n"
+        "Task 9 will replace pending statements with measured aggregate tables and private figure references.\n"
+    )
+
+
+def write_outputs(results: AnalysisResults, root: Path) -> None:
+    """Write only private artifacts and the privacy-safe committed report."""
+    artifact_root = root / ARTIFACT_DIR
+    ensure_private_artifact_path(artifact_root / "summary.json")
+    artifact_root.mkdir(parents=True, exist_ok=True)
+    (artifact_root / "figures").mkdir(exist_ok=True)
+    _safe_csv(results.features, artifact_root / "user_behavior_features.csv", retain_user_id=True)
+    _safe_csv(results.baseline_audit, artifact_root / "baseline_user_audit.csv", retain_user_id=True)
+    _safe_csv(results.outlier_audit, artifact_root / "outlier_audit.csv")
+    _safe_csv(results.archetype_candidates, artifact_root / "archetype_candidates.csv", retain_user_id=True)
+    case_mapping = results.case_studies.attrs.get("private_case_mapping")
+    _safe_csv(
+        case_mapping if isinstance(case_mapping, pd.DataFrame) else results.case_studies,
+        artifact_root / "case_studies.csv",
+        retain_user_id=True,
+    )
+    summary: dict[str, Any] = {
+        **results.summary,
+        "zip_sha256": _zip_sha256(root),
+        "git_sha": _git_sha(root),
+        "config": FROZEN_CP1,
+        "package_versions": _package_versions(),
+        "seed": results.summary.get("seed", 42),
+        "empirical_thresholds": results.archetype_candidates.attrs.get("empirical_thresholds", {}),
+        "run_status": results.summary.get("run_status", "pending_full_release"),
+    }
+    (artifact_root / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
+    report_path = root / "reports" / "03a_user_behavior_deep_dive.md"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(render_report(summary), encoding="utf-8")
 
 
 def process_trajectory(

@@ -682,3 +682,88 @@ def test_daily_stay_span_ends_at_last_departure() -> None:
     daily = behavior.build_user_day_features(stays, point_days)
 
     assert daily.loc[0, "stay_observed_span_h"] == 12.0
+
+
+def _candidate_features(**overrides: object) -> pd.DataFrame:
+    values: dict[str, object] = {
+        "user_id": "private-user",
+        "usable_temporal_days": 6,
+        "weekday_usable_days": 6,
+        "weekday_distance_km": 42.0,
+        "weekday_mobility_repeatability": 0.9,
+        "recurring_daytime_locations": 3,
+        "office_dominant": False,
+        "recurring_location_count": 3,
+        "top_1_dwell_share": 0.45,
+        "schedule_status": "eligible",
+        "weekly_jsd_median": 0.05,
+        "shifted_peak": False,
+        "cp1_boundary_count": 0,
+    }
+    values.update(overrides)
+    return pd.DataFrame([values])
+
+
+def test_repeated_high_mobility_is_rare_but_coherent_not_data_quality_noise() -> None:
+    """Catches mobility rarity misclassified as CP1 quality noise despite repetition."""
+    result = behavior.assign_behavioral_candidates(_candidate_features()).iloc[0]
+
+    assert result["mobile_work_like_candidate"]
+    assert result["outlier_interpretation"] == "rare_but_coherent"
+
+
+def test_case_studies_export_aliases_without_user_ids_or_coordinates() -> None:
+    """Catches case selection leaking the private alias mapping or coordinates."""
+    cases = behavior.select_case_studies(_candidate_features(), seed=42)
+
+    assert cases["case_alias"].iloc[0] == "Case A"
+    assert "user_id" not in cases.columns
+    assert not {"latitude", "longitude"}.intersection(cases.columns)
+
+
+def _minimal_results_with_coordinates() -> object:
+    features = _candidate_features(latitude=39.9, longitude=116.4, source_file="private.plt")
+    candidates = behavior.assign_behavioral_candidates(features)
+    cases = behavior.select_case_studies(candidates, seed=42)
+    return behavior.AnalysisResults(
+        features=features,
+        baseline_audit=pd.DataFrame({"user_id": ["private-user"], "label": ["HOME"]}),
+        outlier_audit=behavior.build_outlier_audit(candidates),
+        archetype_candidates=candidates,
+        case_studies=cases,
+        summary={"seed": 42},
+    )
+
+
+def test_exported_user_csvs_exclude_precise_coordinates(tmp_path: Path) -> None:
+    """Catches coordinates surviving a private behavior export."""
+    behavior.write_outputs(_minimal_results_with_coordinates(), tmp_path)
+
+    exported = pd.read_csv(tmp_path / "artifacts/03a/user_behavior_features.csv")
+    assert "latitude" not in exported.columns
+    assert "longitude" not in exported.columns
+
+
+def test_output_wiring_creates_private_figure_directory(tmp_path: Path) -> None:
+    """Catches output wiring that omits the private case-figure destination."""
+    behavior.write_outputs(_minimal_results_with_coordinates(), tmp_path)
+
+    assert (tmp_path / "artifacts/03a/figures").is_dir()
+
+
+def test_report_answers_all_required_questions_without_raw_user_ids() -> None:
+    """Catches a committed report that omits required answers or sensitive identifiers."""
+    report = behavior.render_report({"seed": 42, "run_status": "pending_full_release"})
+
+    for heading in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"):
+        assert heading in report
+    assert "user_id" not in report
+    assert "accuracy" not in report.lower()
+
+
+def test_summary_provenance_includes_reproducibility_keys(tmp_path: Path) -> None:
+    """Catches summary output missing the provenance needed to reproduce a later full run."""
+    behavior.write_outputs(_minimal_results_with_coordinates(), tmp_path)
+
+    summary = pd.read_json(tmp_path / "artifacts/03a/summary.json", typ="series")
+    assert {"zip_sha256", "git_sha", "config", "package_versions", "seed"} <= set(summary.index)
