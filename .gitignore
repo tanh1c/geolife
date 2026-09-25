@@ -32,6 +32,9 @@ data/processed/**
 reports/eda/generated/**
 !reports/eda/README.md
 
+# Private behavior-first EDA materialization and user-level profiles
+/artifacts/03a/
+
 # Local notebook exports
 *.html
 
