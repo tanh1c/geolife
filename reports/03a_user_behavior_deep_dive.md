@@ -38,3 +38,6 @@ Pending full-release measurement (Task 9); no model-performance claim is made.
 
 ## Next experiment
 Task 9 will replace pending statements with measured aggregate tables and private figure references.
+
+## Task 9 blocker evidence
+The frozen-v1 comparator regression with emitted rows at nonconsecutive audit indices passes, confirming parity compares normalized `(user_id, label)` row indices. Full pytest and focused Ruff passed; the complete release EDA remains pending.

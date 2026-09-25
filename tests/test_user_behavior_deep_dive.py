@@ -500,6 +500,32 @@ def test_baseline_audit_keeps_user_without_stay_in_full_release_universe() -> No
     assert audit["reject_reason"].isin(behavior.REASON_ORDER).all()
 
 
+def test_baseline_audit_reconciles_emissions_with_nonconsecutive_audit_indices() -> None:
+    """Catches parity comparison retaining source indices after non-emitted rows."""
+    stays = pd.concat(
+        [
+            _frozen_audit_stays(
+                "001",
+                ["2026-01-05T14:00:00Z", "2026-01-06T14:00:00Z", "2026-01-07T14:00:00Z"],
+            ),
+            _frozen_audit_stays(
+                "003",
+                ["2026-01-05T14:00:00Z", "2026-01-06T14:00:00Z", "2026-01-07T14:00:00Z"],
+            ),
+        ],
+        ignore_index=True,
+    )
+
+    audit = behavior.build_baseline_user_audit({"001", "002", "003"}, stays)
+
+    emitted = audit.loc[audit["reject_reason"] == "emitted", ["user_id", "label"]]
+    assert emitted.index.tolist() == [0, 4]
+    pd.testing.assert_frame_equal(
+        emitted.reset_index(drop=True),
+        pd.DataFrame({"user_id": ["001", "003"], "label": ["HOME", "HOME"]}),
+    )
+
+
 def test_baseline_audit_prefers_no_overlap_before_insufficient_dates() -> None:
     audit = behavior.build_baseline_user_audit(
         {"001"},
