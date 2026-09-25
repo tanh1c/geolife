@@ -67,13 +67,53 @@ _MEMBER_RE = re.compile(r"(?:^|/)Data/(\d{3})/Trajectory/([^/]+\.plt)$")
 
 def ensure_private_artifact_path(path: Path) -> None:
     """Reject EDA artifact writes outside the private artifact directory."""
-    artifact_parts = ARTIFACT_DIR.parts
-    resolved_parts = path.parts
-    if resolved_parts[-len(artifact_parts) - 1 : -1] == artifact_parts:
-        return
-    if path == ARTIFACT_DIR or ARTIFACT_DIR in path.parents:
-        return
-    raise ValueError("private artifacts must be written beneath artifacts/03a")
+    try:
+        path.resolve().relative_to(ARTIFACT_DIR.resolve())
+    except ValueError as error:
+        raise ValueError("private artifacts must be written beneath artifacts/03a") from error
+
+
+_POINT_DAY_HELPER_COLUMNS = ["_first_timestamp", "_last_timestamp", "_observed_hours"]
+
+
+def _point_day_columns(*, include_helpers: bool = False) -> list[str]:
+    return POINT_DAY_COLUMNS + (_POINT_DAY_HELPER_COLUMNS if include_helpers else [])
+
+
+# CP1 audit rows are allocated to the UTC-local day of their event timestamp.
+# This preserves terminal/discarded events that no retained row can carry.
+def _audit_counts_by_day(audit: pd.DataFrame) -> pd.Series:
+    if audit.empty:
+        return pd.Series(dtype="int64")
+    return audit.groupby(audit["timestamp"].dt.date, sort=True).size()
+
+
+def _aggregate_point_days(point_days: pd.DataFrame) -> pd.DataFrame:
+    """Merge per-PLT daily aggregates into exactly one row per user and day."""
+    if point_days.empty:
+        return _empty_point_days()
+
+    rows = []
+    for (user_id, local_date), day in point_days.groupby(["user_id", "local_date"], sort=True):
+        first = day["_first_timestamp"].min()
+        last = day["_last_timestamp"].max()
+        rows.append(
+            {
+                "user_id": user_id,
+                "local_date": local_date,
+                "point_count": int(day["point_count"].sum()),
+                "observed_span_s": float((last - first).total_seconds()) if pd.notna(first) else 0.0,
+                "largest_gap_s": float(day["largest_gap_s"].max()),
+                "has_large_gap": bool(day["has_large_gap"].any()),
+                "cleaned_travel_distance_m": float(day["cleaned_travel_distance_m"].sum()),
+                "movement_duration_s": float(day["movement_duration_s"].sum()),
+                "transition_count": int(day["transition_count"].sum()),
+                "first_observed_hour": int(day["first_observed_hour"].min()) if pd.notna(first) else pd.NA,
+                "last_observed_hour": int(day["last_observed_hour"].max()) if pd.notna(last) else pd.NA,
+                "hour_coverage_count": len({hour for hours in day["_observed_hours"] for hour in hours}),
+            }
+        )
+    return pd.DataFrame(rows, columns=POINT_DAY_COLUMNS)
 
 
 def _empty_stays() -> pd.DataFrame:
@@ -88,7 +128,7 @@ def process_trajectory(
     user_id: str, source_file: str, raw: pd.DataFrame
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Apply frozen CP1 once and retain only stay and daily aggregate outputs."""
-    cleaned, _audit = clean_trajectory_with_audit(raw, **FROZEN_CLEANING_KWARGS)
+    cleaned, audit = clean_trajectory_with_audit(raw, **FROZEN_CLEANING_KWARGS)
     detected = detect_staypoints(cleaned, **FROZEN_STAY_KWARGS)
 
     if detected.empty:
@@ -105,17 +145,19 @@ def process_trajectory(
     points = cleaned.copy()
     points["local_date"] = points["timestamp"].dt.date
     points["local_hour"] = points["timestamp"].dt.hour
+    audit_counts = _audit_counts_by_day(audit)
     rows = []
     for local_date, day in points.groupby("local_date", sort=True):
         timestamps = day["timestamp"]
         gaps = timestamps.diff().dt.total_seconds().iloc[1:]
         lat = day["latitude"].to_numpy(dtype=float)
         lon = day["longitude"].to_numpy(dtype=float)
+        sequence_id = day["sequence_id"].to_numpy()
         if len(day) > 1:
             segments = np.asarray(haversine_m(lat[:-1], lon[:-1], lat[1:], lon[1:]), dtype=float)
-            positive_gaps = gaps.to_numpy(dtype=float) > 0
-            travel_m = float(segments.sum())
-            movement_duration_s = float(gaps.to_numpy(dtype=float)[positive_gaps].sum())
+            positive_same_sequence = (gaps.to_numpy(dtype=float) > 0) & (sequence_id[1:] == sequence_id[:-1])
+            travel_m = float(segments[positive_same_sequence].sum())
+            movement_duration_s = float(gaps.to_numpy(dtype=float)[positive_same_sequence].sum())
         else:
             travel_m = 0.0
             movement_duration_s = 0.0
@@ -129,13 +171,16 @@ def process_trajectory(
                 "has_large_gap": bool((gaps > 6 * 3600).any()),
                 "cleaned_travel_distance_m": travel_m,
                 "movement_duration_s": movement_duration_s,
-                "transition_count": int(day["boundary_before_reason"].notna().sum()),
+                "transition_count": int(audit_counts.get(local_date, 0)),
                 "first_observed_hour": int(day["local_hour"].min()),
                 "last_observed_hour": int(day["local_hour"].max()),
                 "hour_coverage_count": int(day["local_hour"].nunique()),
+                "_first_timestamp": timestamps.min(),
+                "_last_timestamp": timestamps.max(),
+                "_observed_hours": frozenset(day["local_hour"]),
             }
         )
-    return stays, pd.DataFrame(rows, columns=POINT_DAY_COLUMNS)
+    return stays, pd.DataFrame(rows, columns=_point_day_columns(include_helpers=True))
 
 
 def validate_materialization(
@@ -153,6 +198,9 @@ def validate_materialization(
     )
     assert set(stays["user_id"]).issubset(release_users)
     assert set(point_days["user_id"]).issubset(release_users)
+    assert not point_days.duplicated(["user_id", "local_date"]).any(), (
+        "expected exactly one row per user and local date"
+    )
 
 
 def _write_pickle_atomically(frame: pd.DataFrame, path: Path) -> None:
@@ -242,9 +290,12 @@ def materialize_frozen_cp1(
                 )
 
     all_stays = pd.concat(stay_parts, ignore_index=True) if stay_parts else _empty_stays()
-    all_point_days = (
-        pd.concat(point_day_parts, ignore_index=True) if point_day_parts else _empty_point_days()
+    all_point_day_parts = (
+        pd.concat(point_day_parts, ignore_index=True)
+        if point_day_parts
+        else pd.DataFrame(columns=_point_day_columns(include_helpers=True))
     )
+    all_point_days = _aggregate_point_days(all_point_day_parts)
     validate_materialization(all_stays, all_point_days, release_users)
     _write_pickle_atomically(all_stays, stay_cache)
     _write_pickle_atomically(all_point_days, point_day_cache)

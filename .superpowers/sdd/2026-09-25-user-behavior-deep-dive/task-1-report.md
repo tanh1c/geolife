@@ -52,3 +52,27 @@ python analysis/03a_user_behavior_deep_dive.py --stage materialize --zip "data/G
 - No full pass was run on the 313 MB ZIP. Therefore the code path is unit-tested but the required release reconciliation output has not been independently observed in this task.
 - Task 2’s stated full-materialization verification and exact 5,821/136 release result remain for the later permitted materialization task.
 - No cache or derived user artifact has been created outside ignored `artifacts/03a/`.
+
+## Scoped review fixes
+
+- `ensure_private_artifact_path()` now resolves the candidate and private root before containment validation, rejecting normalized traversal such as `artifacts/03a/../leak.pkl`.
+- Final cache materialization aggregates all per-PLT partials to exactly one `(user_id, local_date)` row. It explicitly sums point/transition/movement metrics, takes daily temporal bounds for span and first/last hour, takes the maximum largest gap, unions covered hours, and validates that no duplicate key remains.
+- Distance and movement-duration proxy include only positive-time adjacent pairs in the same CP1 `sequence_id`; segment pairs across CP1 boundaries are excluded.
+- `transition_count` uses the complete `clean_trajectory_with_audit()` event stream rather than retained-row `boundary_before_reason`. Each audit event is allocated to the UTC-local calendar day of the event timestamp, so discarded terminal events are counted.
+- The execution branch still tracks `.superpowers/sdd/2026-09-25-user-behavior-deep-dive/task-1-report.md`, `docs/superpowers/plans/2026-09-25-user-behavior-deep-dive.md`, and `docs/superpowers/specs/2026-09-25-user-behavior-deep-dive-design.md`; none was deleted or modified.
+
+### Fix verification
+
+```text
+python -m pytest tests/test_user_behavior_deep_dive.py -v
+11 passed in 3.14s
+
+python -m pytest
+58 passed in 7.75s
+
+python -m ruff check analysis/03a_user_behavior_deep_dive.py tests/test_user_behavior_deep_dive.py
+All checks passed!
+
+git -c core.whitespace=cr-at-eol diff --check
+(exit 0; required because the existing test file uses CRLF)
+```
