@@ -298,33 +298,71 @@ def cluster_behavior_locations(
     return clustered, summary
 
 
+def _stay_day_contributions(stays: pd.DataFrame) -> pd.DataFrame:
+    """Split each stay's dwell at local hour and local-date boundaries."""
+    rows = []
+    for _, stay in stays.iterrows():
+        arrival = stay["arrival_time_local"]
+        departure = stay.get("departure_time_local", arrival + pd.Timedelta(seconds=stay["duration_s"]))
+        start, end = arrival, departure
+        while start < end:
+            boundary = min(end, start.normalize() + pd.Timedelta(hours=start.hour + 1))
+            rows.append(
+                {
+                    "user_id": stay["user_id"],
+                    "local_date": start.date(),
+                    "location_id": stay["location_id"],
+                    "arrival_time_local": arrival,
+                    "departure_time_local": departure,
+                    "local_hour": start.hour,
+                    "dwell_s": float((boundary - start).total_seconds()),
+                }
+            )
+            start = boundary
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "user_id", "local_date", "location_id", "arrival_time_local", "departure_time_local",
+            "local_hour", "dwell_s",
+        ],
+    )
+
+
 def build_user_day_features(stays: pd.DataFrame, point_days: pd.DataFrame) -> pd.DataFrame:
     """Join stay-based recurrence and dwell to cleaned-point movement by user/local day."""
     day_columns = ["user_id", "local_date"]
+    contributions = _stay_day_contributions(stays)
     stay_days = (
-        stays.groupby(day_columns, as_index=False)
+        contributions.groupby(day_columns, as_index=False)
         .agg(
-            stay_count=("duration_s", "size"),
             recurring_location_count=("location_id", "nunique"),
-            dwell_h=("duration_s", lambda values: values.sum() / 3600),
-            stay_observed_span_h=(
-                "arrival_time_local",
-                lambda values: (values.max() - values.min()).total_seconds() / 3600 if len(values) > 1 else 0.0,
-            ),
+            dwell_h=("dwell_s", lambda values: values.sum() / 3600),
+            first_arrival=("arrival_time_local", "min"),
+            last_departure=("departure_time_local", "max"),
         )
+        if not contributions.empty
+        else pd.DataFrame(columns=day_columns + ["recurring_location_count", "dwell_h", "first_arrival", "last_departure"])
+    )
+    stay_counts = (
+        stays.groupby(["user_id", stays["arrival_time_local"].map(lambda value: value.date())])
+        .size()
+        .rename("stay_count")
+        .reset_index(name="stay_count")
+        .rename(columns={"arrival_time_local": "local_date"})
         if not stays.empty
-        else pd.DataFrame(columns=day_columns + ["stay_count", "recurring_location_count", "dwell_h", "stay_observed_span_h"])
+        else pd.DataFrame(columns=day_columns + ["stay_count"])
+    )
+    stay_days = stay_days.merge(stay_counts, on=day_columns, how="outer", validate="one_to_one")
+    stay_days["stay_observed_span_h"] = (
+        (stay_days["last_departure"] - stay_days["first_arrival"]).dt.total_seconds() / 3600
     )
     result = point_days.merge(stay_days, on=day_columns, how="outer", validate="one_to_one")
-    if "hourly_dwell" not in result:
-        result["hourly_dwell"] = [np.zeros(24).tolist() for _ in range(len(result))]
-    for _, stay in stays.iterrows():
-        mask = (result["user_id"] == stay["user_id"]) & (result["local_date"] == stay["local_date"])
-        if not mask.any():
-            continue
+    result["hourly_dwell"] = [np.zeros(24).tolist() for _ in range(len(result))]
+    for contribution in contributions.itertuples(index=False):
+        mask = (result["user_id"] == contribution.user_id) & (result["local_date"] == contribution.local_date)
         index = result.index[mask][0]
         hourly_dwell = np.asarray(result.at[index, "hourly_dwell"], dtype=float)
-        hourly_dwell[stay["arrival_time_local"].hour] += stay["duration_s"]
+        hourly_dwell[contribution.local_hour] += contribution.dwell_s
         result.at[index, "hourly_dwell"] = hourly_dwell.tolist()
     result["local_weekday"] = pd.to_datetime(result["local_date"]).dt.weekday
     for column in ("stay_count", "recurring_location_count", "dwell_h", "stay_observed_span_h"):
@@ -416,9 +454,7 @@ def build_user_behavior_features(
         user_motifs = motifs.loc[motifs["user_id"] == user_id, "motif"]
         motif_counts = user_motifs.value_counts()
         motif_shares = motif_counts / motif_counts.sum() if not motif_counts.empty else pd.Series(dtype=float)
-        hourly_dwell = np.zeros(24)
-        for _, stay in user_stays.iterrows():
-            hourly_dwell[stay["arrival_time_local"].hour] += stay["duration_s"]
+        hourly_dwell = np.sum(user_days["hourly_dwell"].tolist(), axis=0)
         hour_shares = hourly_dwell / hourly_dwell.sum() if hourly_dwell.sum() else hourly_dwell
         hour_entropy = float(-(hour_shares[hour_shares > 0] * np.log2(hour_shares[hour_shares > 0])).sum())
         weekday_dwell_h = float(user_days.loc[user_days["local_weekday"] < 5, "dwell_h"].sum())
@@ -531,18 +567,28 @@ def _window_features(
     return features
 
 
-def _top_audit_candidate(features: pd.DataFrame, label: str) -> pd.Series | None:
+def _top_audit_candidate(features: pd.DataFrame, label: str, config: HomeOfficeConfig) -> pd.Series | None:
+    """Mirror frozen candidate eligibility while retaining raw-overlap diagnostics."""
     prefix = "home" if label == "HOME" else "office"
     dwell_col, dates_col, share_col = (f"{prefix}_{suffix}" for suffix in ("dwell_s", "dates", "dwell_share"))
-    candidates = features.loc[(features["stay_count"] >= 2) & (features[dwell_col] > 0)].sort_values(
+    minimum_dates = config.home_min_dates if label == "HOME" else config.office_min_dates
+    raw = features.loc[(features["stay_count"] >= 2) & (features[dwell_col] > 0)]
+    eligible = raw.loc[raw[dates_col] >= minimum_dates].sort_values(
         [share_col, dates_col, dwell_col, "stay_count", "location_id"],
         ascending=[False, False, False, False, True], kind="stable",
     )
-    if candidates.empty:
-        return None
-    top = candidates.iloc[0].copy()
+    if eligible.empty:
+        if raw.empty:
+            return None
+        candidate = raw.sort_values(
+            [share_col, dates_col, dwell_col, "stay_count", "location_id"],
+            ascending=[False, False, False, False, True], kind="stable",
+        ).iloc[0].copy()
+        candidate["_insufficient_relevant_dates"] = True
+        return candidate
+    top = eligible.iloc[0].copy()
     top["relevant_dwell_share"] = top[share_col]
-    top["share_margin"] = top[share_col] - (candidates.iloc[1][share_col] if len(candidates) > 1 else 0.0)
+    top["share_margin"] = top[share_col] - (eligible.iloc[1][share_col] if len(eligible) > 1 else 0.0)
     top["relevant_dates"] = top[dates_col]
     top["relevant_dwell_h"] = top[dwell_col] / 3600.0
     return top
@@ -551,11 +597,10 @@ def _top_audit_candidate(features: pd.DataFrame, label: str) -> pd.Series | None
 def _candidate_reason(candidate: pd.Series | None, label: str, config: HomeOfficeConfig) -> str:
     if candidate is None:
         return "no_behavioral_window_overlap"
-    minimum_dates = config.home_min_dates if label == "HOME" else config.office_min_dates
+    if candidate.get("_insufficient_relevant_dates", False):
+        return "insufficient_relevant_dates"
     minimum_share = config.home_min_share if label == "HOME" else config.office_min_share
     minimum_margin = config.home_min_margin if label == "HOME" else config.office_min_margin
-    if int(candidate["relevant_dates"]) < minimum_dates:
-        return "insufficient_relevant_dates"
     if float(candidate["relevant_dwell_share"]) < minimum_share:
         return "share_below_frozen_gate"
     if float(candidate["share_margin"]) < minimum_margin:
@@ -591,7 +636,7 @@ def build_baseline_user_audit(release_users: set[str], stays: pd.DataFrame) -> p
                 rows.append(_audit_row(user_id, label, "no_recurring_location"))
                 continue
             candidate = _top_audit_candidate(
-                features_by_label[label].loc[features_by_label[label]["user_id"] == user_id], label
+                features_by_label[label].loc[features_by_label[label]["user_id"] == user_id], label, config
             )
             rows.append(_audit_row(user_id, label, _candidate_reason(candidate, label, config), candidate))
     audit = pd.DataFrame(rows, columns=_AUDIT_COLUMNS)
@@ -635,7 +680,7 @@ def run_location_sensitivity(stays: pd.DataFrame) -> pd.DataFrame:
         }
 
     baseline_top = top_memberships(baseline_clustered)
-    baseline_motif_users = set(baseline_motifs["user_id"])
+    baseline_motif_content = baseline_motifs.set_index(["user_id", "local_date"])["motif"]
     rows = []
     for threshold_m, (clustered, summary, motifs) in variants.items():
         user_classes = [
@@ -644,7 +689,8 @@ def run_location_sensitivity(stays: pd.DataFrame) -> pd.DataFrame:
         ]
         top = top_memberships(clustered)
         shared_top = set(top).intersection(baseline_top)
-        motif_users = set(motifs["user_id"])
+        motif_content = motifs.set_index(["user_id", "local_date"])["motif"]
+        shared_motif_days = baseline_motif_content.index.intersection(motif_content.index)
         rows.append(
             {
                 "threshold_m": threshold_m,
@@ -655,10 +701,12 @@ def run_location_sensitivity(stays: pd.DataFrame) -> pd.DataFrame:
                 ),
                 "recurring_location_count": int((summary["stay_count"] >= 2).sum()),
                 "motif_membership_stability_vs_200": (
-                    len(motif_users.intersection(baseline_motif_users)) / len(baseline_motif_users)
-                    if baseline_motif_users else 1.0
+                    sum(
+                        motif_content.loc[index] == baseline_motif_content.loc[index]
+                        for index in shared_motif_days
+                    ) / len(baseline_motif_content)
+                    if len(baseline_motif_content) else 1.0
                 ),
-                "regime_membership_stability_vs_200": 1.0,
             }
         )
     return pd.DataFrame(rows)

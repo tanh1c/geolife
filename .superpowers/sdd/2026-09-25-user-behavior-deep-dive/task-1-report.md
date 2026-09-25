@@ -99,3 +99,29 @@ git -c core.whitespace=cr-at-eol diff --check
 python -m pytest
 59 passed in 6.11s
 ```
+
+### Task 6 fix round 1
+
+- `_top_audit_candidate()` now applies the frozen relevant-date eligibility gate before ranking, top-two margin calculation, and emission-gate evaluation. Raw window overlap is retained only to distinguish no overlap from insufficient eligible-date support.
+- Threshold sensitivity now compares threshold-specific daily motif strings keyed by `(user_id, local_date)`. The unimplemented Task 7 regime-stability metric is deferred rather than reported as a fabricated constant.
+- Temporal dwell is split at local hourly and date boundaries; weekday/weekend metrics inherit those daily splits. Daily stay span now runs from first arrival through last departure.
+
+```text
+RED: python -m pytest tests/test_user_behavior_deep_dive.py -q
+29 passed, 5 failed: frozen-gate ranking, deferred regime metric, daily-motif content,
+local hour/date dwell allocation, and departure-based span.
+
+GREEN: python -m pytest tests/test_user_behavior_deep_dive.py -q
+34 passed
+
+python -m ruff check analysis/03a_user_behavior_deep_dive.py tests/test_user_behavior_deep_dive.py
+All checks passed!
+
+python -m pytest
+81 passed in 5.31s
+
+git -c core.whitespace=cr-at-eol diff --check
+(exit 0)
+```
+
+Task 7 classifier-derived regime stability remains intentionally omitted until that classifier exists.

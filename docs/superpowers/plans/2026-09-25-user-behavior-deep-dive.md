@@ -464,7 +464,7 @@ REASON_ORDER = (
 
 Assert per-label reason uniqueness, all 182×2 rows present, and emitted labels reconcile directly with `infer_home_office()` to 27 HOME and 16 OFFICE. Keep only IDs/metrics in private audit; no coordinates.
 
-For 100/200/300 m, calculate anchor count class, top-anchor stability relative to 200 m, recurring count, motif membership stability, and regime membership stability. Use a three-row aggregate sensitivity table in summary/report.
+For 100/200/300 m, calculate anchor count class, top-anchor stability relative to 200 m, recurring count, and daily-motif-content stability keyed by `(user_id, local_date)`. Defer regime membership stability until Task 7 supplies a measured classifier-derived value. Use a three-row aggregate sensitivity table in summary/report.
 
 - [ ] **Step 4: Run tests to verify they pass**
 

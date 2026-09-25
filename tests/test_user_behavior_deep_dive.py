@@ -531,8 +531,8 @@ def test_location_sensitivity_covers_all_requested_thresholds() -> None:
         "top_anchor_stability_vs_200",
         "recurring_location_count",
         "motif_membership_stability_vs_200",
-        "regime_membership_stability_vs_200",
     }.issubset(sensitivity.columns)
+    assert "regime_membership_stability_vs_200" not in sensitivity.columns
     assert len(sensitivity) == 3
 
 
@@ -550,3 +550,105 @@ def test_location_sensitivity_detects_changed_top_anchor_membership() -> None:
     assert sensitivity.loc[
         sensitivity["threshold_m"] == 100.0, "top_anchor_stability_vs_200"
     ].iloc[0] < 1.0
+
+
+def test_baseline_audit_ranks_only_locations_with_relevant_date_support() -> None:
+    features = pd.DataFrame(
+        {
+            "location_id": [0, 1],
+            "stay_count": [3, 2],
+            "home_dwell_s": [3600.0, 14400.0],
+            "home_dates": [3, 2],
+            "home_dwell_share": [0.2, 0.8],
+        }
+    )
+
+    candidate = behavior._top_audit_candidate(features, "HOME", behavior.HomeOfficeConfig())
+
+    assert candidate["location_id"] == 0
+    assert candidate["relevant_dates"] == 3
+    assert candidate["share_margin"] == 0.2
+    assert candidate["relevant_dwell_share"] == 0.2
+
+
+def test_baseline_audit_keeps_raw_overlap_to_explain_insufficient_dates() -> None:
+    stays = _frozen_audit_stays("001", ["2026-01-05T14:00:00Z", "2026-01-06T14:00:00Z"])
+
+    audit = behavior.build_baseline_user_audit({"001"}, stays)
+
+    home = audit.query("label == 'HOME'").iloc[0]
+    assert home["reject_reason"] == "insufficient_relevant_dates"
+
+
+def test_location_sensitivity_compares_daily_motif_content_not_just_users() -> None:
+    stays = _frozen_audit_stays("001", ["2026-01-05T14:00:00Z", "2026-01-05T15:00:00Z"])
+    stays.loc[1, "latitude"] += 0.00135
+    stays["arrival_time_local"] = stays["arrival_time_utc"].dt.tz_convert("Asia/Shanghai")
+    stays["local_date"] = stays["arrival_time_local"].dt.date
+
+    sensitivity = behavior.run_location_sensitivity(stays)
+
+    assert sensitivity.loc[
+        sensitivity["threshold_m"] == 100.0, "motif_membership_stability_vs_200"
+    ].iloc[0] == 0.0
+
+
+def test_temporal_features_split_stay_dwell_across_local_hours_and_dates() -> None:
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A"],
+            "local_date": [pd.Timestamp("2026-01-02").date()],
+            "location_id": [0],
+            "duration_s": [7200.0],
+            "arrival_time_local": [pd.Timestamp("2026-01-02 23:00", tz="Asia/Shanghai")],
+            "departure_time_local": [pd.Timestamp("2026-01-03 01:00", tz="Asia/Shanghai")],
+        }
+    )
+    point_days = pd.DataFrame(
+        {
+            "user_id": ["A", "A"],
+            "local_date": [pd.Timestamp("2026-01-02").date(), pd.Timestamp("2026-01-03").date()],
+            "point_count": [3, 3],
+            "observed_span_h": [3.0, 3.0],
+            "largest_gap_h": [1.0, 1.0],
+        }
+    )
+
+    daily = behavior.build_user_day_features(stays, point_days)
+
+    friday = daily.loc[daily["local_date"] == pd.Timestamp("2026-01-02").date()].iloc[0]
+    saturday = daily.loc[daily["local_date"] == pd.Timestamp("2026-01-03").date()].iloc[0]
+    assert friday["dwell_h"] == 1.0
+    assert friday["hourly_dwell"][23] == 3600.0
+    assert saturday["dwell_h"] == 1.0
+    assert saturday["hourly_dwell"][0] == 3600.0
+
+
+def test_daily_stay_span_ends_at_last_departure() -> None:
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A", "A"],
+            "local_date": [pd.Timestamp("2026-01-02").date()] * 2,
+            "location_id": [0, 0],
+            "duration_s": [3600.0, 7200.0],
+            "arrival_time_local": pd.to_datetime(
+                ["2026-01-02 08:00", "2026-01-02 18:00"], utc=True
+            ),
+            "departure_time_local": pd.to_datetime(
+                ["2026-01-02 09:00", "2026-01-02 20:00"], utc=True
+            ),
+        }
+    )
+    point_days = pd.DataFrame(
+        {
+            "user_id": ["A"],
+            "local_date": [pd.Timestamp("2026-01-02").date()],
+            "point_count": [3],
+            "observed_span_h": [3.0],
+            "largest_gap_h": [1.0],
+        }
+    )
+
+    daily = behavior.build_user_day_features(stays, point_days)
+
+    assert daily.loc[0, "stay_observed_span_h"] == 12.0
