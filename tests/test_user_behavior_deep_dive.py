@@ -683,6 +683,42 @@ def test_temporal_features_allocate_dst_fall_back_stay_without_stalling() -> Non
     assert daily.loc[0, "hourly_dwell"][2] == 1800.0
 
 
+def test_daily_stay_span_uses_utc_for_mixed_iana_timezones() -> None:
+    """Catches mixed local IANA timestamps reaching the elapsed-span aggregation."""
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A", "B"],
+            "local_date": [pd.Timestamp("2026-01-02").date()] * 2,
+            "location_id": [0, 0],
+            "duration_s": [7200.0, 10800.0],
+            "arrival_time_utc": pd.to_datetime(
+                ["2026-01-02 00:00Z", "2026-01-02 14:00Z"], utc=True
+            ),
+            "departure_time_utc": pd.to_datetime(
+                ["2026-01-02 02:00Z", "2026-01-02 17:00Z"], utc=True
+            ),
+            "arrival_time_local": [
+                pd.Timestamp("2026-01-02 08:00", tz="Asia/Shanghai"),
+                pd.Timestamp("2026-01-02 09:00", tz="America/New_York"),
+            ],
+            "departure_time_local": [
+                pd.Timestamp("2026-01-02 10:00", tz="Asia/Shanghai"),
+                pd.Timestamp("2026-01-02 12:00", tz="America/New_York"),
+            ],
+        }
+    )
+    point_days = pd.DataFrame(
+        {
+            "user_id": ["A", "B"],
+            "local_date": [pd.Timestamp("2026-01-02").date()] * 2,
+        }
+    )
+
+    daily = behavior.build_user_day_features(stays, point_days)
+
+    assert daily.set_index("user_id")["stay_observed_span_h"].to_dict() == {"A": 2.0, "B": 3.0}
+
+
 def test_daily_stay_span_ends_at_last_departure() -> None:
     stays = pd.DataFrame(
         {

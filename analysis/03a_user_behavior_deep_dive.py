@@ -322,8 +322,8 @@ def _stay_day_contributions(stays: pd.DataFrame) -> pd.DataFrame:
                     "user_id": stay["user_id"],
                     "local_date": start.date(),
                     "location_id": stay["location_id"],
-                    "arrival_time_local": arrival,
-                    "departure_time_local": departure,
+                    "arrival_time_utc": stay.get("arrival_time_utc", pd.to_datetime(arrival, utc=True)),
+                    "departure_time_utc": stay.get("departure_time_utc", pd.to_datetime(departure, utc=True)),
                     "local_hour": start.hour,
                     "dwell_s": float((boundary - start).total_seconds()),
                 }
@@ -332,7 +332,7 @@ def _stay_day_contributions(stays: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(
         rows,
         columns=[
-            "user_id", "local_date", "location_id", "arrival_time_local", "departure_time_local",
+            "user_id", "local_date", "location_id", "arrival_time_utc", "departure_time_utc",
             "local_hour", "dwell_s",
         ],
     )
@@ -347,8 +347,8 @@ def build_user_day_features(stays: pd.DataFrame, point_days: pd.DataFrame) -> pd
         .agg(
             recurring_location_count=("location_id", "nunique"),
             dwell_h=("dwell_s", lambda values: values.sum() / 3600),
-            first_arrival=("arrival_time_local", "min"),
-            last_departure=("departure_time_local", "max"),
+            first_arrival=("arrival_time_utc", "min"),
+            last_departure=("departure_time_utc", "max"),
         )
         if not contributions.empty
         else pd.DataFrame(columns=day_columns + ["recurring_location_count", "dwell_h", "first_arrival", "last_departure"])
