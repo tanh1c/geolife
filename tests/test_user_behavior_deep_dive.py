@@ -924,3 +924,241 @@ def test_full_eda_writes_measured_artifacts_figures_and_complete_report(
     assert "Pending full-release" not in report
     assert "user_id" not in report
     assert "001" not in report
+
+
+def test_process_trajectory_buckets_cleaned_points_by_coordinate_local_day(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        behavior,
+        "_timezone_for_coordinates",
+        lambda _latitude, _longitude: "Asia/Shanghai",
+    )
+    raw = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime(
+                ["2026-01-01T17:55:00Z", "2026-01-01T18:05:00Z"], utc=True
+            ),
+            "latitude": [39.9042, 39.9042],
+            "longitude": [116.4074, 116.4074],
+        }
+    )
+
+    _stays, point_days = behavior.process_trajectory(
+        "001", "Data/001/Trajectory/example.plt", raw
+    )
+
+    assert point_days.loc[0, "local_date"] == pd.Timestamp("2026-01-02").date()
+    assert point_days.loc[0, "first_observed_hour"] == 1
+    assert point_days.loc[0, "last_observed_hour"] == 2
+
+
+def test_behavior_features_count_only_recurring_location_anchors() -> None:
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A"] * 5,
+            "local_date": [pd.Timestamp("2026-01-01").date()] * 5,
+            "location_id": [0, 0, 1, 1, 2],
+            "duration_s": [1200.0] * 5,
+            "arrival_time_local": pd.to_datetime(
+                [
+                    "2026-01-01 08:00",
+                    "2026-01-01 09:00",
+                    "2026-01-01 10:00",
+                    "2026-01-01 11:00",
+                    "2026-01-01 12:00",
+                ]
+            ),
+        }
+    )
+    point_days = pd.DataFrame(
+        {
+            "user_id": ["A"],
+            "local_date": [pd.Timestamp("2026-01-01").date()],
+            "point_count": [3],
+            "observed_span_h": [3.0],
+            "largest_gap_h": [1.0],
+        }
+    )
+
+    features = behavior.build_user_behavior_features(stays, point_days)
+
+    assert features.loc[0, "recurring_location_count"] == 2
+
+
+def test_daily_motifs_exclude_days_without_usable_motif_support() -> None:
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A", "A"],
+            "local_date": [
+                pd.Timestamp("2026-01-01").date(),
+                pd.Timestamp("2026-01-02").date(),
+            ],
+            "arrival_time_local": pd.to_datetime(
+                ["2026-01-01 08:00", "2026-01-02 08:00"]
+            ),
+            "location_id": [0, 1],
+        }
+    )
+    usable_days = pd.DataFrame(
+        {
+            "user_id": ["A", "A"],
+            "local_date": [
+                pd.Timestamp("2026-01-01").date(),
+                pd.Timestamp("2026-01-02").date(),
+            ],
+            "usable_for_motif": [True, False],
+        }
+    )
+
+    motifs = behavior.build_daily_motifs(stays, usable_days)
+
+    assert motifs.to_dict("records") == [
+        {"user_id": "A", "local_date": pd.Timestamp("2026-01-01").date(), "motif": "L0"}
+    ]
+
+
+def test_anchor_summary_excludes_users_without_cp1_stays() -> None:
+    features = pd.DataFrame(
+        {
+            "user_id": ["A", "B", "C", "D"],
+            "cp1_stay_count": [2, 2, 2, 0],
+            "recurring_location_count": [1, 2, 0, 0],
+            "schedule_status": ["insufficient"] * 4,
+            "active_days": [1] * 4,
+            "usable_temporal_days": [0] * 4,
+            "cleaned_distance_km": [0.0] * 4,
+            "movement_duration_proxy_h": [0.0] * 4,
+            "motif_frequency": [0.0] * 4,
+        }
+    )
+    audit = pd.DataFrame(columns=["label", "reject_reason"])
+    outliers = pd.DataFrame(columns=["needs_manual_review"])
+
+    summary = behavior._aggregate_summary(features, audit, outliers)
+
+    assert summary["anchors"] == {
+        "dominant_anchor": 1,
+        "two_anchor": 1,
+        "multiple_anchor": 0,
+        "no_stable_anchor": 1,
+        "stay_users": 3,
+        "no_cp1_stay_users": 1,
+    }
+
+
+def test_behavior_features_normalize_mobility_by_usable_temporal_days() -> None:
+    dates = pd.date_range("2026-01-01", periods=3, freq="D")
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A"] * 3,
+            "local_date": dates.date,
+            "location_id": [0] * 3,
+            "duration_s": [7200.0] * 3,
+            "arrival_time_local": dates + pd.Timedelta(hours=9),
+        }
+    )
+    point_days = pd.DataFrame(
+        {
+            "user_id": ["A"] * 3,
+            "local_date": dates.date,
+            "point_count": [3, 3, 2],
+            "observed_span_h": [3.0, 3.0, 3.0],
+            "largest_gap_h": [1.0, 1.0, 1.0],
+            "cleaned_distance_km": [10.0, 30.0, 100.0],
+            "movement_duration_proxy_h": [1.0, 3.0, 10.0],
+            "boundary_count": [2, 4, 100],
+        }
+    )
+
+    features = behavior.build_user_behavior_features(stays, point_days)
+
+    assert features.loc[0, "usable_active_days"] == 2
+    assert features.loc[0, "distance_per_usable_day_km"] == 20.0
+    assert features.loc[0, "movement_proxy_per_usable_day_h"] == 2.0
+    assert features.loc[0, "boundary_count_per_usable_day"] == 3.0
+
+
+def test_schedule_jsd_calibration_is_seeded_and_comparative() -> None:
+    dates = pd.date_range("2026-01-01", periods=10, freq="D")
+    daily = pd.DataFrame(
+        {
+            "user_id": ["A"] * 6 + ["B"] * 6,
+            "local_date": list(dates[:3].date) + list(dates[7:10].date) + list(dates[:3].date) + list(dates[7:10].date),
+            "usable_for_temporal_profile": [True] * 12,
+            "dwell_h": [2.0] * 12,
+            "hourly_dwell": [[2.0] + [0.0] * 23] * 6 + [[0.0] * 12 + [2.0] + [0.0] * 11] * 6,
+        }
+    )
+
+    first = behavior.compute_schedule_jsd_calibration(daily, seed=42, n_permutations=4)
+    second = behavior.compute_schedule_jsd_calibration(daily, seed=42, n_permutations=4)
+
+    assert first == second
+    assert first["within_user"]["count"] == 2
+    assert first["between_user"]["count"] == 2
+    assert first["shuffled_week"]["count"] == 8
+    assert first["within_user"]["median"] < first["between_user"]["median"]
+
+
+def test_behavioral_extreme_audit_requires_independent_repeatability() -> None:
+    users = [f"U{index:02d}" for index in range(20)]
+    features = pd.DataFrame(
+        {
+            "user_id": users,
+            "usable_temporal_days": [6] * 20,
+            "distance_per_usable_day_km": list(range(20)),
+            "recurring_location_count": [1] * 18 + [3, 3],
+            "top_1_dwell_share": [0.8] * 20,
+            "hour_entropy": list(range(20)),
+            "motif_entropy": [0.0] * 20,
+            "schedule_status": ["insufficient"] * 18 + ["eligible", "eligible"],
+            "motif_frequency": [0.0] * 18 + [0.8, 0.8],
+            "usable_motif_days": [0] * 18 + [3, 3],
+            "cp1_boundary_count": [0] * 19 + [1],
+        }
+    )
+
+    audit = behavior.build_behavioral_extreme_audit(features)
+
+    coherent = audit.set_index("user_id").loc["U18"]
+    quality = audit.set_index("user_id").loc["U19"]
+    assert coherent["behavioral_extreme"]
+    assert coherent["independently_coherent"]
+    assert quality["behavioral_extreme"]
+    assert quality["quality_boundary"]
+    assert not quality["independently_coherent"]
+
+
+def test_candidate_overlap_covers_full_release_universe_without_identifiers() -> None:
+    candidates = pd.DataFrame(
+        {
+            "user_id": ["A", "B"],
+            "cp1_stay_count": [3, 3],
+            "stable_shifted_candidate": [False, True],
+            "mobile_work_like_candidate": [True, True],
+            "recurring_location_count": [3, 1],
+            "motif_frequency": [0.8, 0.2],
+            "usable_motif_days": [2, 2],
+        }
+    )
+    audit = pd.DataFrame(
+        {
+            "user_id": ["A", "A", "B", "B", "C", "C"],
+            "label": ["HOME", "OFFICE"] * 3,
+            "reject_reason": ["emitted", "no_behavioral_window_overlap", "emitted", "emitted", "no_cp1_stay", "no_cp1_stay"],
+        }
+    )
+
+    matrix = behavior.build_candidate_overlap({"A", "B", "C"}, candidates, audit)
+
+    assert matrix.attrs["dimension_counts"]["mobile_work_like"] == 2
+    assert matrix.attrs["dimension_counts"]["OFFICE_abstained"] == 2
+    assert matrix.attrs["mobile_work_like_intersections"] == {
+        "multiple_anchor": 1,
+        "motif_repeatable": 1,
+        "OFFICE_emitted": 1,
+        "OFFICE_abstained": 1,
+    }
+    assert "user_id" not in matrix.columns
+    assert "user_id" not in matrix.index

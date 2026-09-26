@@ -11,6 +11,7 @@ import re
 import subprocess
 import tempfile
 import zipfile
+from functools import lru_cache
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
@@ -88,12 +89,45 @@ def _point_day_columns(*, include_helpers: bool = False) -> list[str]:
     return POINT_DAY_COLUMNS + (_POINT_DAY_HELPER_COLUMNS if include_helpers else [])
 
 
-# CP1 audit rows are allocated to the UTC-local day of their event timestamp.
-# This preserves terminal/discarded events that no retained row can carry.
+# Audit rows lack coordinates, so their UTC calendar date retains discarded-event coverage
+# without falsely treating it as coordinate-local observation.
 def _audit_counts_by_day(audit: pd.DataFrame) -> pd.Series:
     if audit.empty:
         return pd.Series(dtype="int64")
     return audit.groupby(audit["timestamp"].dt.date, sort=True).size()
+
+
+@lru_cache(maxsize=1)
+def _timezone_finder() -> Any:
+    try:
+        from timezonefinder import TimezoneFinder
+    except ImportError as error:
+        raise RuntimeError(
+            "timezonefinder==9.0.0 is required for all-resolved behavior EDA; "
+            "install it before running --stage behavior"
+        ) from error
+    return TimezoneFinder(in_memory=True)
+
+
+def _timezone_for_coordinates(latitude: float, longitude: float) -> str | None:
+    return _timezone_finder().timezone_at(lng=float(longitude), lat=float(latitude))
+
+
+def _localize_cleaned_points(points: pd.DataFrame) -> pd.DataFrame:
+    result = points.copy()
+    result["timestamp"] = pd.to_datetime(result["timestamp"], utc=True)
+    result["timezone_id"] = [
+        _timezone_for_coordinates(latitude, longitude)
+        for latitude, longitude in zip(result["latitude"], result["longitude"], strict=True)
+    ]
+    result = result.loc[result["timezone_id"].notna()].copy()
+    result["local_date"] = pd.Series([None] * len(result), index=result.index, dtype="object")
+    result["local_hour"] = pd.Series([pd.NA] * len(result), index=result.index, dtype="Int64")
+    for timezone_id, indices in result.groupby("timezone_id").groups.items():
+        local = result.loc[indices, "timestamp"].dt.tz_convert(ZoneInfo(timezone_id))
+        result.loc[indices, "local_date"] = local.dt.date
+        result.loc[indices, "local_hour"] = local.dt.hour
+    return result
 
 
 def _aggregate_point_days(point_days: pd.DataFrame) -> pd.DataFrame:
@@ -439,10 +473,102 @@ def compute_schedule_stability(daily: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def build_daily_motifs(stays: pd.DataFrame) -> pd.DataFrame:
-    """Encode ordered daily stays with deterministic labels, never coordinate values."""
+def _numeric_values(frame: pd.DataFrame, column: str) -> list[float]:
+    return pd.to_numeric(frame.get(column, pd.Series(dtype=float)), errors="coerce").dropna().tolist()
+
+
+def _distribution_summary(values: list[float]) -> dict[str, float | int]:
+    series = pd.Series(values, dtype=float).dropna()
+    return {
+        "count": len(series),
+        "median": float(series.median()) if not series.empty else 0.0,
+        "q1": float(series.quantile(0.25)) if not series.empty else 0.0,
+        "q3": float(series.quantile(0.75)) if not series.empty else 0.0,
+    }
+
+
+def _eligible_weekly_profiles(daily: pd.DataFrame) -> dict[str, list[np.ndarray]]:
+    stability = compute_schedule_stability(daily).set_index("user_id")
+    eligible_users = set(stability.index[stability["schedule_status"].eq("eligible")])
+    source = daily.loc[daily["usable_for_temporal_profile"]].copy()
+    source["week"] = pd.to_datetime(source["local_date"]).dt.to_period("W").astype(str)
+    profiles: dict[str, list[np.ndarray]] = {}
+    for user_id, user_days in source.groupby("user_id", sort=True):
+        if user_id not in eligible_users:
+            continue
+        weekly = [
+            np.sum(week["hourly_dwell"].tolist(), axis=0)
+            for _, week in user_days.groupby("week", sort=True)
+            if week["dwell_h"].sum() > 0
+        ]
+        if len(weekly) >= 2:
+            profiles[user_id] = weekly
+    return profiles
+
+
+def compute_schedule_jsd_calibration(
+    daily: pd.DataFrame, *, seed: int, n_permutations: int
+) -> dict[str, dict[str, float | int]]:
+    """Compare supported within-user schedules with cross-user and shuffled-week nulls."""
+    profiles = _eligible_weekly_profiles(daily)
+    within = [
+        _jsd(left, right)
+        for weekly in profiles.values()
+        for index, left in enumerate(weekly)
+        for right in weekly[index + 1:]
+    ]
+    weekly_rows = [(user_id, profile) for user_id, weekly in profiles.items() for profile in weekly]
+    cross_pairs = [
+        _jsd(left, right)
+        for index, (left_user, left) in enumerate(weekly_rows)
+        for right_user, right in weekly_rows[index + 1:]
+        if left_user != right_user
+    ]
+    generator = np.random.default_rng(seed)
+    between = (
+        generator.choice(cross_pairs, size=min(len(within), len(cross_pairs)), replace=False).tolist()
+        if within and cross_pairs
+        else []
+    )
+    source = daily.loc[daily["usable_for_temporal_profile"]].copy()
+    source["week"] = pd.to_datetime(source["local_date"]).dt.to_period("W").astype(str)
+    shuffled: list[float] = []
+    for user_id, weekly in profiles.items():
+        user_days = source.loc[source["user_id"].eq(user_id)]
+        week_sizes = user_days.groupby("week", sort=True).size().tolist()
+        day_profiles = user_days["hourly_dwell"].tolist()
+        for _ in range(n_permutations):
+            order = generator.permutation(len(day_profiles))
+            start = 0
+            null_profiles = []
+            for size in week_sizes:
+                indices = order[start:start + size]
+                null_profiles.append(np.sum([day_profiles[index] for index in indices], axis=0))
+                start += size
+            shuffled.extend(
+                _jsd(left, right)
+                for index, left in enumerate(null_profiles)
+                for right in null_profiles[index + 1:]
+            )
+    return {
+        "within_user": _distribution_summary(within),
+        "between_user": _distribution_summary(between),
+        "shuffled_week": _distribution_summary(shuffled),
+    }
+
+
+def build_daily_motifs(
+    stays: pd.DataFrame, usable_days: pd.DataFrame | None = None
+) -> pd.DataFrame:
+    """Encode deterministic motifs only on days with usable stay support."""
+    source = stays
+    if usable_days is not None:
+        supported = usable_days.loc[
+            usable_days["usable_for_motif"], ["user_id", "local_date"]
+        ].drop_duplicates()
+        source = stays.merge(supported, on=["user_id", "local_date"], how="inner")
     rows = []
-    for (user_id, local_date), day in stays.groupby(["user_id", "local_date"], sort=True):
+    for (user_id, local_date), day in source.groupby(["user_id", "local_date"], sort=True):
         sequence = day.sort_values("arrival_time_local", kind="stable")["location_id"].tolist()
         rows.append(
             {"user_id": user_id, "local_date": local_date, "motif": "→".join(f"L{location}" for location in sequence)}
@@ -455,11 +581,15 @@ def build_user_behavior_features(
 ) -> pd.DataFrame:
     """Produce compact coverage, recurrence, and movement summaries for the exploratory EDA."""
     daily = build_user_day_features(stays, point_days)
-    motifs = build_daily_motifs(stays)
+    motifs = build_daily_motifs(stays, daily.loc[:, ["user_id", "local_date", "usable_for_motif"]])
     rows = []
     for user_id, user_days in daily.groupby("user_id", sort=True):
         user_stays = stays.loc[stays["user_id"] == user_id]
-        location_dwell = user_stays.groupby("location_id")["duration_s"].sum().sort_values(ascending=False)
+        location_summary = user_stays.groupby("location_id").agg(
+            total_dwell_s=("duration_s", "sum"), stay_count=("duration_s", "size")
+        )
+        location_dwell = location_summary["total_dwell_s"].sort_values(ascending=False)
+        recurring_location_count = int(location_summary["stay_count"].ge(2).sum())
         shares = location_dwell / location_dwell.sum() if not location_dwell.empty else pd.Series(dtype=float)
         user_motifs = motifs.loc[motifs["user_id"] == user_id, "motif"]
         motif_counts = user_motifs.value_counts()
@@ -470,6 +600,11 @@ def build_user_behavior_features(
         weekday_dwell_h = float(user_days.loc[user_days["local_weekday"] < 5, "dwell_h"].sum())
         weekend_dwell_h = float(user_days.loc[user_days["local_weekday"] >= 5, "dwell_h"].sum())
         total_dwell_h = weekday_dwell_h + weekend_dwell_h
+        usable_days = user_days.loc[user_days["usable_for_temporal_profile"]]
+        usable_active_days = len(usable_days)
+        usable_distance_km = float(usable_days.get("cleaned_distance_km", pd.Series(dtype=float)).sum())
+        usable_movement_h = float(usable_days.get("movement_duration_proxy_h", pd.Series(dtype=float)).sum())
+        usable_boundaries = float(usable_days.get("boundary_count", pd.Series(dtype=float)).sum())
         weekday_motifs = motifs.loc[
             (motifs["user_id"] == user_id)
             & (pd.to_datetime(motifs["local_date"]).dt.weekday < 5),
@@ -486,8 +621,10 @@ def build_user_behavior_features(
                 "active_days": len(user_days),
                 "usable_temporal_days": int(user_days["usable_for_temporal_profile"].sum()),
                 "usable_motif_days": int(user_days["usable_for_motif"].sum()),
+                "usable_active_days": usable_active_days,
                 "cp1_stay_count": len(user_stays),
-                "recurring_location_count": len(location_dwell),
+                "semantic_location_count": len(location_dwell),
+                "recurring_location_count": recurring_location_count,
                 "top_1_dwell_share": float(shares.iloc[:1].sum()) if not shares.empty else 0.0,
                 "top_2_dwell_share": float(shares.iloc[:2].sum()) if not shares.empty else 0.0,
                 "top_3_dwell_share": float(shares.iloc[:3].sum()) if not shares.empty else 0.0,
@@ -502,6 +639,9 @@ def build_user_behavior_features(
                 "weekend_motif_stability": float(weekend_motifs.value_counts(normalize=True).iloc[0]) if not weekend_motifs.empty else 0.0,
                 "cleaned_distance_km": float(user_days.get("cleaned_distance_km", pd.Series(dtype=float)).sum()),
                 "movement_duration_proxy_h": float(user_days.get("movement_duration_proxy_h", pd.Series(dtype=float)).sum()),
+                "distance_per_usable_day_km": usable_distance_km / usable_active_days if usable_active_days else 0.0,
+                "movement_proxy_per_usable_day_h": usable_movement_h / usable_active_days if usable_active_days else 0.0,
+                "boundary_count_per_usable_day": usable_boundaries / usable_active_days if usable_active_days else 0.0,
             }
         )
     return pd.DataFrame(rows)
@@ -670,14 +810,16 @@ def _anchor_count_class(summary: pd.DataFrame) -> str:
     return "multiple_anchor"
 
 
-def run_location_sensitivity(stays: pd.DataFrame) -> pd.DataFrame:
+def run_location_sensitivity(
+    stays: pd.DataFrame, usable_days: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """Summarize the specified 100/200/300 m recurrence sensitivity outcomes."""
     if "local_date" not in stays:
         raise ValueError("stays must include local_date")
     variants: dict[float, tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]] = {}
     for threshold_m in (100.0, 200.0, 300.0):
         clustered, summary = cluster_behavior_locations(stays, threshold_m)
-        motifs = build_daily_motifs(clustered)
+        motifs = build_daily_motifs(clustered, usable_days)
         variants[threshold_m] = (clustered, summary, motifs)
     baseline_clustered, _baseline_summary, baseline_motifs = variants[200.0]
 
@@ -734,6 +876,7 @@ class AnalysisResults:
         archetype_candidates: pd.DataFrame,
         case_studies: pd.DataFrame,
         summary: dict[str, object],
+        validation_tables: dict[str, pd.DataFrame] | None = None,
     ) -> None:
         self.features = features
         self.baseline_audit = baseline_audit
@@ -741,6 +884,7 @@ class AnalysisResults:
         self.archetype_candidates = archetype_candidates
         self.case_studies = case_studies
         self.summary = summary
+        self.validation_tables = validation_tables or {}
 
 
 def _empirical_thresholds(features: pd.DataFrame) -> dict[str, float]:
@@ -828,6 +972,82 @@ def build_outlier_audit(candidates: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def build_behavioral_extreme_audit(features: pd.DataFrame) -> pd.DataFrame:
+    """Challenge behavioral extremes independently from semantic candidate wrappers."""
+    result = features.loc[pd.to_numeric(features["usable_temporal_days"], errors="coerce").ge(6)].copy()
+    mobility = pd.to_numeric(result.get("distance_per_usable_day_km"), errors="coerce")
+    spatial = pd.to_numeric(result.get("recurring_location_count"), errors="coerce")
+    temporal = pd.concat(
+        [
+            pd.to_numeric(result.get("hour_entropy"), errors="coerce"),
+            pd.to_numeric(result.get("motif_entropy"), errors="coerce"),
+        ],
+        axis=1,
+    ).max(axis=1)
+    result["mobility_extreme"] = mobility.ge(mobility.quantile(0.9))
+    result["spatial_extreme"] = spatial.ge(spatial.quantile(0.9))
+    result["temporal_extreme"] = temporal.ge(temporal.quantile(0.9))
+    result["behavioral_extreme"] = result[["mobility_extreme", "spatial_extreme", "temporal_extreme"]].any(axis=1)
+    repeatability_signals = pd.DataFrame(
+        {
+            "schedule": result.get("schedule_status", pd.Series("insufficient", index=result.index)).eq("eligible"),
+            "motif": pd.to_numeric(result.get("motif_frequency", 0), errors="coerce").ge(0.5)
+            & pd.to_numeric(result.get("usable_motif_days", 0), errors="coerce").ge(1),
+            "anchors": spatial.ge(2),
+        }
+    )
+    result["quality_boundary"] = pd.to_numeric(result.get("cp1_boundary_count", 0), errors="coerce").fillna(0).gt(0)
+    result["independently_coherent"] = (
+        result["behavioral_extreme"]
+        & repeatability_signals.sum(axis=1).ge(2)
+        & ~result["quality_boundary"]
+    )
+    result["manual_review"] = result["behavioral_extreme"] & ~result["independently_coherent"]
+    return result.loc[:, [
+        "user_id", "mobility_extreme", "spatial_extreme", "temporal_extreme", "behavioral_extreme",
+        "quality_boundary", "independently_coherent", "manual_review",
+    ]]
+
+
+def build_candidate_overlap(
+    release_users: set[str], candidates: pd.DataFrame, baseline_audit: pd.DataFrame
+) -> pd.DataFrame:
+    """Return an identifier-free full-universe pairwise candidate overlap matrix."""
+    universe = pd.DataFrame({"user_id": sorted(release_users)})
+    source = candidates.set_index("user_id")
+    for output, source_column in (
+        ("shifted", "stable_shifted_candidate"),
+        ("mobile_work_like", "mobile_work_like_candidate"),
+    ):
+        universe[output] = universe["user_id"].map(source.get(source_column, pd.Series(dtype=bool))).eq(True)
+    recurring = pd.to_numeric(universe["user_id"].map(source.get("recurring_location_count", pd.Series(dtype=float))), errors="coerce").fillna(0)
+    stays = pd.to_numeric(universe["user_id"].map(source.get("cp1_stay_count", pd.Series(dtype=float))), errors="coerce").fillna(0)
+    motifs = pd.to_numeric(universe["user_id"].map(source.get("motif_frequency", pd.Series(dtype=float))), errors="coerce").fillna(0)
+    motif_days = pd.to_numeric(universe["user_id"].map(source.get("usable_motif_days", pd.Series(dtype=float))), errors="coerce").fillna(0)
+    universe["multiple_anchor"] = stays.gt(0) & recurring.ge(3)
+    universe["motif_repeatable"] = motifs.ge(0.5) & motif_days.ge(1)
+    for label in ("HOME", "OFFICE"):
+        emitted_users = set(baseline_audit.loc[(baseline_audit["label"] == label) & (baseline_audit["reject_reason"] == "emitted"), "user_id"])
+        universe[f"{label}_emitted"] = universe["user_id"].isin(emitted_users)
+        universe[f"{label}_abstained"] = ~universe[f"{label}_emitted"]
+    columns = [
+        "shifted", "mobile_work_like", "multiple_anchor", "motif_repeatable",
+        "HOME_emitted", "HOME_abstained", "OFFICE_emitted", "OFFICE_abstained",
+    ]
+    matrix = pd.DataFrame(
+        [[int((universe[left] & universe[right]).sum()) for right in columns] for left in columns],
+        index=columns,
+        columns=columns,
+    )
+    mobile = universe["mobile_work_like"]
+    matrix.attrs["dimension_counts"] = {column: int(universe[column].sum()) for column in columns}
+    matrix.attrs["mobile_work_like_intersections"] = {
+        column: int((mobile & universe[column]).sum())
+        for column in ("multiple_anchor", "motif_repeatable", "OFFICE_emitted", "OFFICE_abstained")
+    }
+    return matrix
+
+
 def select_case_studies(features: pd.DataFrame, seed: int = 42) -> pd.DataFrame:
     """Choose deterministic, non-identifying case inputs; retain the mapping privately elsewhere."""
     ranked = features.copy()
@@ -897,7 +1117,7 @@ def _summary_count(summary: dict[str, object], key: str) -> int:
 
 
 def _median(features: pd.DataFrame, column: str) -> float:
-    values = pd.to_numeric(features.get(column), errors="coerce").dropna()
+    values = pd.to_numeric(features.get(column, pd.Series(dtype=float)), errors="coerce").dropna()
     return float(values.median()) if not values.empty else 0.0
 
 
@@ -911,8 +1131,9 @@ def _aggregate_summary(
     """Summarize private behavioral tables into report-safe cohort evidence."""
     status = features.get("schedule_status", pd.Series("insufficient", index=features.index))
     eligible = features.loc[status.eq("eligible")]
+    stay_mask = pd.to_numeric(features.get("cp1_stay_count", 0), errors="coerce").fillna(0).gt(0)
     anchor_class = pd.cut(
-        pd.to_numeric(features.get("recurring_location_count", 0), errors="coerce").fillna(0),
+        pd.to_numeric(features.loc[stay_mask, "recurring_location_count"], errors="coerce").fillna(0),
         bins=[-1, 0, 1, 2, np.inf], labels=["no_stable_anchor", "dominant_anchor", "two_anchor", "multiple_anchor"],
     )
     non_window = features.get("shifted_peak", pd.Series(False, index=features.index)).fillna(False).astype(bool)
@@ -925,8 +1146,18 @@ def _aggregate_summary(
         }
         for label in ("HOME", "OFFICE")
     }
+    stay_users = int(pd.to_numeric(features.get("cp1_stay_count", 0), errors="coerce").fillna(0).gt(0).sum())
+    schedule_supported_stay_users = int((status.eq("eligible") & stay_mask).sum())
+    usable_mobility = features.loc[
+        pd.to_numeric(features.get("usable_active_days", pd.Series(0, index=features.index)), errors="coerce").fillna(0).gt(0)
+    ]
     return {
         "coverage": {
+            "release_users": len(features),
+            "no_cp1_stay_users": int(len(features) - stay_users),
+            "stay_users": stay_users,
+            "schedule_supported_users": schedule_supported_stay_users,
+            "stay_users_failing_schedule_support": stay_users - schedule_supported_stay_users,
             "feature_users": len(features),
             "eligible_schedule_users": int(status.eq("eligible").sum()),
             "insufficient_schedule_users": int(status.ne("eligible").sum()),
@@ -938,7 +1169,11 @@ def _aggregate_summary(
             "non_window_repeated_users": int((non_window & status.eq("eligible")).sum()),
             "shifted_peak_users": int(non_window.sum()),
         },
-        "anchors": {str(key): int(value) for key, value in anchor_class.value_counts().items()},
+        "anchors": {
+            **{str(key): int(value) for key, value in anchor_class.value_counts().items()},
+            "stay_users": stay_users,
+            "no_cp1_stay_users": int(len(features) - stay_users),
+        },
         "comparator_reasons": reasons,
         "abstention_support": {
             "sparse_or_insufficient": int(sparse.sum()),
@@ -956,6 +1191,15 @@ def _aggregate_summary(
         "mobility": {
             "median_cleaned_distance_km": _median(features, "cleaned_distance_km"),
             "median_movement_proxy_h": _median(features, "movement_duration_proxy_h"),
+            "distance_per_usable_day_km": _distribution_summary(
+                _numeric_values(usable_mobility, "distance_per_usable_day_km")
+            ),
+            "movement_proxy_per_usable_day_h": _distribution_summary(
+                _numeric_values(usable_mobility, "movement_proxy_per_usable_day_h")
+            ),
+            "boundary_count_per_usable_day": _distribution_summary(
+                _numeric_values(usable_mobility, "boundary_count_per_usable_day")
+            ),
         },
     }
 
@@ -974,6 +1218,9 @@ def render_report(summary: dict[str, object]) -> str:
     outliers = summary.get("outliers", {})
     poi = summary.get("poi_feasibility", {})
     mobility = summary.get("mobility", {})
+    calibration = summary.get("schedule_calibration", {})
+    extreme = summary.get("extreme_challenge", {})
+    overlap = summary.get("candidate_overlap", {})
     source = "`artifacts/03a/summary.json`"
     coverage_figure = "`artifacts/03a/figures/coverage.png`"
     case_figure = "`artifacts/03a/figures/case_a.png`"
@@ -995,16 +1242,25 @@ No occupation labels, semantic POI labels, precise coordinates, raw identifiers,
 The release reconciliation retained {reconciliation.get('stays', 0):,} stays from {reconciliation.get('stay_users', 0)} users in a {reconciliation.get('release_users', 0)}-user universe; frozen-v1 emitted {comparator.get('HOME', 0)} HOME and {comparator.get('OFFICE', 0)} OFFICE comparator outputs ({source}).
 
 ## Coverage
-All {coverage.get('feature_users', 0)} release users are represented; {coverage.get('eligible_schedule_users', 0)} meet schedule support and {coverage.get('insufficient_schedule_users', 0)} remain insufficient. Median coverage was {coverage.get('median_active_days', 0):.1f} active days and {coverage.get('median_usable_temporal_days', 0):.1f} usable temporal days ({source}; {coverage_figure}).
+Release users: {coverage.get('release_users', coverage.get('feature_users', 0))}; no CP1 stay: {coverage.get('no_cp1_stay_users', 0)}; users with CP1 stays: {coverage.get('stay_users', 0)}; schedule-supported users: {coverage.get('schedule_supported_users', coverage.get('eligible_schedule_users', 0))}; stay-users failing schedule support: {coverage.get('stay_users_failing_schedule_support', 0)}. Median coverage was {coverage.get('median_active_days', 0):.1f} active days and {coverage.get('median_usable_temporal_days', 0):.1f} usable temporal days ({source}; {coverage_figure}).
+
+## Schedule calibration
+Supported within-user weekly JSD had median {calibration.get('within_user', {}).get('median', 0):.3f} (IQR {calibration.get('within_user', {}).get('q1', 0):.3f}–{calibration.get('within_user', {}).get('q3', 0):.3f}), versus between-user {calibration.get('between_user', {}).get('median', 0):.3f} and shuffled-week null {calibration.get('shuffled_week', {}).get('median', 0):.3f}. These distributions calibrate personal structure; they do not set a universal stability threshold ({source}).
 
 ## Heterogeneity
-At 200 m, anchor classes were {anchors.get('dominant_anchor', 0)} dominant, {anchors.get('two_anchor', 0)} two-anchor, {anchors.get('multiple_anchor', 0)} multiple-anchor, and {anchors.get('no_stable_anchor', 0)} without a stable anchor ({source}).
+Among {anchors.get('stay_users', 0)} users with CP1 stays, 200 m anchor classes were {anchors.get('dominant_anchor', 0)} dominant, {anchors.get('two_anchor', 0)} two-anchor, {anchors.get('multiple_anchor', 0)} multiple-anchor, and {anchors.get('no_stable_anchor', 0)} without a stable anchor; {anchors.get('no_cp1_stay_users', 0)} release users had no detected CP1 stay ({source}).
 
 ## Schedules
-Among supported users, median weekly schedule JSD was {schedule.get('eligible_jsd_median', 0):.3f}; {schedule.get('non_window_repeated_users', 0)} supported users had repeatable peaks outside frozen comparison windows ({source}).
+The calibrated supported within-user weekly JSD median was {calibration.get('within_user', {}).get('median', 0):.3f}, versus between-user {calibration.get('between_user', {}).get('median', 0):.3f} and shuffled-week null {calibration.get('shuffled_week', {}).get('median', 0):.3f}; {schedule.get('non_window_repeated_users', 0)} supported users had repeatable peaks outside frozen comparison windows. The current JSD check does not establish personalized schedule structure ({source}).
 
 ## Mobility
-Median cleaned-point distance was {mobility.get('median_cleaned_distance_km', 0):.1f} km and median movement-duration proxy was {mobility.get('median_movement_proxy_h', 0):.1f} h; these are cleaned-point proxies, not stay-to-stay travel ({source}).
+Across usable temporal-profile days, median cleaned-point distance was {mobility.get('distance_per_usable_day_km', {}).get('median', 0):.1f} km/day (IQR {mobility.get('distance_per_usable_day_km', {}).get('q1', 0):.1f}–{mobility.get('distance_per_usable_day_km', {}).get('q3', 0):.1f}), movement-duration proxy was {mobility.get('movement_proxy_per_usable_day_h', {}).get('median', 0):.1f} h/day, and boundary count was {mobility.get('boundary_count_per_usable_day', {}).get('median', 0):.1f}/day. Lifetime totals remain {mobility.get('median_cleaned_distance_km', 0):.1f} km and {mobility.get('median_movement_proxy_h', 0):.1f} h; all are cleaned-point proxies, not stay-to-stay travel ({source}).
+
+## Candidate overlap
+Of {overlap.get('dimension_counts', {}).get('mobile_work_like', 0)} mobile-work-like candidates, {overlap.get('mobile_work_like_intersections', {}).get('multiple_anchor', 0)} also had multiple anchors, {overlap.get('mobile_work_like_intersections', {}).get('motif_repeatable', 0)} had repeatable usable-day motifs, {overlap.get('mobile_work_like_intersections', {}).get('OFFICE_emitted', 0)} emitted frozen OFFICE, and {overlap.get('mobile_work_like_intersections', {}).get('OFFICE_abstained', 0)} abstained. This is a behavioral overlap audit, not a new semantic rule ({source}; `artifacts/03a/candidate_overlap.csv`).
+
+## Extreme-pattern challenge
+The independent top-decile challenge identified {extreme.get('behavioral_extreme', 0)} behavioral extremes, of which {extreme.get('independently_coherent', 0)} were coherent across independent repeatability evidence, {extreme.get('quality_boundary', 0)} had quality-boundary evidence, and {extreme.get('manual_review', 0)} remained for review. It challenges rather than replaces the existing outlier wrapper ({source}; `artifacts/03a/behavioral_extreme_audit.csv`).
 
 ## Abstentions
 Comparator gates were HOME [{_reason_text(home_reasons)}] and OFFICE [{_reason_text(office_reasons)}], with one ordered reason per label and release user ({source}; `artifacts/03a/baseline_user_audit.csv`).
@@ -1019,7 +1275,7 @@ Comparator gates were HOME [{_reason_text(home_reasons)}] and OFFICE [{_reason_t
 The aggregate separates {outliers.get('data_quality_event', 0)} data-quality boundary cases from {outliers.get('rare_but_coherent', 0)} rare-but-coherent patterns; {outliers.get('needs_manual_review', 0)} aggregate audit rows retain a manual-review condition ({source}; `artifacts/03a/outlier_audit.csv`).
 
 ## POI feasibility
-{poi.get('recurring_anchor_users', 0)} users had at least one recurring anchor and {poi.get('repeatable_motif_users', 0)} had a motif occurring on at least half of observed motif days. This supports recurrence feasibility only, not category, favorite, or recommender claims ({source}).
+{poi.get('recurring_anchor_users', 0)} users had at least one recurring anchor and {poi.get('repeatable_motif_users', 0)} had a motif occurring on at least half of usable motif days. This supports recurrence feasibility only, not category, favorite, or recommender claims ({source}).
 
 ## Cases
 The private case set contains deterministic aliases only. Each alias figure combines temporal histogram, weekday-hour dwell heatmap, top `L*` dwell shares, daily distance/proxy, and daily motifs; it is private and non-map-based ({case_figure}; `artifacts/03a/case_studies.csv`).
@@ -1031,10 +1287,10 @@ Location sensitivity was: {sensitivity_rows}; all values are exploratory thresho
 {abstention.get('sparse_or_insufficient', 0)} users were sparse or insufficient while {abstention.get('coherent_non_emitting', 0)} showed rare coherent patterns, so non-emission cannot be reduced to one behavioral explanation ({source}).
 
 ## Q1
-How heterogeneous are anchors? The 200 m distribution is {anchors.get('dominant_anchor', 0)}/{anchors.get('two_anchor', 0)}/{anchors.get('multiple_anchor', 0)}/{anchors.get('no_stable_anchor', 0)} across dominant/two/multiple/no-stable classes ({source}).
+How heterogeneous are anchors? Among {anchors.get('stay_users', 0)} users with CP1 stays, the 200 m distribution is {anchors.get('dominant_anchor', 0)}/{anchors.get('two_anchor', 0)}/{anchors.get('multiple_anchor', 0)}/{anchors.get('no_stable_anchor', 0)} across dominant/two/multiple/no-stable classes; {anchors.get('no_cp1_stay_users', 0)} release users had no detected CP1 stay ({source}).
 
 ## Q2
-Is schedule evidence well supported? {coverage.get('eligible_schedule_users', 0)} users met all support gates versus {coverage.get('insufficient_schedule_users', 0)} insufficient users; supported median weekly JSD was {schedule.get('eligible_jsd_median', 0):.3f} ({source}; {coverage_figure}).
+Is schedule evidence well supported? {coverage.get('schedule_supported_users', coverage.get('eligible_schedule_users', 0))} users met all support gates; the calibrated within-user weekly JSD median was {calibration.get('within_user', {}).get('median', 0):.3f}, versus between-user {calibration.get('between_user', {}).get('median', 0):.3f} and shuffled-week null {calibration.get('shuffled_week', {}).get('median', 0):.3f}. Current JSD evidence does not establish personalized schedule structure ({source}; {coverage_figure}).
 
 ## Q3
 Do repeated non-window patterns exist? {schedule.get('non_window_repeated_users', 0)} supported users had repeatable non-window peaks; this is descriptive schedule evidence, not a replacement label ({source}).
@@ -1046,7 +1302,7 @@ Are abstentions sparse or coherent? {abstention.get('sparse_or_insufficient', 0)
 Are shifted or mobile candidates present? {regimes.get('stable_shifted_candidate', 0)} stable shifted and {regimes.get('mobile_work_like_candidate', 0)} mobile-work-like candidates meet their separate descriptive wrappers ({source}).
 
 ## Q6
-What anchor evidence is available for feasibility? {poi.get('recurring_anchor_users', 0)} users have recurring anchors, but only recurrence, dwell, and temporal regularity are measured ({source}).
+What anchor evidence is available for feasibility? {poi.get('recurring_anchor_users', 0)} users have recurring anchors; {anchors.get('no_stable_anchor', 0)} stay-bearing users lack one and {anchors.get('no_cp1_stay_users', 0)} release users have no CP1 stay. Only recurrence, dwell, and temporal regularity are measured ({source}).
 
 ## Q7
 Which comparator gates dominate? HOME [{_reason_text(home_reasons)}] and OFFICE [{_reason_text(office_reasons)}] retain every observed gate count in the ordered audit ({source}; `artifacts/03a/baseline_user_audit.csv`).
@@ -1058,7 +1314,7 @@ Can rare patterns be separated from quality events? {outliers.get('rare_but_cohe
 What do private cases add? The deterministic case set provides {summary.get('case_count', 0)} alias-only visual audits with the required five compact evidence views, without raw identifiers or coordinates ({source}; {case_figure}).
 
 ## Q10
-What limits POI conclusions? {poi.get('repeatable_motif_users', 0)} users have repeatable motifs, but no enrichment, categories, favorites, or recommendations were queried or inferred ({source}).
+What limits POI conclusions? {poi.get('repeatable_motif_users', 0)} users have repeatable motifs on usable motif days, but no enrichment, categories, favorites, or recommendations were queried or inferred ({source}).
 
 ## Next experiments
 Preserve frozen CP1 and CP2 v1. First evaluate the ordered comparator reason counts against separately approved validation; then test schedule-window and recurrence sensitivity only among adequately supported users; finally, consider POI enrichment only after an approved privacy and evaluation design ({source}).
@@ -1187,8 +1443,21 @@ def run_full_eda(zip_path: Path, root: Path, *, seed: int = 42) -> AnalysisResul
     features = _enrich_features(features, daily, stability, baseline_audit)
     candidates = assign_behavioral_candidates(features)
     outlier_audit = build_outlier_audit(candidates)
+    extreme_audit = build_behavioral_extreme_audit(candidates)
+    overlap_matrix = build_candidate_overlap(release_users, candidates, baseline_audit)
+    schedule_calibration = compute_schedule_jsd_calibration(daily, seed=seed, n_permutations=20)
     cases = select_case_studies(candidates, seed=seed)
-    sensitivity = run_location_sensitivity(resolved)
+    sensitivity = run_location_sensitivity(
+        resolved, daily.loc[:, ["user_id", "local_date", "usable_for_motif"]]
+    )
+    extreme_summary = {
+        "behavioral_extreme": int(extreme_audit["behavioral_extreme"].sum()),
+        "independently_coherent": int(extreme_audit["independently_coherent"].sum()),
+        "quality_boundary": int(
+            (extreme_audit["behavioral_extreme"] & extreme_audit["quality_boundary"]).sum()
+        ),
+        "manual_review": int(extreme_audit["manual_review"].sum()),
+    }
     summary: dict[str, object] = {
         "run_status": "complete",
         "seed": seed,
@@ -1196,10 +1465,28 @@ def run_full_eda(zip_path: Path, root: Path, *, seed: int = 42) -> AnalysisResul
         "comparator_emissions": {"HOME": int(emissions.get("HOME", 0)), "OFFICE": int(emissions.get("OFFICE", 0))},
         "regimes": {column: int(candidates[column].sum()) for column in ("stable_shifted_candidate", "mobile_work_like_candidate")},
         "location_sensitivity": sensitivity.to_dict(orient="records"),
+        "schedule_calibration": schedule_calibration,
+        "extreme_challenge": extreme_summary,
+        "candidate_overlap": {
+            "dimension_counts": overlap_matrix.attrs["dimension_counts"],
+            "mobile_work_like_intersections": overlap_matrix.attrs["mobile_work_like_intersections"],
+            "matrix": overlap_matrix.to_dict(),
+        },
         "case_count": len(cases),
         **_aggregate_summary(candidates, baseline_audit, outlier_audit),
     }
-    results = AnalysisResults(features=candidates, baseline_audit=baseline_audit, outlier_audit=outlier_audit, archetype_candidates=candidates, case_studies=cases, summary=summary)
+    results = AnalysisResults(
+        features=candidates,
+        baseline_audit=baseline_audit,
+        outlier_audit=outlier_audit,
+        archetype_candidates=candidates,
+        case_studies=cases,
+        summary=summary,
+        validation_tables={
+            "behavioral_extreme_audit": extreme_audit,
+            "candidate_overlap": overlap_matrix.reset_index(names="candidate"),
+        },
+    )
     write_outputs(results, root)
     figure_root = root / ARTIFACT_DIR / "figures"
     _write_coverage_figure(candidates, figure_root / "coverage.png")
@@ -1217,6 +1504,15 @@ def write_outputs(results: AnalysisResults, root: Path) -> None:
     _safe_csv(results.baseline_audit, artifact_root / "baseline_user_audit.csv", retain_user_id=True)
     _safe_csv(results.outlier_audit, artifact_root / "outlier_audit.csv")
     _safe_csv(results.archetype_candidates, artifact_root / "archetype_candidates.csv", retain_user_id=True)
+    _safe_csv(
+        results.validation_tables.get("behavioral_extreme_audit", pd.DataFrame()),
+        artifact_root / "behavioral_extreme_audit.csv",
+        retain_user_id=True,
+    )
+    _safe_csv(
+        results.validation_tables.get("candidate_overlap", pd.DataFrame()),
+        artifact_root / "candidate_overlap.csv",
+    )
     case_mapping = results.case_studies.attrs.get("private_case_mapping")
     _safe_csv(
         case_mapping if isinstance(case_mapping, pd.DataFrame) else results.case_studies,
@@ -1254,13 +1550,11 @@ def process_trajectory(
         ).assign(user_id=user_id, source_file=source_file)
         stays = stays.loc[:, STAY_COLUMNS]
 
-    points = cleaned.copy()
-    points["local_date"] = points["timestamp"].dt.date
-    points["local_hour"] = points["timestamp"].dt.hour
+    points = _localize_cleaned_points(cleaned)
     audit_counts = _audit_counts_by_day(audit)
     point_days = {local_date: day for local_date, day in points.groupby("local_date", sort=True)}
     rows = []
-    for local_date in sorted(set(point_days).union(audit_counts.index)):
+    for local_date in [*sorted(point_days), *sorted(set(audit_counts.index).difference(point_days))]:
         day = point_days.get(local_date)
         if day is None:
             rows.append(

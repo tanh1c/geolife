@@ -744,3 +744,15 @@ This result strengthens the motivation for keeping DBSCAN as a benchmark while u
 
 Notebook commit: `147870a9ec2270fecd126df7e9a60a41d01e8d2d`.
 
+## 2026-09-26 — 03a behavior-first EDA checkpoint
+
+03a is frozen as an exploratory evidence checkpoint; it does not alter CP1, the production Home/Office model, or notebook 03.
+
+Measured findings:
+
+- Anchor structure is heterogeneous among 136 stay-bearing users: 19 dominant, 13 two-anchor, 72 multiple-anchor, and 32 with no stable anchor. The 46 remaining release users have no CP1 stay.
+- Schedule calibration does not support personalized schedule inference with the current JSD approach: 46 users meet schedule support, but within-user weekly JSD median is 1.000 (IQR 0.652–1.000), versus 0.904 between-user and 1.000 shuffled-week null.
+- The next hypothesis is the mobile-work-like × OFFICE-abstention regime: all 23 mobile-work-like candidates are multiple-anchor, all 23 abstain under frozen OFFICE, and none emits frozen OFFICE. This is behavioral evidence only, not an occupation or Work label.
+
+The next phase is a narrow 03b hypothesis audit using independent transportation, route/transition, weekday-weekend, sensitivity, and negative-control evidence before considering any Home/Work v2 design.
+

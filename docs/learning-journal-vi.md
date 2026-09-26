@@ -341,3 +341,11 @@ Một lesson quan trọng là `eps=200m` chỉ giới hạn neighbor connectivit
 
 Vì vậy không nên chọn DBSCAN eps chỉ bằng coverage. Nếu muốn threshold có semantics trực tiếp kiểu "location diameter <= X", complete-link phù hợp hơn cho contract này.
 
+## 2026-09-26 — 03a: structure không đồng nhất quan trọng hơn giả định Home/Office đơn giản
+
+Behavior-first EDA 03a được đóng như evidence checkpoint, không phải redesign production. Trong 136 users có CP1 stay, anchor distribution là 19 dominant, 13 two-anchor, 72 multiple-anchor và 32 no-stable-anchor. Vì vậy phần lớn stay-users không khớp trực tiếp với worldview đơn giản `HOME anchor → OFFICE anchor`.
+
+Schedule evidence lại là negative result hữu ích. Dù 46 users đủ support, within-user weekly JSD median là 1.000 (IQR 0.652–1.000), không thấp hơn between-user 0.904 hay shuffled-week null 1.000. Metric hiện tại chưa chứng minh personalized schedule structure; không nên thay 09–17 bằng per-user hours chỉ dựa vào JSD.
+
+Signal đáng đào tiếp là 23 mobile-work-like candidates: cả 23 có multiple anchors, cả 23 bị frozen OFFICE abstain, và không ai OFFICE emitted. Điều này không xác nhận nghề nghiệp hay semantic WORK, nhưng là hypothesis rõ ràng rằng fixed-office baseline có thể bỏ sót một distributed-mobility regime. 03b phải kiểm tra bằng evidence độc lập như mode labels, route/transition recurrence, weekday-weekend contrast, sensitivity và negative controls, không dùng lại wrapper features để tự chứng minh wrapper.
+

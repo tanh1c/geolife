@@ -335,3 +335,11 @@ The key lesson is that `eps=200m` constrains local neighbor connectivity, not to
 
 DBSCAN therefore remains useful as a coverage benchmark, while complete-link clustering is better suited to a contract that needs a directly interpretable maximum-diameter threshold.
 
+## 2026-09-26 — 03a: heterogeneous structure matters more than a simple Home/Office assumption
+
+Behavior-first EDA 03a is closed as an evidence checkpoint, not a production redesign. Among 136 users with CP1 stays, the anchor distribution is 19 dominant, 13 two-anchor, 72 multiple-anchor, and 32 no-stable-anchor. Most stay-bearing users therefore do not directly fit a simple `HOME anchor → OFFICE anchor` worldview.
+
+The schedule result is a useful negative finding. Although 46 users meet support requirements, within-user weekly JSD has median 1.000 (IQR 0.652–1.000), which is not lower than the 0.904 between-user comparator or the 1.000 shuffled-week null. The current metric does not establish personalized schedule structure, so 09–17 should not be replaced with per-user hours on JSD evidence alone.
+
+The next hypothesis is the 23 mobile-work-like candidates: all 23 have multiple anchors, all 23 abstain under frozen OFFICE, and none emits frozen OFFICE. This does not confirm an occupation or semantic WORK label, but it supports testing whether the fixed-office baseline misses a distributed-mobility regime. A 03b audit must use independent evidence—mode labels, route/transition recurrence, weekday-weekend contrast, sensitivity, and negative controls—rather than reusing construction features to validate the wrapper.
+
