@@ -191,3 +191,20 @@ all artifacts/03b paths are ignored
 report contains Q1–Q10 and a research-only decision
 notebook 03 and production inference files unchanged
 ```
+
+## Takeover status — 2026-09-27
+
+A dedicated continuation branch, `eda/03b-audit-completion`, now hardens the two evidence paths that the handoff marked invalid:
+
+- transport execution uses a private resumable per-file cache, skips trajectory files whose raw UTC extent cannot overlap canonical mode windows, applies frozen CP1 cleaning only to overlapping files, and keeps only positive-duration same-sequence segments fully contained in one unambiguous half-open label window;
+- sensitivity now reruns the frozen wrapper under explicit mobility/support perturbations, and the 100 m / 300 m anchor variants recompute clustering-dependent features before candidate selection.
+
+The continuation also adds:
+
+- edge entropy to usable-day `L*→L*` transition evidence;
+- A/B/C observation-support balance with unmatched Group A accounting;
+- explicit negative-control aggregate tables;
+- a measured public-report renderer for Q1–Q10 rather than placeholder “see artifact” text.
+
+These changes are **implementation hardening only**. No new 03b evidence is accepted until the Modal/full-release run, targeted tests, full repository tests, Ruff, privacy checks, and frozen parity all pass.
+
