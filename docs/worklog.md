@@ -756,3 +756,17 @@ Measured findings:
 
 The next phase is a narrow 03b hypothesis audit using independent transportation, route/transition, weekday-weekend, sensitivity, and negative-control evidence before considering any Home/Work v2 design.
 
+## 2026-09-27 — 03b audit takeover prepared
+
+The 03b mobile/distributed-mobility hypothesis audit was taken over from handoff checkpoint `d2a8a5b` on branch `eda/03b-audit-completion`.
+
+Prepared changes:
+
+- bounded/resumable frozen-CP1 transport-segment audit with canonical half-open label containment;
+- genuine candidate sensitivity including 100 m / 300 m clustering-dependent reruns;
+- A/B/C support-balance summaries;
+- recurrent-transition edge entropy and negative-control summaries;
+- measured Q1–Q10 report rendering.
+
+No scientific result from these changes is accepted yet. Full GeoLife execution remains pending in Modal; frozen CP1, frozen CP2/HomeOffice, API behavior, and notebook 03 are unchanged.
+
