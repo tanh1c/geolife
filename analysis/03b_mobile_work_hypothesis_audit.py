@@ -190,81 +190,188 @@ def summarize_sensitivity(frozen: set[str], variants: dict[str, set[str]]) -> pd
 
 
 def render_report(summary: dict[str, object]) -> str:
+    """Render only aggregate, privacy-safe measured evidence."""
     parity = summary.get("parity", {})
     groups = summary.get("groups", {})
+    support = {
+        str(row.get("group")): row
+        for row in summary.get("support_balance", [])
+        if isinstance(row, dict)
+    }
+    modes = {
+        str(row.get("group")): row
+        for row in summary.get("transport_mode", [])
+        if isinstance(row, dict)
+    }
+    transitions = summary.get("transition_summary", {})
+    weekday = summary.get("weekday_weekend", {})
+    sensitivity = summary.get("sensitivity", [])
+    controls = summary.get("negative_controls", [])
+
+    def value(mapping: dict[str, object], key: str, default: object = "n/a") -> object:
+        return mapping.get(key, default) if isinstance(mapping, dict) else default
+
+    def number(raw: object, digits: int = 2) -> str:
+        try:
+            numeric = float(raw)
+        except (TypeError, ValueError):
+            return "n/a"
+        if np.isnan(numeric):
+            return "n/a"
+        return f"{numeric:.{digits}f}"
+
+    sensitivity_lines = "\n".join(
+        (
+            f"- {row.get('variant')}: n={row.get('candidate_count')}, "
+            f"Jaccard={number(row.get('jaccard'), 3)}, retained={row.get('retained')}, "
+            f"added={row.get('added')}, dropped={row.get('dropped')}"
+        )
+        for row in sensitivity
+        if isinstance(row, dict)
+    ) or "- no measured sensitivity rows"
+
+    control_lines = "\n".join(
+        (
+            f"- {row.get('control')}: users={row.get('users')}, "
+            f"median recurrent edges={number(row.get('median_recurrent_edge_count'))}, "
+            f"median edge entropy={number(row.get('median_edge_entropy'))}"
+        )
+        for row in controls
+        if isinstance(row, dict)
+    ) or "- no measured negative-control rows"
+
+    support_status = support.get("A_matching_status", {})
+    support_lines = []
+    for group in ("A", "B", "C"):
+        row = support.get(group, {})
+        support_lines.append(
+            f"- Group {group}: users={value(row, 'users')}, "
+            f"active days median={number(value(row, 'active_days_median'))}, "
+            f"usable temporal days median={number(value(row, 'usable_temporal_days_median'))}, "
+            f"CP1 stays median={number(value(row, 'cp1_stay_count_median'))}"
+        )
+    support_text = "\n".join(support_lines)
+
+    mode_lines = []
+    for group in ("A", "B", "C"):
+        row = modes.get(group, {})
+        mode_lines.append(
+            f"- Group {group}: labeled users={value(row, 'label_users')}, "
+            f"matched users={value(row, 'matched_users')}, "
+            f"median matched h/user={number(value(row, 'median_matched_duration_h_per_user'))}, "
+            f"median matched km/user={number(value(row, 'median_matched_distance_km_per_user'))}, "
+            f"motorized distance share={number(value(row, 'motorized_mode_distance_share'), 3)}"
+        )
+    mode_text = "\n".join(mode_lines)
+
+    route_lines = []
+    for group in ("A", "B", "C"):
+        row = transitions.get(group, {}) if isinstance(transitions, dict) else {}
+        route_lines.append(
+            f"- Group {group}: median transitions={number(value(row, 'median_transition_count'))}, "
+            f"median recurrent edges={number(value(row, 'median_recurrent_edge_count'))}, "
+            f"median edge entropy={number(value(row, 'median_edge_entropy'))}"
+        )
+    route_text = "\n".join(route_lines)
+
+    weekday_lines = []
+    for group in ("A", "B", "C"):
+        row = weekday.get(group, {}) if isinstance(weekday, dict) else {}
+        weekday_lines.append(
+            f"- Group {group}: median weekday-minus-weekend distance "
+            f"={number(value(row, 'median_weekday_weekend_distance_delta'))} km/day"
+        )
+    weekday_text = "\n".join(weekday_lines)
+
     return f"""# Mobile / distributed-work hypothesis audit
 
 ## Status
-Research-only audit over frozen 03a evidence; no production classifier or individual semantic label is created.
+Research-only audit over frozen 03a evidence. No production classifier, occupation inference, true workplace, or semantic WORK label is created.
 
 ## EXECUTIVE RESULT
-Hypothesis decision: {summary.get('decision', 'mixed evidence')}. The frozen set has {parity.get('candidates', 0)} mobile-work-like candidates, with {parity.get('multiple_anchor', 0)} multiple-anchor, {parity.get('office_abstained', 0)} OFFICE-abstained, and {parity.get('office_emitted', 0)} OFFICE-emitted outcomes (`artifacts/03b/summary.json`).
+Research decision: **{summary.get('decision', 'mixed evidence')}**.
+
+Frozen parity remains {parity.get('candidates', 0)} candidates / {parity.get('multiple_anchor', 0)} multiple-anchor / {parity.get('office_abstained', 0)} OFFICE-abstained / {parity.get('office_emitted', 0)} OFFICE-emitted.
 
 ## GROUP SIZES
-Group A has {groups.get('A', 0)} candidates; Group B has {groups.get('B', 0)} matched OFFICE-abstained controls; Group C has {groups.get('C', 0)} fixed-location-like frozen OFFICE comparators (`artifacts/03b/summary.json`).
+Group A={groups.get('A', 0)}, matched Group B={groups.get('B', 0)}, frozen OFFICE comparator Group C={groups.get('C', 0)}.
+
+Observation-support balance:
+
+{support_text}
+
+Matched A/B pairs={value(support_status, 'matched_pairs')}; unmatched Group A={value(support_status, 'unmatched_A')}.
 
 ## INDEPENDENT EVIDENCE
-Construction features are separated from independent validation: {', '.join(summary.get('feature_roles', {}).get('independent_validation', [])) or 'none'} (`artifacts/03b/summary.json`).
+Construction features are kept separate from independent validation. Independent streams declared before the run are: {', '.join(summary.get('feature_roles', {}).get('independent_validation', [])) or 'none'}.
 
 ## TRANSPORT MODE RESULT
-Mode results are reported only for transportation-labeled coverage and remain auxiliary movement evidence, never a role assignment (`artifacts/03b/mode_evidence.csv`).
+Transportation labels cover only a subset, so this remains supporting evidence rather than a semantic label.
+
+{mode_text}
 
 ## ROUTE / TRANSITION RESULT
-Route evidence uses recurrent abstract `L*→L*` transitions, not coordinates or semantic anchors (`artifacts/03b/route_structure.csv`).
+Only usable motif days and abstract `L*→L*` edges are used.
+
+{route_text}
 
 ## WEEKDAY VS WEEKEND RESULT
-Weekday/weekend contrasts are descriptive because weekday mobility contributes to the frozen wrapper (`artifacts/03b/weekday_weekend.csv`).
+This contrast is descriptive, not independent, because weekday mobility contributes to the frozen wrapper.
+
+{weekday_text}
 
 ## SENSITIVITY RESULT
-The frozen Group A remains primary; perturbations report count and Jaccard overlap rather than selecting a favorable variant (`artifacts/03b/sensitivity.csv`).
+The frozen 23 remain primary; every variant reruns the wrapper and anchor variants recompute clustering-dependent inputs.
+
+{sensitivity_lines}
 
 ## NEGATIVE CONTROLS
-Sparse, boundary-heavy, travel-heavy, weekend-heavy, and same-stratum controls remain falsification checks (`artifacts/03b/summary.json`).
+These cohorts are falsification checks; similar route/mobility structure in them weakens the hypothesis.
+
+{control_lines}
 
 ## WHAT SUPPORTS THE HYPOTHESIS
-Only independent evidence that separates Group A from matched controls without recurring in negative controls can support further study.
+Support requires robustness plus multiple independent streams that separate Group A from matched Group B without the same pattern recurring in negative controls. The measured tables above are the evidence; the report does not promote candidate construction features as validation.
 
 ## WHAT WEAKENS THE HYPOTHESIS
-Insufficient label coverage, non-recurrent transitions, sensitivity, or matching imbalance weakens the hypothesis.
+Sparse/imbalanced transportation-label coverage, weak recurrent-route structure, poor sensitivity overlap, observation-support mismatch, or similar evidence in falsification cohorts weakens the hypothesis.
 
 ## WHAT CANNOT BE CONCLUDED
-No individual receives a job-role classification; no true workplace, HOME, accuracy, or semantic POI conclusion is made.
+No user is classified as a salesperson, driver, field worker, or any other occupation. No candidate is a true mobile worker, and no true workplace, HOME, semantic POI, or accuracy claim is made.
 
 ## RECOMMENDED NEXT STEP
-Use the aggregate result only to decide whether a distributed-mobility regime warrants further research.
+Use the research-only decision to choose whether a distributed/mobile regime deserves a separately validated follow-up. Do not modify frozen Home/Office production semantics from this audit alone.
 
 ## Q1
-Are candidates robust? See `artifacts/03b/sensitivity.csv`.
+Candidate robustness is reported by count/Jaccard/retained/added/dropped for every declared perturbation under **SENSITIVITY RESULT**.
 
 ## Q2
-Do candidates differ after matching? See `artifacts/03b/matched_controls.csv`.
+Observation support for A/B/C is reported under **GROUP SIZES**. Matching coverage is {value(support_status, 'matched_pairs')} pairs with {value(support_status, 'unmatched_A')} unmatched Group A candidates.
 
 ## Q3
-Do modes differ? See `artifacts/03b/mode_evidence.csv`.
+Transportation evidence is limited to the labeled subset. Group-level label and matched-segment coverage plus mode-distance composition are reported under **TRANSPORT MODE RESULT**.
 
 ## Q4
-Do transitions recur? See `artifacts/03b/route_structure.csv`.
+Repeatable movement structure is assessed with transition count, recurrent directed edges, top-edge frequency, and edge entropy on usable motif days; see **ROUTE / TRANSITION RESULT**.
 
 ## Q5
-Is weekday mobility stronger? See `artifacts/03b/weekday_weekend.csv`.
+Within-user weekday-minus-weekend distance contrasts are reported under **WEEKDAY VS WEEKEND RESULT** and remain descriptive rather than independent evidence.
 
 ## Q6
-Could controls explain it? See `artifacts/03b/summary.json`.
+Sparse, boundary-heavy, travel-heavy, weekend-heavy, and matched same-stratum controls are explicitly retained under **NEGATIVE CONTROLS**. Similar evidence in those groups is a falsification signal.
 
 ## Q7
-How many have independent support? See `artifacts/03b/summary.json`.
+This audit does not invent a new binary threshold to count “true independently supported workers.” Independent streams are reported separately so a semantic threshold is not smuggled in after seeing the data.
 
 ## Q8
-How many remain ambiguous? See `artifacts/03b/summary.json`.
+Individual semantic status remains ambiguous for all candidates because GeoLife has no work-role ground truth. The experiment evaluates a cohort-level research hypothesis only.
 
 ## Q9
-Does evidence justify further study? See the research-only decision above.
+The research-only decision is **{summary.get('decision', 'mixed evidence')}**. It may justify further study, but never a semantic WORK rule by itself.
 
 ## Q10
-What is still needed before a semantic label? External validation and an approved semantic evaluation design.
+Before any semantic WORK label, the project still needs an approved external/independent semantic evaluation design or suitable labeled reference data, plus evidence that the result is not explained by observation quality, travel, or candidate-construction artifacts.
 """
-
-
 def _base_module() -> object:
     spec = spec_from_file_location("behavior_03a", BASE_PATH)
     assert spec and spec.loader
