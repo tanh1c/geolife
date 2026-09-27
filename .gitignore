@@ -35,6 +35,7 @@ reports/eda/generated/**
 
 # Private behavior-first EDA materialization and user-level profiles
 /artifacts/03a/
+/artifacts/03b/
 
 # Local notebook exports
 *.html
