@@ -349,3 +349,14 @@ Schedule evidence lại là negative result hữu ích. Dù 46 users đủ suppo
 
 Signal đáng đào tiếp là 23 mobile-work-like candidates: cả 23 có multiple anchors, cả 23 bị frozen OFFICE abstain, và không ai OFFICE emitted. Điều này không xác nhận nghề nghiệp hay semantic WORK, nhưng là hypothesis rõ ràng rằng fixed-office baseline có thể bỏ sót một distributed-mobility regime. 03b phải kiểm tra bằng evidence độc lập như mode labels, route/transition recurrence, weekday-weekend contrast, sensitivity và negative controls, không dùng lại wrapper features để tự chứng minh wrapper.
 
+## 2026-09-27 — Audit code phải tách “chạy được” khỏi “đủ làm evidence”
+
+03b cho thấy một script chạy được chưa có nghĩa output đã đủ chất lượng để dùng làm evidence. Hai lỗi thiết kế ban đầu rất điển hình:
+
+1. transportation summary dùng thời lượng label window thay vì movement segments đã qua frozen cleaning;
+2. sensitivity giữ nguyên candidate cohort thay vì thực sự rerun candidate wrapper.
+
+Bản continuation sửa hai điểm này trước khi đọc kết quả. Bài học là validation pipeline cần kiểm tra **provenance của evidence** và **rerun đúng causal dependency** chứ không chỉ kiểm tra code không lỗi.
+
+Các thay đổi hiện chỉ là engineering hardening; chưa có kết luận behavior mới cho tới khi full-release run và verification pass.
+
