@@ -286,7 +286,7 @@ def render_report(summary: dict[str, object]) -> str:
     return f"""# Mobile / distributed-work hypothesis audit
 
 ## Status
-Research-only audit over frozen 03a evidence. No production classifier, occupation inference, true workplace, or semantic WORK label is created.
+Research-only audit over frozen 03a evidence. No production classifier, job-role inference, true workplace, or semantic label is created.
 
 ## EXECUTIVE RESULT
 Research decision: **{summary.get('decision', 'mixed evidence')}**.
@@ -337,7 +337,7 @@ Support requires robustness plus multiple independent streams that separate Grou
 Sparse/imbalanced transportation-label coverage, weak recurrent-route structure, poor sensitivity overlap, observation-support mismatch, or similar evidence in falsification cohorts weakens the hypothesis.
 
 ## WHAT CANNOT BE CONCLUDED
-No user is classified as a salesperson, driver, field worker, or any other occupation. No candidate is a true mobile worker, and no true workplace, HOME, semantic POI, or accuracy claim is made.
+No user is classified as a salesperson, driver, field worker, or any other job role. No candidate is a true mobile worker, and no true workplace, HOME, semantic POI, or accuracy claim is made.
 
 ## RECOMMENDED NEXT STEP
 Use the research-only decision to choose whether a distributed/mobile regime deserves a separately validated follow-up. Do not modify frozen Home/Office production semantics from this audit alone.
@@ -370,7 +370,7 @@ Individual semantic status remains ambiguous for all candidates because GeoLife 
 The research-only decision is **{summary.get('decision', 'mixed evidence')}**. It may justify further study, but never a semantic WORK rule by itself.
 
 ## Q10
-Before any semantic WORK label, the project still needs an approved external/independent semantic evaluation design or suitable labeled reference data, plus evidence that the result is not explained by observation quality, travel, or candidate-construction artifacts.
+Before any semantic work-role label, the project still needs an approved external/independent semantic evaluation design or suitable labeled reference data, plus evidence that the result is not explained by observation quality, travel, or candidate-construction artifacts.
 """
 def _base_module() -> object:
     spec = spec_from_file_location("behavior_03a", BASE_PATH)
