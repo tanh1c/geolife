@@ -343,3 +343,16 @@ The schedule result is a useful negative finding. Although 46 users meet support
 
 The next hypothesis is the 23 mobile-work-like candidates: all 23 have multiple anchors, all 23 abstain under frozen OFFICE, and none emits frozen OFFICE. This does not confirm an occupation or semantic WORK label, but it supports testing whether the fixed-office baseline misses a distributed-mobility regime. A 03b audit must use independent evidence—mode labels, route/transition recurrence, weekday-weekend contrast, sensitivity, and negative controls—rather than reusing construction features to validate the wrapper.
 
+## 2026-09-27 — Runnable audit code is not automatically evidence-grade
+
+The 03b handoff exposed a useful distinction: a script can run successfully while its outputs are still not evidence-grade.
+
+Two early paths were invalid for scientific interpretation:
+
+1. transportation summaries used label-window duration rather than frozen-cleaned movement segments;
+2. sensitivity reused the frozen candidate cohort instead of rerunning the candidate wrapper.
+
+The continuation fixes both before any result is interpreted. The general lesson is that an audit must verify **evidence provenance** and **the dependency actually being perturbed**, not merely that code executes.
+
+These are engineering hardening changes only; no new behavioral conclusion is accepted until the full-release run and verification gates pass.
+
