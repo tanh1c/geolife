@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import zipfile
@@ -141,20 +142,36 @@ def build_transition_structure(stays: pd.DataFrame, usable_days: pd.DataFrame) -
         edges = []
         for _, day in user_stays.groupby("local_date", sort=True):
             locations = day.sort_values("arrival_time_local", kind="stable")["location_id"].tolist()
-            edges.extend((f"L{left}→L{right}", day["local_date"].iloc[0]) for left, right in zip(locations, locations[1:], strict=False) if left != right)
+            edges.extend(
+                (f"L{left}→L{right}", day["local_date"].iloc[0])
+                for left, right in zip(locations, locations[1:], strict=False)
+                if left != right
+            )
         edge_days = pd.DataFrame(edges, columns=["edge", "local_date"])
         counts = edge_days["edge"].value_counts() if not edge_days.empty else pd.Series(dtype=int)
+        shares = counts / counts.sum() if not counts.empty else pd.Series(dtype=float)
         rows.append(
             {
                 "user_id": user_id,
                 "transition_count": len(edge_days),
                 "distinct_edge_count": len(counts),
-                "recurrent_edge_count": int(sum(edge_days.loc[edge_days["edge"] == edge, "local_date"].nunique() >= 2 for edge in counts)) if not counts.empty else 0,
-                "top_edge_frequency": float(counts.iloc[0] / len(edge_days)) if len(edge_days) else 0.0,
+                "recurrent_edge_count": int(
+                    sum(
+                        edge_days.loc[edge_days["edge"] == edge, "local_date"].nunique() >= 2
+                        for edge in counts.index
+                    )
+                )
+                if not counts.empty
+                else 0,
+                "top_edge_frequency": float(shares.iloc[0]) if not shares.empty else 0.0,
+                "edge_entropy": float(
+                    -(shares[shares > 0] * np.log2(shares[shares > 0])).sum()
+                )
+                if not shares.empty
+                else 0.0,
             }
         )
     return pd.DataFrame(rows)
-
 
 def summarize_sensitivity(frozen: set[str], variants: dict[str, set[str]]) -> pd.DataFrame:
     return pd.DataFrame(
@@ -162,7 +179,7 @@ def summarize_sensitivity(frozen: set[str], variants: dict[str, set[str]]) -> pd
             {
                 "variant": name,
                 "candidate_count": len(members),
-                "jaccard_with_frozen": len(frozen & members) / len(frozen | members) if frozen | members else 1.0,
+                "jaccard": len(frozen & members) / len(frozen | members) if frozen | members else 1.0,
                 "retained": len(frozen & members),
                 "added": len(members - frozen),
                 "dropped": len(frozen - members),
@@ -312,39 +329,139 @@ def _mode_labels(zip_path: Path, members: set[str]) -> pd.DataFrame:
     return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame(columns=["user_id", "start_time", "end_time", "mode"])
 
 
-def _cleaned_mode_segments(base: object, zip_path: Path, members: set[str], windows: pd.DataFrame) -> pd.DataFrame:
-    rows = []
-    with zipfile.ZipFile(zip_path) as archive:
-        for user_id, _filename, member in base._zip_members(archive):
-            if user_id not in members:
-                continue
-            cleaned, _audit = base.clean_trajectory_with_audit(_read_plt(archive, member), **base.FROZEN_CLEANING_KWARGS)
-            if len(cleaned) < 2:
-                continue
-            segment = cleaned.assign(
-                start_time=cleaned["timestamp"].shift(),
-                start_latitude=cleaned["latitude"].shift(),
-                start_longitude=cleaned["longitude"].shift(),
-                start_sequence=cleaned["sequence_id"].shift(),
-            ).iloc[1:].copy()
-            segment = segment.loc[
-                (segment["sequence_id"] == segment["start_sequence"])
-                & (segment["timestamp"] > segment["start_time"])
-            ]
-            if segment.empty:
-                continue
-            segment["user_id"] = user_id
-            segment["end_time"] = segment["timestamp"]
-            segment["distance_m"] = haversine_m(
-                segment["start_latitude"].to_numpy(), segment["start_longitude"].to_numpy(),
-                segment["latitude"].to_numpy(), segment["longitude"].to_numpy(),
-            )
-            rows.append(segment.loc[:, ["user_id", "start_time", "end_time", "sequence_id", "distance_m"]])
-    segments = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame(
-        columns=["user_id", "start_time", "end_time", "sequence_id", "distance_m"]
+def _cleaned_mode_segments(
+    base: object,
+    zip_path: Path,
+    members: set[str],
+    windows: pd.DataFrame,
+    cache_root: Path,
+    *,
+    checkpoint_every: int = 25,
+) -> pd.DataFrame:
+    """Build frozen-CP1-cleaned labeled segments with a private resumable per-file cache."""
+    cache_root.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_root / "mode_segments_v1.pkl"
+    completed_path = cache_root / "mode_segments_completed_v1.json"
+    columns = [
+        "user_id",
+        "start_time",
+        "end_time",
+        "sequence_id",
+        "distance_m",
+        "mode",
+        "source_key",
+    ]
+    if cache_path.exists():
+        cached = pd.read_pickle(cache_path)
+        cached = cached.reindex(columns=columns)
+    else:
+        cached = pd.DataFrame(columns=columns)
+    completed = (
+        set(json.loads(completed_path.read_text(encoding="utf-8")))
+        if completed_path.exists()
+        else set()
     )
-    return match_mode_segments(segments, windows)
 
+    def checkpoint(pending: list[pd.DataFrame]) -> None:
+        nonlocal cached
+        if pending:
+            cached = pd.concat([cached, *pending], ignore_index=True)
+            cached = cached.drop_duplicates(
+                subset=["source_key", "start_time", "end_time", "sequence_id", "mode"],
+                keep="last",
+            )
+            pending.clear()
+        tmp_cache = cache_path.with_suffix(".tmp.pkl")
+        cached.to_pickle(tmp_cache)
+        tmp_cache.replace(cache_path)
+        tmp_completed = completed_path.with_suffix(".tmp.json")
+        tmp_completed.write_text(
+            json.dumps(sorted(completed), indent=2),
+            encoding="utf-8",
+        )
+        tmp_completed.replace(completed_path)
+
+    user_windows = {
+        user_id: frame.sort_values("start_time", kind="stable").reset_index(drop=True)
+        for user_id, frame in windows.groupby("user_id", sort=True)
+        if user_id in members
+    }
+    pending: list[pd.DataFrame] = []
+    with zipfile.ZipFile(zip_path) as archive:
+        source_members = [
+            item for item in base._zip_members(archive) if item[0] in members
+        ]
+        users = sorted({user_id for user_id, _filename, _member in source_members})
+        user_position = {user_id: index + 1 for index, user_id in enumerate(users)}
+        for file_index, (user_id, _filename, member) in enumerate(source_members, start=1):
+            source_key = hashlib.sha256(member.encode("utf-8")).hexdigest()
+            if source_key in completed:
+                continue
+            user_mode_windows = user_windows.get(user_id)
+            raw = _read_plt(archive, member)
+            timestamps = raw["timestamp"].dropna()
+            should_clean = False
+            if user_mode_windows is not None and len(timestamps) >= 2:
+                raw_start = timestamps.min()
+                raw_end = timestamps.max()
+                should_clean = bool(
+                    (
+                        (user_mode_windows["start_time"] < raw_end)
+                        & (user_mode_windows["end_time"] > raw_start)
+                    ).any()
+                )
+            if should_clean:
+                cleaned, _audit = base.clean_trajectory_with_audit(
+                    raw, **base.FROZEN_CLEANING_KWARGS
+                )
+                if len(cleaned) >= 2:
+                    segment = cleaned.assign(
+                        start_time=cleaned["timestamp"].shift(),
+                        start_latitude=cleaned["latitude"].shift(),
+                        start_longitude=cleaned["longitude"].shift(),
+                        start_sequence=cleaned["sequence_id"].shift(),
+                    ).iloc[1:].copy()
+                    segment = segment.loc[
+                        (segment["sequence_id"] == segment["start_sequence"])
+                        & (segment["timestamp"] > segment["start_time"])
+                    ]
+                    if not segment.empty:
+                        segment["user_id"] = user_id
+                        segment["end_time"] = segment["timestamp"]
+                        segment["distance_m"] = haversine_m(
+                            segment["start_latitude"].to_numpy(),
+                            segment["start_longitude"].to_numpy(),
+                            segment["latitude"].to_numpy(),
+                            segment["longitude"].to_numpy(),
+                        )
+                        matched = match_mode_segments(
+                            segment.loc[
+                                :,
+                                [
+                                    "user_id",
+                                    "start_time",
+                                    "end_time",
+                                    "sequence_id",
+                                    "distance_m",
+                                ],
+                            ],
+                            user_mode_windows,
+                        )
+                        if not matched.empty:
+                            matched["source_key"] = source_key
+                            pending.append(matched.reindex(columns=columns))
+            completed.add(source_key)
+            if file_index % checkpoint_every == 0:
+                checkpoint(pending)
+                print(
+                    "mode segments: "
+                    f"user {user_position[user_id]}/{len(users)}, "
+                    f"file {file_index}/{len(source_members)}, "
+                    f"cached segments {len(cached)}"
+                )
+        checkpoint(pending)
+    result = cached.loc[cached["user_id"].isin(members)].copy()
+    return result.drop(columns=["source_key"], errors="ignore").reset_index(drop=True)
 
 def _mode_summary(segments: pd.DataFrame, membership: dict[str, set[str]], windows: pd.DataFrame) -> pd.DataFrame:
     member_rows = pd.DataFrame(
@@ -387,7 +504,10 @@ def _mode_summary(segments: pd.DataFrame, membership: dict[str, set[str]], windo
     return pd.DataFrame(rows)
 
 
-def _perturbed_candidates(features: pd.DataFrame, *, distance_factor: float, weekday_minimum: int) -> set[str]:
+def _perturbed_candidates(
+    features: pd.DataFrame, *, distance_factor: float = 1.0, weekday_minimum: int = 5
+) -> set[str]:
+    """Rerun the frozen wrapper expression with one declared threshold perturbation."""
     threshold = float(features["weekday_distance_km"].quantile(0.75)) * distance_factor
     selected = features.loc[
         features["weekday_usable_days"].ge(weekday_minimum)
@@ -399,15 +519,144 @@ def _perturbed_candidates(features: pd.DataFrame, *, distance_factor: float, wee
     return set(selected["user_id"])
 
 
-def _negative_controls(features: pd.DataFrame, contrasts: pd.DataFrame, candidates: set[str]) -> dict[str, int]:
-    supported = features.loc[~features["user_id"].isin(candidates)]
-    return {
-        "sparse_or_low_support": int(supported["usable_temporal_days"].lt(6).sum()),
-        "boundary_heavy": int(supported["cp1_boundary_count"].gt(0).sum()),
-        "travel_heavy": int(supported["distance_per_usable_day_km"].ge(supported["distance_per_usable_day_km"].quantile(0.9)).sum()),
-        "weekend_heavy": int(contrasts.loc[contrasts["user_id"].isin(supported["user_id"]), "weekday_weekend_distance_delta"].lt(0).sum()),
-    }
+def _candidate_features_for_anchor(
+    base: object,
+    resolved: pd.DataFrame,
+    point_days: pd.DataFrame,
+    baseline: pd.DataFrame,
+    threshold_m: float,
+) -> pd.DataFrame:
+    """Recompute clustering-dependent candidate inputs at a declared anchor threshold."""
+    clustered, _ = base.cluster_behavior_locations(resolved, threshold_m)
+    daily = _local_daily(base, clustered, point_days)
+    features = base.build_user_behavior_features(
+        clustered, base._point_days_for_behavior(point_days)
+    )
+    features = base._enrich_features(
+        features,
+        daily,
+        base.compute_schedule_stability(daily),
+        baseline,
+    )
+    return base.assign_behavioral_candidates(features)
 
+
+def _support_balance(
+    features: pd.DataFrame,
+    membership: dict[str, set[str]],
+    matched: pd.DataFrame,
+) -> pd.DataFrame:
+    columns = ["active_days", "usable_temporal_days", "observed_span_h", "cp1_stay_count"]
+    rows = []
+    for group, users in membership.items():
+        subset = features.loc[features["user_id"].isin(users)]
+        row: dict[str, object] = {"group": group, "users": len(subset)}
+        for column in columns:
+            values = pd.to_numeric(subset[column], errors="coerce").dropna()
+            row[f"{column}_median"] = float(values.median()) if not values.empty else np.nan
+            row[f"{column}_q25"] = float(values.quantile(0.25)) if not values.empty else np.nan
+            row[f"{column}_q75"] = float(values.quantile(0.75)) if not values.empty else np.nan
+        rows.append(row)
+    matched_a = set(matched.get("candidate_user_id", pd.Series(dtype=str)))
+    group_a = membership.get("A", set())
+    rows.append(
+        {
+            "group": "A_matching_status",
+            "users": len(group_a),
+            "matched_pairs": len(matched),
+            "unmatched_A": len(group_a - matched_a),
+        }
+    )
+    return pd.DataFrame(rows)
+
+
+def _negative_controls(
+    features: pd.DataFrame,
+    contrasts: pd.DataFrame,
+    transitions: pd.DataFrame,
+    candidates: set[str],
+    group_b: set[str],
+) -> pd.DataFrame:
+    """Summarize falsification cohorts without assigning semantic labels."""
+    non_candidates = set(features.loc[~features["user_id"].isin(candidates), "user_id"])
+    support = pd.to_numeric(features["usable_temporal_days"], errors="coerce").fillna(0)
+    distance = pd.to_numeric(
+        features["distance_per_usable_day_km"], errors="coerce"
+    ).fillna(0)
+    supported_non_candidates = features.loc[
+        features["user_id"].isin(non_candidates) & support.ge(6)
+    ]
+    travel_cutoff = float(
+        pd.to_numeric(
+            supported_non_candidates["distance_per_usable_day_km"], errors="coerce"
+        ).quantile(0.9)
+    ) if not supported_non_candidates.empty else np.inf
+    weekend_ids = set(
+        contrasts.loc[
+            contrasts["weekday_weekend_distance_delta"].lt(0), "user_id"
+        ]
+    )
+    sets = {
+        "sparse_or_low_support": set(features.loc[support.lt(6), "user_id"]) - candidates,
+        "boundary_heavy": set(
+            features.loc[
+                pd.to_numeric(features["cp1_boundary_count"], errors="coerce").fillna(0).gt(0),
+                "user_id",
+            ]
+        ) - candidates,
+        "travel_heavy_non_candidate": set(
+            features.loc[distance.ge(travel_cutoff), "user_id"]
+        ) - candidates,
+        "weekend_heavy": weekend_ids - candidates,
+        "matched_multiple_anchor_office_abstained": set(group_b),
+    }
+    joined = features.merge(
+        transitions,
+        on="user_id",
+        how="left",
+        validate="one_to_one",
+    ).merge(
+        contrasts.loc[:, ["user_id", "weekday_weekend_distance_delta"]],
+        on="user_id",
+        how="left",
+        validate="one_to_one",
+    )
+    rows = []
+    for name, users in sets.items():
+        subset = joined.loc[joined["user_id"].isin(users)]
+        rows.append(
+            {
+                "control": name,
+                "users": len(users),
+                "median_distance_per_usable_day_km": float(
+                    pd.to_numeric(
+                        subset["distance_per_usable_day_km"], errors="coerce"
+                    ).median()
+                )
+                if not subset.empty
+                else np.nan,
+                "median_recurrent_edge_count": float(
+                    pd.to_numeric(
+                        subset.get("recurrent_edge_count"), errors="coerce"
+                    ).median()
+                )
+                if not subset.empty
+                else np.nan,
+                "median_edge_entropy": float(
+                    pd.to_numeric(subset.get("edge_entropy"), errors="coerce").median()
+                )
+                if not subset.empty
+                else np.nan,
+                "median_weekday_weekend_distance_delta": float(
+                    pd.to_numeric(
+                        subset.get("weekday_weekend_distance_delta"), errors="coerce"
+                    ).median()
+                )
+                if not subset.empty
+                else np.nan,
+            }
+        )
+    return pd.DataFrame(rows)
 
 def run_audit(zip_path: Path, root: Path, *, seed: int) -> dict[str, object]:
     base = _base_module()
@@ -416,60 +665,172 @@ def run_audit(zip_path: Path, root: Path, *, seed: int) -> dict[str, object]:
         release_users = base._release_users(archive)
     baseline = base.build_baseline_user_audit(release_users, stays)
     resolved = base.resolve_stay_timezones(stays).dropna(subset=["timezone_id"])
-    clustered, _ = base.cluster_behavior_locations(resolved, 200.0)
-    daily = _local_daily(base, clustered, point_days)
-    features = base.build_user_behavior_features(clustered, base._point_days_for_behavior(point_days))
-    features = base._enrich_features(features, daily, base.compute_schedule_stability(daily), baseline)
-    candidates = base.assign_behavioral_candidates(features)
+
+    candidates = _candidate_features_for_anchor(
+        base, resolved, point_days, baseline, 200.0
+    )
     office = baseline.loc[baseline["label"].eq("OFFICE")]
-    group_a = set(candidates.loc[candidates["mobile_work_like_candidate"], "user_id"])
+    group_a = set(
+        candidates.loc[candidates["mobile_work_like_candidate"], "user_id"]
+    )
     parity = {
         "candidates": len(group_a),
-        "multiple_anchor": int(candidates.loc[candidates["user_id"].isin(group_a), "recurring_location_count"].ge(3).sum()),
-        "office_abstained": int(office.loc[office["user_id"].isin(group_a), "reject_reason"].ne("emitted").sum()),
-        "office_emitted": int(office.loc[office["user_id"].isin(group_a), "reject_reason"].eq("emitted").sum()),
+        "multiple_anchor": int(
+            candidates.loc[
+                candidates["user_id"].isin(group_a), "recurring_location_count"
+            ].ge(3).sum()
+        ),
+        "office_abstained": int(
+            office.loc[
+                office["user_id"].isin(group_a), "reject_reason"
+            ].ne("emitted").sum()
+        ),
+        "office_emitted": int(
+            office.loc[
+                office["user_id"].isin(group_a), "reject_reason"
+            ].eq("emitted").sum()
+        ),
     }
-    assert parity == {"candidates": 23, "multiple_anchor": 23, "office_abstained": 23, "office_emitted": 0}
+    assert parity == {
+        "candidates": 23,
+        "multiple_anchor": 23,
+        "office_abstained": 23,
+        "office_emitted": 0,
+    }
+
+    clustered, _ = base.cluster_behavior_locations(resolved, 200.0)
+    daily = _local_daily(base, clustered, point_days)
     matched = match_office_abstained_controls(candidates, baseline)
     group_b = set(matched["control_user_id"])
-    group_c = set(office.loc[(office["reject_reason"] == "emitted") & office["user_id"].isin(candidates["user_id"]), "user_id"])
+    basic_support = set(
+        candidates.loc[
+            candidates["active_days"].ge(3)
+            & candidates["usable_temporal_days"].ge(1)
+            & candidates["cp1_stay_count"].gt(0),
+            "user_id",
+        ]
+    )
+    group_c = set(
+        office.loc[
+            (office["reject_reason"] == "emitted")
+            & office["user_id"].isin(basic_support),
+            "user_id",
+        ]
+    )
     membership = {"A": group_a, "B": group_b, "C": group_c}
+
     usable = daily.loc[:, ["user_id", "local_date", "usable_for_motif"]]
     transitions = build_transition_structure(clustered, usable)
     contrasts = _weekday_weekend(daily, clustered)
+    support_balance = _support_balance(candidates, membership, matched)
+
     labels = _mode_labels(zip_path, set().union(*membership.values()))
     windows = canonicalize_mode_windows(labels)
-    segments = _cleaned_mode_segments(base, zip_path, set().union(*membership.values()), windows)
-    mode_summary = _mode_summary(segments, membership, windows)
-    variants = {"frozen": group_a}
-    for factor in (0.8, 0.9, 1.0, 1.1, 1.2):
-        for weekday_minimum in (4, 5, 6):
-            variants[f"distance_{factor:.1f}_days_{weekday_minimum}"] = _perturbed_candidates(
-                candidates, distance_factor=factor, weekday_minimum=weekday_minimum
-            )
-    sensitivity = summarize_sensitivity(group_a, variants)
-    controls = _negative_controls(candidates, contrasts, group_a)
     private = root / ARTIFACT_DIR
     private.mkdir(parents=True, exist_ok=True)
-    membership_frame = pd.DataFrame([(user, group) for group, users in membership.items() for user in users], columns=["user_id", "group"])
+    segments = _cleaned_mode_segments(
+        base,
+        zip_path,
+        set().union(*membership.values()),
+        windows,
+        private / "mode_segment_cache",
+    )
+    mode_summary = _mode_summary(segments, membership, windows)
+
+    candidates_100 = _candidate_features_for_anchor(
+        base, resolved, point_days, baseline, 100.0
+    )
+    candidates_300 = _candidate_features_for_anchor(
+        base, resolved, point_days, baseline, 300.0
+    )
+    variants = {
+        "frozen_200m": group_a,
+        "anchor_100m": set(
+            candidates_100.loc[
+                candidates_100["mobile_work_like_candidate"], "user_id"
+            ]
+        ),
+        "anchor_300m": set(
+            candidates_300.loc[
+                candidates_300["mobile_work_like_candidate"], "user_id"
+            ]
+        ),
+        "mobility_threshold_minus_10pct": _perturbed_candidates(
+            candidates, distance_factor=0.9, weekday_minimum=5
+        ),
+        "mobility_threshold_plus_10pct": _perturbed_candidates(
+            candidates, distance_factor=1.1, weekday_minimum=5
+        ),
+        "support_minus_1_weekday": _perturbed_candidates(
+            candidates, distance_factor=1.0, weekday_minimum=4
+        ),
+        "support_plus_1_weekday": _perturbed_candidates(
+            candidates, distance_factor=1.0, weekday_minimum=6
+        ),
+    }
+    assert variants["frozen_200m"] == _perturbed_candidates(
+        candidates, distance_factor=1.0, weekday_minimum=5
+    )
+    sensitivity = summarize_sensitivity(group_a, variants)
+    controls = _negative_controls(
+        candidates, contrasts, transitions, group_a, group_b
+    )
+
+    membership_frame = pd.DataFrame(
+        [
+            (user, group)
+            for group, users in membership.items()
+            for user in sorted(users)
+        ],
+        columns=["user_id", "group"],
+    )
     membership_frame.to_csv(private / "group_membership.csv", index=False)
     matched.to_csv(private / "matched_controls.csv", index=False)
+    support_balance.to_csv(private / "support_balance.csv", index=False)
     mode_summary.to_csv(private / "mode_evidence.csv", index=False)
-    transitions.merge(membership_frame, on="user_id", how="inner").to_csv(private / "route_structure.csv", index=False)
-    contrasts.merge(membership_frame, on="user_id", how="inner").to_csv(private / "weekday_weekend.csv", index=False)
+    transitions.merge(
+        membership_frame, on="user_id", how="inner"
+    ).to_csv(private / "route_structure.csv", index=False)
+    contrasts.merge(
+        membership_frame, on="user_id", how="inner"
+    ).to_csv(private / "weekday_weekend.csv", index=False)
     sensitivity.to_csv(private / "sensitivity.csv", index=False)
+    controls.to_csv(private / "negative_controls.csv", index=False)
+
     summary = {
-        "run_status": "complete", "seed": seed, "parity": parity, "groups": {key: len(value) for key, value in membership.items()},
-        "feature_roles": FEATURE_ROLES, "transport_mode": mode_summary.to_dict("records"),
-        "transition_summary": _group_summary(transitions, membership, ["transition_count", "recurrent_edge_count", "top_edge_frequency"]),
-        "weekday_weekend": _group_summary(contrasts, membership, ["weekday_weekend_distance_delta"]),
-        "sensitivity": sensitivity.to_dict("records"), "negative_controls": controls,
+        "run_status": "complete",
+        "seed": seed,
+        "parity": parity,
+        "groups": {key: len(value) for key, value in membership.items()},
+        "feature_roles": FEATURE_ROLES,
+        "support_balance": support_balance.to_dict("records"),
+        "transport_mode": mode_summary.to_dict("records"),
+        "transition_summary": _group_summary(
+            transitions,
+            membership,
+            [
+                "transition_count",
+                "recurrent_edge_count",
+                "top_edge_frequency",
+                "edge_entropy",
+            ],
+        ),
+        "weekday_weekend": _group_summary(
+            contrasts, membership, ["weekday_weekend_distance_delta"]
+        ),
+        "sensitivity": sensitivity.to_dict("records"),
+        "negative_controls": controls.to_dict("records"),
         "decision": "mixed evidence",
     }
-    (private / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
-    (root / "reports" / "03b_mobile_work_hypothesis_audit.md").write_text(render_report(summary), encoding="utf-8")
+    (private / "summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    (root / "reports" / "03b_mobile_work_hypothesis_audit.md").write_text(
+        render_report(summary),
+        encoding="utf-8",
+    )
     return summary
-
 
 def main() -> None:
     parser = argparse.ArgumentParser()
