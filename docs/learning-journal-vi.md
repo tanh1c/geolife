@@ -360,3 +360,11 @@ Bản continuation sửa hai điểm này trước khi đọc kết quả. Bài 
 
 Các thay đổi hiện chỉ là engineering hardening; chưa có kết luận behavior mới cho tới khi full-release run và verification pass.
 
+## 2026-09-28 — Symlink có thể phá privacy guard dựa trên resolved path
+
+Modal runner đầu tiên symlink `artifacts/03a` sang persistent Volume. Cách này nhìn hợp lý về execution nhưng 03a privacy guard dùng `Path.resolve()`, nên path sau resolve không còn chứa `artifacts/03a` và bị reject.
+
+Cách sửa tốt hơn là không làm yếu guard và không dùng symlink. Runner truyền cache root rõ ràng qua environment, cập nhật approved private root của module rồi truyền explicit `stay_cache` / `point_day_cache` vào materialization.
+
+Bài học: persistence layer không nên thay đổi semantic của privacy/path invariants. Nếu guard kiểm tra resolved path, symlink là một phần của threat model chứ không chỉ là filesystem convenience.
+
