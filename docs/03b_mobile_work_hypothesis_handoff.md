@@ -208,3 +208,17 @@ The continuation also adds:
 
 These changes are **implementation hardening only**. No new 03b evidence is accepted until the Modal/full-release run, targeted tests, full repository tests, Ruff, privacy checks, and frozen parity all pass.
 
+### Modal cache-path correction
+
+The first Modal runner attempted to persist `artifacts/03a` / `artifacts/03b` with repo-to-Volume symlinks. This is invalid for 03a because its privacy guard validates the resolved path.
+
+Continuation behavior is now:
+
+- no repo-to-Volume symlinks;
+- `GEOLIFE_03A_CACHE_DIR` points to the approved persistent 03a cache root;
+- `GEOLIFE_03B_CACHE_DIR` points to the persistent 03b cache root;
+- 03a materialization receives explicit stay/point-day cache paths while the module's approved private root is updated to the same cache directory;
+- report wording no longer contains the forbidden `semantic WORK` phrase.
+
+The failed Modal run produced no accepted 03b evidence and no `summary.json`; downstream missing-summary errors were consequences of the earlier materialization stop.
+
