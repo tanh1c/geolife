@@ -770,3 +770,12 @@ Prepared changes:
 
 No scientific result from these changes is accepted yet. Full GeoLife execution remains pending in Modal; frozen CP1, frozen CP2/HomeOffice, API behavior, and notebook 03 are unchanged.
 
+## 2026-09-28 — Fixed Modal cache-path regression in 03b runner
+
+The first Modal Volume runner exposed two preflight failures before any 03b evidence was accepted:
+
+- the public report renderer still contained the forbidden phrase `semantic WORK`, so the targeted report-wording test correctly failed;
+- symlinking `artifacts/03a` to `/mnt/geolife-data` violated 03a's resolved-path privacy guard and stopped materialization before `summary.json` could be produced.
+
+The continuation now removes the forbidden wording and configures persistent caches explicitly via `GEOLIFE_03A_CACHE_DIR` / `GEOLIFE_03B_CACHE_DIR`. The 03a privacy guard is repointed to the approved cache root at runtime while explicit cache paths are passed to avoid Python default-argument binding issues. No scientific 03b result was accepted from the failed run.
+
