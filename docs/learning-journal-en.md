@@ -356,3 +356,11 @@ The continuation fixes both before any result is interpreted. The general lesson
 
 These are engineering hardening changes only; no new behavioral conclusion is accepted until the full-release run and verification gates pass.
 
+## 2026-09-28 — Symlinks can invalidate resolved-path privacy guards
+
+The first Modal runner symlinked `artifacts/03a` into the persistent Volume. That was convenient operationally, but 03a intentionally validates private paths using `Path.resolve()`; after resolution the path no longer contained the approved `artifacts/03a` root and materialization correctly stopped.
+
+The fix keeps the guard intact and removes the symlink. The runner supplies explicit persistent cache roots through environment configuration, repoints the module's approved private root, and passes explicit cache paths into materialization to avoid default-argument binding surprises.
+
+General lesson: persistence plumbing must not silently change privacy invariants. A symlink is part of the path-security model when guards validate resolved paths.
+
