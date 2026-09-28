@@ -325,3 +325,34 @@ def test_candidate_features_for_anchor_recomputes_clustering_inputs() -> None:
 
     assert base.thresholds == [300.0]
     assert result.loc[0, "mobile_work_like_candidate"]
+
+
+def test_materialize_with_private_cache_repoints_03a_guard(tmp_path, monkeypatch) -> None:
+    class FakeBase:
+        ARTIFACT_DIR = Path("artifacts/03a")
+
+        def materialize_frozen_cp1(self, zip_path, stay_cache, point_day_cache):
+            assert self.ARTIFACT_DIR == tmp_path.resolve()
+            assert stay_cache == tmp_path.resolve() / "stays_baseline_v1.pkl"
+            assert point_day_cache == tmp_path.resolve() / "cleaned_point_daily_metrics.pkl"
+            return pd.DataFrame({"user_id": ["A"]}), pd.DataFrame({"user_id": ["A"]})
+
+    monkeypatch.setenv("GEOLIFE_03A_CACHE_DIR", str(tmp_path))
+    stays, point_days = audit._materialize_with_private_cache(
+        FakeBase(),
+        Path("release.zip"),
+        Path.cwd(),
+    )
+
+    assert len(stays) == 1
+    assert len(point_days) == 1
+
+
+def test_private_03b_root_uses_configured_volume_path(tmp_path, monkeypatch) -> None:
+    target = tmp_path / "03b"
+    monkeypatch.setenv("GEOLIFE_03B_CACHE_DIR", str(target))
+
+    private = audit._private_03b_root(Path.cwd())
+
+    assert private == target.resolve()
+    assert private.is_dir()
