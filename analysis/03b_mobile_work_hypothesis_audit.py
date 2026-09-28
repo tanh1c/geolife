@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 import zipfile
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -367,7 +368,7 @@ This audit does not invent a new binary threshold to count “true independently
 Individual semantic status remains ambiguous for all candidates because GeoLife has no work-role ground truth. The experiment evaluates a cohort-level research hypothesis only.
 
 ## Q9
-The research-only decision is **{summary.get('decision', 'mixed evidence')}**. It may justify further study, but never a semantic WORK rule by itself.
+The research-only decision is **{summary.get('decision', 'mixed evidence')}**. It may justify further study, but never a semantic work-role rule by itself.
 
 ## Q10
 Before any semantic work-role label, the project still needs an approved external/independent semantic evaluation design or suitable labeled reference data, plus evidence that the result is not explained by observation quality, travel, or candidate-construction artifacts.
@@ -765,9 +766,45 @@ def _negative_controls(
         )
     return pd.DataFrame(rows)
 
+def _materialize_with_private_cache(
+    base: object,
+    zip_path: Path,
+    root: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Use an optional persistent private cache without weakening 03a path guards."""
+    configured = os.environ.get("GEOLIFE_03A_CACHE_DIR")
+    cache_dir = (
+        Path(configured).expanduser()
+        if configured
+        else root / "artifacts" / "03a"
+    ).resolve()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # 03a's privacy guard intentionally checks its module-level ARTIFACT_DIR.
+    # Point that guard at the approved private cache root, then pass explicit
+    # cache paths because Python default arguments were bound at import time.
+    base.ARTIFACT_DIR = cache_dir
+    return base.materialize_frozen_cp1(
+        zip_path,
+        stay_cache=cache_dir / "stays_baseline_v1.pkl",
+        point_day_cache=cache_dir / "cleaned_point_daily_metrics.pkl",
+    )
+
+
+def _private_03b_root(root: Path) -> Path:
+    configured = os.environ.get("GEOLIFE_03B_CACHE_DIR")
+    private = (
+        Path(configured).expanduser()
+        if configured
+        else root / ARTIFACT_DIR
+    ).resolve()
+    private.mkdir(parents=True, exist_ok=True)
+    return private
+
+
 def run_audit(zip_path: Path, root: Path, *, seed: int) -> dict[str, object]:
     base = _base_module()
-    stays, point_days = base.materialize_frozen_cp1(zip_path)
+    stays, point_days = _materialize_with_private_cache(base, zip_path, root)
     with zipfile.ZipFile(zip_path) as archive:
         release_users = base._release_users(archive)
     baseline = base.build_baseline_user_audit(release_users, stays)
@@ -833,8 +870,7 @@ def run_audit(zip_path: Path, root: Path, *, seed: int) -> dict[str, object]:
 
     labels = _mode_labels(zip_path, set().union(*membership.values()))
     windows = canonicalize_mode_windows(labels)
-    private = root / ARTIFACT_DIR
-    private.mkdir(parents=True, exist_ok=True)
+    private = _private_03b_root(root)
     segments = _cleaned_mode_segments(
         base,
         zip_path,
