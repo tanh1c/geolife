@@ -871,3 +871,20 @@ Fix:
 
 No 03b.1 evidence was accepted from the failed run. Missing report/summary errors later in the notebook were downstream consequences of the route-table failure.
 
+## 2026-09-29 — Optimized 03b.1 bootstrap runtime
+
+A 500-repetition 03b.1 Modal run spent more than an hour inside the audit process without progress output. Inspection showed two avoidable hot loops:
+
+- day bootstrap repeatedly filtered the full `daily` / `edge_days` tables for every pair and repetition;
+- transport bootstrap rebuilt pandas DataFrames, recomputed datetimes, permuted rows, and iterated with `iloc` for every pair and repetition.
+
+The audit now:
+
+- prefilters each matched A/B pair once before its bootstrap loop;
+- samples only pair-local weekday/weekend frames;
+- precomputes compact NumPy transport arrays once per user;
+- performs duration-controlled transport sampling with vectorized cumulative sums rather than per-row DataFrame construction;
+- prints stage and pair-level progress.
+
+The scientific design and default 500 bootstrap repetitions are unchanged. The interrupted long-running attempt produced no accepted 03b.1 evidence.
+
