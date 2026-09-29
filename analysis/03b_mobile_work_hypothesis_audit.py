@@ -62,7 +62,7 @@ def match_office_abstained_controls(features: pd.DataFrame, baseline_audit: pd.D
         & comparable["office_abstained"]
         & comparable["recurring_location_count"].ge(3)
     ].copy()
-    columns = ["active_days", "usable_temporal_days", "observed_span_h", "cp1_stay_count"]
+    columns = ["active_days", "usable_temporal_days", "usable_active_days", "cp1_stay_count"]
     for column in columns:
         if column not in source:
             source[column] = 0.0
@@ -654,7 +654,7 @@ def _support_balance(
     membership: dict[str, set[str]],
     matched: pd.DataFrame,
 ) -> pd.DataFrame:
-    columns = ["active_days", "usable_temporal_days", "observed_span_h", "cp1_stay_count"]
+    columns = ["active_days", "usable_temporal_days", "usable_active_days", "cp1_stay_count"]
     rows = []
     for group, users in membership.items():
         subset = features.loc[features["user_id"].isin(users)]
