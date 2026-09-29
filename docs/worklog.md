@@ -800,3 +800,29 @@ Follow-up after the current 03b audit:
 
 Do not choose a MinPts value merely because it maximizes coverage. The goal is an explainable coverage–density–compactness trade-off.
 
+## 2026-09-29 — Fixed 03b support-schema and verification-gate regression
+
+The next Modal run passed the targeted 03b preflight (`12` tests and targeted Ruff) and reached the full audit, then stopped before evidence generation with:
+
+```text
+KeyError: observed_span_h
+```
+
+Cause: 03b support matching/balance referenced `observed_span_h`, which is a point-day field but is not exported by the frozen 03a user-level feature table. The audit now uses only support fields that actually exist in 03a:
+
+```text
+active_days
+usable_temporal_days
+usable_active_days
+cp1_stay_count
+```
+
+The same run also showed that `ruff check .` is not an appropriate 03b verification gate because existing notebooks/tests outside 03b contain unrelated lint debt. Final verification is therefore:
+
+- targeted 03b tests;
+- full repository pytest regression suite;
+- targeted Ruff on the 03b runner and 03b tests;
+- parity/report/privacy checks.
+
+The failed audit produced no accepted `summary.json`; downstream missing-summary errors were consequences of the earlier support-balance failure.
+
