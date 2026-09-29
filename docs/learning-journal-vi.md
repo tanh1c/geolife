@@ -419,3 +419,22 @@ Tuy nhiên independent evidence chưa đủ mạnh:
 
 Bài học: một wrapper có membership stability rất cao chỉ cho thấy definition ổn định quanh các threshold đã thử. Nó không tự tạo ra external/independent semantic evidence. Vì vậy decision đúng là `mixed evidence`, không phải `supported work regime`.
 
+## 2026-09-29 — Khi matched users vẫn lệch exposure, cần control ở user-day level
+
+03b match đủ 23 cặp A/B nhưng aggregate support vẫn lệch lớn. Điều này cho thấy user-level matching chưa chắc đã loại được observation confounding.
+
+03b.1 chuyển control xuống user-day level:
+
+```text
+mỗi A/B pair
+→ tách weekday/weekend
+→ lấy min usable days ở mỗi stratum
+→ downsample phía có nhiều ngày hơn
+→ recompute metric
+→ lặp bootstrap
+```
+
+Route analysis dùng riêng `usable_for_motif` days. Transportation subset control theo matched labeled hours. Cách này trả lời câu hẹp hơn: khác biệt A/B có còn khi hai phía được quan sát với lượng exposure tương đương hay không?
+
+Bài học: normalization kiểu km/day hữu ích nhưng chưa đủ khi số ngày quan sát và cấu trúc ngày quan sát lệch mạnh. Pairwise exposure control giúp test trực tiếp confounding đó.
+
