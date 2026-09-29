@@ -341,6 +341,11 @@ def _paired_bootstrap(
                         }
                     )
 
+        print(
+            f"03b.1 day bootstrap pair {pair_index}/{len(matched)} complete",
+            flush=True,
+        )
+
     return pd.DataFrame(mobility_rows), pd.DataFrame(route_rows), pd.DataFrame(support_rows)
 
 
@@ -383,67 +388,91 @@ def _bootstrap_summary(rows: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(result)
 
 
-def _sample_to_duration(
-    segments: pd.DataFrame,
+def _transport_arrays(segments: pd.DataFrame) -> dict[str, np.ndarray]:
+    """Precompute compact NumPy arrays once per user for fast bootstrap sampling."""
+    if segments.empty:
+        return {
+            "duration_s": np.asarray([], dtype=float),
+            "distance_m": np.asarray([], dtype=float),
+            "motorized": np.asarray([], dtype=bool),
+            "active": np.asarray([], dtype=bool),
+        }
+    start = pd.to_datetime(segments["start_time"], utc=True)
+    end = pd.to_datetime(segments["end_time"], utc=True)
+    duration_s = (end - start).dt.total_seconds().to_numpy(dtype=float)
+    distance_m = pd.to_numeric(
+        segments["distance_m"], errors="coerce"
+    ).fillna(0.0).to_numpy(dtype=float)
+    mode = segments["mode"].astype(str).str.lower()
+    valid = np.isfinite(duration_s) & (duration_s > 0)
+    return {
+        "duration_s": duration_s[valid],
+        "distance_m": distance_m[valid],
+        "motorized": mode.isin(MOTORIZED_MODES).to_numpy(dtype=bool)[valid],
+        "active": mode.isin(ACTIVE_MODES).to_numpy(dtype=bool)[valid],
+    }
+
+
+def _sample_transport_arrays(
+    arrays: dict[str, np.ndarray],
     target_s: float,
     *,
     rng: np.random.Generator,
-) -> pd.DataFrame:
-    if target_s <= 0 or segments.empty:
-        return segments.iloc[0:0].copy()
-
-    source = segments.copy()
-    source["duration_s"] = (
-        pd.to_datetime(source["end_time"], utc=True)
-        - pd.to_datetime(source["start_time"], utc=True)
-    ).dt.total_seconds()
-    source = source.loc[source["duration_s"].gt(0)].copy()
-    if source.empty:
-        return source
-
-    order = rng.permutation(len(source))
-    remaining = float(target_s)
-    rows = []
-    for position in order:
-        row = source.iloc[int(position)].copy()
-        duration = float(row["duration_s"])
-        if remaining <= 0:
-            break
-        used = min(duration, remaining)
-        fraction = used / duration
-        row["duration_s"] = used
-        row["distance_m"] = float(row["distance_m"]) * fraction
-        rows.append(row)
-        remaining -= used
-    return pd.DataFrame(rows)
-
-
-def _transport_metrics(segments: pd.DataFrame) -> dict[str, float]:
-    if segments.empty:
+) -> dict[str, float]:
+    """Sample to an exact duration target without building per-bootstrap DataFrames."""
+    duration = arrays["duration_s"]
+    if target_s <= 0 or duration.size == 0:
         return {
             "distance_km_per_hour": float("nan"),
             "motorized_distance_share": float("nan"),
             "active_distance_share": float("nan"),
         }
-    duration_h = float(segments["duration_s"].sum() / 3600)
-    total_distance = float(segments["distance_m"].sum())
-    mode = segments["mode"].astype(str).str.lower()
+
+    total_duration = float(duration.sum())
+    if target_s >= total_duration:
+        selected_distance = arrays["distance_m"]
+        used_duration = duration
+        fractions = np.ones(duration.size, dtype=float)
+        order = np.arange(duration.size)
+    else:
+        order = rng.permutation(duration.size)
+        ordered_duration = duration[order]
+        cumulative = np.cumsum(ordered_duration)
+        stop = int(np.searchsorted(cumulative, target_s, side="left"))
+        selected = order[: stop + 1]
+        used_duration = duration[selected].copy()
+        fractions = np.ones(selected.size, dtype=float)
+        before = float(cumulative[stop - 1]) if stop > 0 else 0.0
+        final_used = target_s - before
+        fractions[-1] = final_used / used_duration[-1]
+        used_duration[-1] = final_used
+        order = selected
+        selected_distance = arrays["distance_m"][selected] * fractions
+
+    duration_h = float(used_duration.sum() / 3600)
+    total_distance = float(selected_distance.sum())
+    if total_distance > 0:
+        motorized_distance = float(
+            selected_distance[arrays["motorized"][order]].sum()
+        )
+        active_distance = float(
+            selected_distance[arrays["active"][order]].sum()
+        )
+    else:
+        motorized_distance = 0.0
+        active_distance = 0.0
+
     return {
         "distance_km_per_hour": (
             total_distance / 1000 / duration_h if duration_h > 0 else float("nan")
         ),
         "motorized_distance_share": (
-            float(segments.loc[mode.isin(MOTORIZED_MODES), "distance_m"].sum() / total_distance)
-            if total_distance > 0
-            else 0.0
+            motorized_distance / total_distance if total_distance > 0 else 0.0
         ),
         "active_distance_share": (
-            float(segments.loc[mode.isin(ACTIVE_MODES), "distance_m"].sum() / total_distance)
-            if total_distance > 0
-            else 0.0
+            active_distance / total_distance if total_distance > 0 else 0.0
         ),
     }
-
 
 def _transport_bootstrap(
     base03a: object,
@@ -456,6 +485,7 @@ def _transport_bootstrap(
     n_bootstraps: int,
     min_hours: float,
 ):
+    print("03b.1 stage: loading cached transport segments", flush=True)
     users = set(matched["candidate_user_id"]) | set(matched["control_user_id"])
     labels = base03b._mode_labels(zip_path, users)
     windows = base03b.canonicalize_mode_windows(labels)
@@ -467,31 +497,38 @@ def _transport_bootstrap(
         private_03b_root / "mode_segment_cache",
     )
     if segments.empty:
+        print("03b.1 transport: no matched segments", flush=True)
         return pd.DataFrame(), pd.DataFrame()
 
-    segments = segments.copy()
-    segments["duration_s"] = (
-        pd.to_datetime(segments["end_time"], utc=True)
-        - pd.to_datetime(segments["start_time"], utc=True)
-    ).dt.total_seconds()
-
+    user_arrays = {
+        str(user_id): _transport_arrays(group)
+        for user_id, group in segments.groupby("user_id", sort=False)
+    }
     rng = np.random.default_rng(seed + 100003)
     rows = []
     support_rows = []
-    metrics = ["distance_km_per_hour", "motorized_distance_share", "active_distance_share"]
+    metrics = [
+        "distance_km_per_hour",
+        "motorized_distance_share",
+        "active_distance_share",
+    ]
 
+    eligible_pairs = 0
     for pair_index, pair in enumerate(matched.itertuples(index=False), start=1):
-        left = segments.loc[segments["user_id"].eq(pair.candidate_user_id)]
-        right = segments.loc[segments["user_id"].eq(pair.control_user_id)]
-        left_h = float(left["duration_s"].sum() / 3600) if len(left) else 0.0
-        right_h = float(right["duration_s"].sum() / 3600) if len(right) else 0.0
+        left_user = str(pair.candidate_user_id)
+        right_user = str(pair.control_user_id)
+        empty = _transport_arrays(pd.DataFrame())
+        left = user_arrays.get(left_user, empty)
+        right = user_arrays.get(right_user, empty)
+        left_h = float(left["duration_s"].sum() / 3600)
+        right_h = float(right["duration_s"].sum() / 3600)
         target_h = min(left_h, right_h)
 
         support_rows.append(
             {
                 "pair_index": pair_index,
-                "candidate_user_id": pair.candidate_user_id,
-                "control_user_id": pair.control_user_id,
+                "candidate_user_id": left_user,
+                "control_user_id": right_user,
                 "candidate_labeled_h": left_h,
                 "control_labeled_h": right_h,
                 "controlled_labeled_h": target_h,
@@ -501,12 +538,11 @@ def _transport_bootstrap(
         if target_h < min_hours:
             continue
 
+        eligible_pairs += 1
         target_s = target_h * 3600
         for bootstrap_index in range(n_bootstraps):
-            left_sample = _sample_to_duration(left, target_s, rng=rng)
-            right_sample = _sample_to_duration(right, target_s, rng=rng)
-            left_metrics = _transport_metrics(left_sample)
-            right_metrics = _transport_metrics(right_sample)
+            left_metrics = _sample_transport_arrays(left, target_s, rng=rng)
+            right_metrics = _sample_transport_arrays(right, target_s, rng=rng)
             for metric in metrics:
                 rows.append(
                     {
@@ -519,8 +555,17 @@ def _transport_bootstrap(
                         "difference": left_metrics[metric] - right_metrics[metric],
                     }
                 )
-    return pd.DataFrame(rows), pd.DataFrame(support_rows)
+        print(
+            f"03b.1 transport pair {pair_index}/{len(matched)} "
+            f"(eligible={eligible_pairs})",
+            flush=True,
+        )
 
+    print(
+        f"03b.1 transport complete: {eligible_pairs} eligible pairs",
+        flush=True,
+    )
+    return pd.DataFrame(rows), pd.DataFrame(support_rows)
 
 def _transport_summary(rows: pd.DataFrame) -> pd.DataFrame:
     if rows.empty:
@@ -701,11 +746,17 @@ def run_audit(
 ) -> dict[str, object]:
     base03a = _load_module("behavior_03a_03b1", BASE03A_PATH)
     base03b = _load_module("behavior_03b_03b1", BASE03B_PATH)
+    print("03b.1 stage: reconstructing frozen cohort", flush=True)
     clustered, daily, matched, parity = _prepare_frozen_groups(
         base03a, base03b, zip_path, root
     )
+    print("03b.1 stage: building route-day table", flush=True)
     edge_days = _day_edge_table(clustered, daily)
 
+    print(
+        f"03b.1 stage: paired day bootstrap ({n_bootstraps} repetitions)",
+        flush=True,
+    )
     mobility_rows, route_rows, support_rows = _paired_bootstrap(
         daily,
         edge_days,
