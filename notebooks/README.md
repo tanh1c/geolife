@@ -49,8 +49,8 @@ It reuses the validated Modal Volume caches from:
 The notebook is intentionally presentation-oriented:
 
 - no raw GeoLife rescan;
-- aggregate tables/charts only;
-- no raw identifiers or coordinates;
+- aggregate tables/charts plus deterministic user-level case diagnostics;
+- internal demo maps intentionally show public GeoLife user IDs and coordinates;
 - each section follows question → rationale → measurement → result → caveat → decision;
 - it ends with mentor-ready talking points and the open DBSCAN MinPts follow-up.
 
@@ -63,4 +63,6 @@ Recommended demo path:
 ```
 
 The detailed 03a/03b/03b.1 runners remain the reproducibility/audit source; 03c is the compact narrative view.
+
+The mentor-demo notebook now also includes a visual v2 layer: deterministic raw GeoLife user IDs, interactive Folium stay/location maps, a representative matched A/B pair, daily mobility timelines, and L* transition heatmaps. Case selection is deterministic and illustrative; aggregate/sensitivity/bootstrap evidence remains the basis for research conclusions. visual v2 adds deterministic raw-ID case maps.
 
