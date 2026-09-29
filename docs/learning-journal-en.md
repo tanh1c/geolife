@@ -415,3 +415,22 @@ Independent evidence is weaker:
 
 Lesson: high membership stability shows that a descriptive wrapper is robust around the tested thresholds. It does not manufacture external or independent semantic evidence. The appropriate decision remains `mixed evidence`, not a validated distributed-work class.
 
+## 2026-09-29 — When matched users still differ in exposure, control at the user-day level
+
+03b matched all 23 A/B pairs, but aggregate observation support remained materially different. User-level matching therefore did not fully remove observation confounding.
+
+03b.1 controls exposure at the user-day level:
+
+```text
+for each A/B pair
+→ stratify weekday/weekend
+→ take the smaller usable-day count in each stratum
+→ downsample the better-observed side
+→ recompute metrics
+→ repeat by bootstrap
+```
+
+Route analysis independently uses controlled `usable_for_motif` days. The transportation subset controls matched labeled hours. This asks a narrower question: do A/B differences persist when both sides contribute comparable observed exposure?
+
+Lesson: per-day normalization is useful but can still leave support imbalance. Pairwise exposure control directly tests that confounding mechanism.
+
