@@ -849,3 +849,11 @@ Measured evidence:
 
 Research decision remains **mixed evidence**. The cohort is robust as a descriptive behavioral regime, but current independent evidence is insufficient to promote it to a semantic distributed/mobile-work rule.
 
+## 2026-09-29 — Started 03b.1 observation-support-controlled audit
+
+03b finished with a robust 23-user cohort but materially imbalanced observation support between matched A/B groups. A narrow follow-up, 03b.1, is now implemented on branch `eda/03b1-support-controlled-audit`.
+
+The experiment equalizes usable observation exposure within each matched pair before recomputing mobility and route metrics. Weekday/weekend day counts are controlled separately; route evidence uses independently controlled `usable_for_motif` days; transportation-label comparisons additionally control matched labeled hours where both sides have enough label coverage.
+
+This phase is explicitly a confounding audit, not a semantic classifier. Construction-overlapping mobility metrics remain descriptive; recurrent route structure is the main independent evidence stream. No 03b.1 result is accepted until the Modal full-release run and verification gates pass.
+
