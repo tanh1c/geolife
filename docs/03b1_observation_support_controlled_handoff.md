@@ -124,3 +124,13 @@ Measured result:
 
 Decision: the cohort remains a robust descriptive **mobility-complexity** cohort, but current independent evidence does not validate a distributed/mobile-work semantic class. The mobile-work hypothesis audit can be closed unless new independent semantic evidence becomes available.
 
+## Mentor demo consolidation
+
+The post-Home/Office EDA is now summarized in:
+
+```text
+notebooks/03c_behavior_eda_mentor_demo.ipynb
+```
+
+The notebook reads the already validated 03a/03b/03b.1 Modal caches and presents aggregate evidence only. It is intended for mentor walkthroughs; the underlying analysis scripts, reports, and private artifacts remain the source of reproducibility.
+
