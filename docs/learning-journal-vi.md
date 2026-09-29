@@ -438,3 +438,11 @@ Route analysis dùng riêng `usable_for_motif` days. Transportation subset contr
 
 Bài học: normalization kiểu km/day hữu ích nhưng chưa đủ khi số ngày quan sát và cấu trúc ngày quan sát lệch mạnh. Pairwise exposure control giúp test trực tiếp confounding đó.
 
+## 2026-09-29 — Merge schema collision có thể ẩn sau preflight synthetic
+
+03b.1 fail vì cả `clustered` và daily eligibility table đều có `local_weekday`. Merge theo `user_id + local_date` khiến pandas tạo `local_weekday_x/y`, nhưng code vẫn gọi `local_weekday`.
+
+Fix tốt hơn không phải chọn một suffix, mà là giảm merge về đúng mục đích: daily table chỉ dùng để gate `usable_for_motif`, nên chỉ cần `user_id + local_date`. Weekday có thể derive deterministic từ `local_date`.
+
+Bài học: khi một merge chỉ nhằm lọc eligibility, đừng mang theo columns không cần thiết. Narrow join schema giảm collision và làm provenance rõ hơn.
+
