@@ -446,3 +446,17 @@ Fix tốt hơn không phải chọn một suffix, mà là giảm merge về đú
 
 Bài học: khi một merge chỉ nhằm lọc eligibility, đừng mang theo columns không cần thiết. Narrow join schema giảm collision và làm provenance rõ hơn.
 
+## 2026-09-29 — Bootstrap đúng nhưng implementation pandas-naive có thể làm experiment không thực dụng
+
+03b.1 ban đầu đúng về ý tưởng nhưng chậm vì mỗi bootstrap lại filter/copy DataFrame và transport còn iterate `iloc` theo segment. Với 23 cặp × 500 repetitions, overhead pandas lặp lại lớn hơn bản thân thống kê cần tính.
+
+Fix giữ nguyên experiment nhưng thay execution:
+
+- filter A/B pair một lần ngoài loop;
+- sample trên pair-local frames;
+- transport convert sang NumPy arrays một lần/user;
+- dùng permutation + cumulative duration vectorized để đạt exact matched hours;
+- log progress theo stage/pair.
+
+Bài học: reproducibility không chỉ là deterministic output; long-running audit cũng cần progress observability và implementation đủ rẻ để rerun được.
+
