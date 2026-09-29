@@ -368,3 +368,26 @@ Cách sửa tốt hơn là không làm yếu guard và không dùng symlink. Run
 
 Bài học: persistence layer không nên thay đổi semantic của privacy/path invariants. Nếu guard kiểm tra resolved path, symlink là một phần của threat model chứ không chỉ là filesystem convenience.
 
+## 2026-09-29 — DBSCAN không chỉ có eps; MinPts cũng là modeling assumption
+
+Notebook 03 đã audit `eps` khá kỹ nhưng vẫn cố định `min_samples=1`. Đây là một assumption đáng test.
+
+Với scikit-learn DBSCAN, `min_samples` là số samples trong epsilon-neighborhood để một point được coi là core point, tính cả chính point đó. Vì vậy:
+
+```text
+min_samples = 1
+→ mọi point tự nó là core
+→ không có noise theo density
+→ isolated stay thành singleton cluster
+→ chaining permissive hơn
+
+min_samples tăng
+→ cần local density mạnh hơn
+→ có thể loại transient/sparse stays thành noise
+→ nhưng cũng có thể làm mất recurring places hợp lệ của user ít dữ liệu
+```
+
+Điểm quan trọng: downstream hiện đã có rule recurring location `>=2 stays`, nhưng điều đó **không tương đương** với `min_samples=2`. MinPts kiểm tra local epsilon-neighborhood density, còn recurring rule kiểm tra tổng visits sau clustering.
+
+Vì vậy cần sensitivity riêng `min_samples=1/2/3/5`, tốt nhất kết hợp với representative eps values, trước khi nói DBSCAN configuration có lý do đầy đủ.
+
