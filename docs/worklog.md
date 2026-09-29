@@ -948,3 +948,9 @@ The corrected mentor-demo notebook now uses a self-healing cache path:
 
 The visual layer still uses real public GeoLife user IDs, recurring-location maps, matched A/B examples, daily mobility timelines, and L* transition heatmaps for internal mentor review.
 
+## 2026-09-29 — Fixed 03c fresh-runtime package import
+
+A fresh Modal runtime failed before the 03c demo cache fallback could run with `ModuleNotFoundError: geolife`. The notebook cloned the repository but imported `analysis/03a_user_behavior_deep_dive.py` before installing the project package or adding `src/` to Python's import path.
+
+The mentor-demo runner is corrected to follow the same setup contract as the audit runners: checkout the branch, run `pip install -e .[dev] timezonefinder==9.0.0`, add both the repository root and `src/` to `sys.path`, and only then import 03a analysis helpers. This is a runtime/setup bug only; no EDA evidence or frozen result changes.
+
