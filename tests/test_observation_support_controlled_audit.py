@@ -162,3 +162,31 @@ def test_report_is_aggregate_and_semantically_cautious() -> None:
     assert "control_user_id" not in report
     assert "proven to be a mobile worker" in report
     assert "semantic decision deferred" in report
+
+
+def test_day_edge_table_avoids_local_weekday_merge_collision() -> None:
+    clustered = pd.DataFrame(
+        {
+            "user_id": ["A", "A"],
+            "local_date": pd.to_datetime(["2026-01-05", "2026-01-05"]).date,
+            "local_weekday": [0, 0],
+            "arrival_time_local": pd.to_datetime(
+                ["2026-01-05 08:00", "2026-01-05 09:00"]
+            ),
+            "location_id": [0, 1],
+        }
+    )
+    daily = pd.DataFrame(
+        {
+            "user_id": ["A"],
+            "local_date": pd.to_datetime(["2026-01-05"]).date,
+            "local_weekday": [0],
+            "usable_for_motif": [True],
+        }
+    )
+
+    result = audit._day_edge_table(clustered, daily)
+
+    assert len(result) == 1
+    assert result.loc[0, "local_weekday"] == 0
+    assert result.loc[0, "edge_counts"] == {"L0->L1": 1}
