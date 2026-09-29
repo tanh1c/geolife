@@ -464,3 +464,22 @@ Route evidence is narrower: edge entropy is higher by about 0.232 with a 95% boo
 
 Appropriate interpretation: observation imbalance does not fully explain the behavioral difference, but current evidence supports only a descriptive mobility-complexity cohort. Home/Office semantics remain unchanged.
 
+## 2026-09-29 — A mentor demo should preserve the reasoning chain, not just charts
+
+After 03a → 03b → 03b.1, the audit trail had become too fragmented for a clean review conversation. A separate narrative notebook now reuses validated caches instead of rerunning raw data.
+
+The mentor-facing structure is:
+
+```text
+question
+→ why it matters
+→ measurement
+→ result
+→ what cannot be concluded
+→ decision
+```
+
+This keeps research findings separate from semantic claims. The 23-user set is shown as a robust mobility-complexity cohort while explicitly showing why recurrent-route evidence and transport coverage are insufficient for a mobile-work label.
+
+Lesson: reproducibility notebooks and communication notebooks serve different purposes. The former optimize for auditability; the latter should preserve provenance while making the reasoning and decision trace easy to follow.
+
