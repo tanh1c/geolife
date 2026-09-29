@@ -623,27 +623,33 @@ def _render_report(summary: dict[str, object]) -> str:
     return f"""# 03b.1 Observation-support-controlled audit
 
 ## Status
-Research-only follow-up to 03b. No production Home/Office rule, occupation label,\nor semantic work-role classifier is created.
+Research-only follow-up to 03b. No production Home/Office rule, occupation label,
+or semantic work-role classifier is created.
 
 ## Question
-03b found a robust 23-user Group A cohort, but Group A had substantially denser\nobservation support than matched Group B.
+03b found a robust 23-user Group A cohort, but Group A had substantially denser
+observation support than matched Group B.
 
-After forcing each A/B pair to contribute the same amount of usable observation\nexposure, do descriptive mobility and independent route differences persist?
+After forcing each A/B pair to contribute the same amount of usable observation
+exposure, do descriptive mobility and independent route differences persist?
 
 ## Frozen parity
-The input cohort remains 23 / 23 / 23 / 0 for candidates / multiple-anchor /\nOFFICE-abstained / OFFICE-emitted.
+The input cohort remains 23 / 23 / 23 / 0 for candidates / multiple-anchor /
+OFFICE-abstained / OFFICE-emitted.
 
 ## Exposure-control design
 - matched A/B pairs: {support.get("matched_pairs", "n/a")};
 - bootstrap repetitions: {summary.get("n_bootstraps", "n/a")};
 - temporal days are downsampled within each pair and within weekday/weekend strata;
 - route evidence is separately downsampled on usable-for-motif days;
-- transportation evidence, where both members have labels, is controlled to the\n  same matched labeled hours.
+- transportation evidence, where both members have labels, is controlled to the
+  same matched labeled hours.
 
 The sampling changes exposure, not the frozen candidate definition.
 
 ## Mobility results
-These metrics are descriptive and overlap with candidate construction. They test\nobservation confounding but are not independent semantic validation.
+These metrics are descriptive and overlap with candidate construction. They test
+observation confounding but are not independent semantic validation.
 
 {table(mobility)}
 
@@ -653,7 +659,8 @@ These are the main support-controlled independent structure checks.
 {table(route)}
 
 ## Transportation-mode results
-Only pairs with enough labeled exposure on both sides are included. Mode-transition\ncounts are intentionally omitted because segment resampling breaks temporal ordering.
+Only pairs with enough labeled exposure on both sides are included. Mode-transition
+counts are intentionally omitted because segment resampling breaks temporal ordering.
 
 {table(transport)}
 
@@ -665,7 +672,9 @@ Transport: {summary.get("transport_signal_status", {})}
 ## Interpretation
 {summary.get("interpretation", "not evaluated")}
 
-A persistent difference after exposure control means richer observation alone does\nnot fully explain that measured difference. It still does not establish a semantic\ndistributed/mobile-work class.
+A persistent difference after exposure control means richer observation alone does
+not fully explain that measured difference. It still does not establish a semantic
+distributed/mobile-work class.
 
 ## What cannot be concluded
 - no candidate is proven to be a mobile worker;
