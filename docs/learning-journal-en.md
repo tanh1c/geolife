@@ -493,3 +493,19 @@ The notebook shows raw public GeoLife IDs, cached CP1 stays, recurring L* locati
 
 Lesson: a case visualization answers what a measured pattern looks like; whether the pattern exists at population level still comes from sensitivity, matched controls, and exposure-controlled bootstrap evidence.
 
+## 2026-09-29 — Demo notebooks should not assume derived caches already exist
+
+03c initially assumed the full 03a `summary.json` existed on the Modal Volume. In practice, 03b can reuse the frozen stay and point-day caches without ever persisting the complete 03a derived bundle.
+
+The corrected design separates two cache layers:
+
+```text
+expensive frozen inputs
+= stays + point-day metrics
+
+cheap derived demo artifacts
+= summary + user features + audit tables
+```
+
+If the derived layer is missing, the demo rebuilds it from frozen inputs instead of rescanning raw trajectories. This makes the mentor notebook more self-contained while keeping reruns practical.
+
