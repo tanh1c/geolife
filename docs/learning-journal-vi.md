@@ -468,3 +468,22 @@ Route evidence hẹp hơn: edge entropy cao hơn khoảng 0.232 với 95% bootst
 
 Kết luận phù hợp: observation imbalance không giải thích hết behavioral difference, nhưng evidence hiện tại chỉ support một descriptive mobility-complexity cohort. Không thay đổi Home/Office semantics từ kết quả này.
 
+## 2026-09-29 — Mentor demo nên kể lại reasoning, không chỉ dump chart
+
+Sau 03a → 03b → 03b.1, số lượng runner/report đã đủ nhiều để khó demo trực tiếp. Vì vậy tạo một notebook narrative riêng, reuse cache đã validate thay vì rerun raw data.
+
+Notebook mentor-facing đi theo format:
+
+```text
+câu hỏi
+→ vì sao cần kiểm tra
+→ cách đo
+→ kết quả
+→ không được suy ra gì
+→ decision
+```
+
+Cách này giúp phân biệt rõ research finding với semantic claim. Ví dụ 23-user cohort được trình bày là robust mobility-complexity cohort, đồng thời notebook giải thích vì sao recurrent-route evidence và transport coverage chưa đủ để gọi nó là mobile-work.
+
+Bài học: reproducibility notebook và communication notebook có mục tiêu khác nhau. Runner cần auditability; mentor notebook cần giữ provenance nhưng tối ưu cho reasoning và decision trace.
+
