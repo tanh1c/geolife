@@ -100,3 +100,11 @@ Root cause: `clustered` and the daily eligibility frame both contained `local_we
 
 No report or summary from the failed run is valid evidence.
 
+## Runtime correction — vectorized bootstrap
+
+The initial 500-repetition Modal attempt was interrupted after more than an hour with no output. The scientific protocol was not changed; execution was optimized.
+
+Day bootstrap now prefilters pair-local frames outside the repetition loop. Transportation bootstrap precomputes NumPy arrays once per user and uses vectorized cumulative-duration sampling rather than rebuilding pandas frames per repetition. Stage and pair-level progress is printed so future stalls are diagnosable.
+
+No evidence from the interrupted run is valid.
+
