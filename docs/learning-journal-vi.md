@@ -513,3 +513,9 @@ cheap derived demo artifacts
 
 Nếu derived layer thiếu, notebook rebuild từ frozen inputs thay vì scan raw trajectories. Như vậy demo notebook vừa self-contained hơn vừa giữ runtime hợp lý.
 
+## 2026-09-29 — Clone repo chưa đồng nghĩa package đã import được
+
+03c trên fresh Modal runtime clone repo thành công nhưng fail khi import `analysis/03a...` vì module đó import package `geolife`, trong khi project chưa được editable-install và `src/` chưa nằm trong Python path.
+
+Bài học: notebook runtime setup phải theo thứ tự `checkout -> install project -> add import paths -> import analysis helpers`. Việc file source tồn tại dưới `/tmp/geolife` không tự làm `src/geolife` trở thành importable package.
+
