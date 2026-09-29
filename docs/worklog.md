@@ -826,3 +826,26 @@ The same run also showed that `ruff check .` is not an appropriate 03b verificat
 
 The failed audit produced no accepted `summary.json`; downstream missing-summary errors were consequences of the earlier support-balance failure.
 
+## 2026-09-29 — 03b full-release audit completed
+
+The Modal full-release 03b audit completed successfully after the cache/support fixes.
+
+Verification:
+
+- frozen parity: 23 candidates / 23 multiple-anchor / 23 OFFICE-abstained / 0 OFFICE-emitted;
+- targeted 03b tests passed;
+- full repository tests passed;
+- targeted Ruff passed;
+- report/privacy checks passed.
+
+Measured evidence:
+
+- sensitivity is very stable: 100 m and 300 m anchor variants retain the exact same 23 users (Jaccard 1.0); ±10% mobility threshold changes only one user; ±1 weekday support leaves the set unchanged;
+- A/B support matching is complete (23 pairs, 0 unmatched), but aggregate support remains imbalanced: Group A has substantially more active/usable days and CP1 stays than Group B, so matching quality is not strong enough to treat A/B differences as causal evidence;
+- route structure differs descriptively (A median 13 transitions and edge entropy 3.55 vs B 8 and 2.81), but median recurrent-edge count is 0 in both A and B; Group C has median recurrent-edge count 1;
+- transport labels are sparse and imbalanced (A 6 labeled users, B 12, C 3), so mode composition is supporting evidence only;
+- motorized distance share is similar across groups (A 0.693, B 0.732, C 0.742), which does not independently distinguish Group A;
+- weekday-minus-weekend distance contrast is near zero for A (-0.12 km/day) and is descriptive rather than independent because weekday mobility contributes to candidate construction.
+
+Research decision remains **mixed evidence**. The cohort is robust as a descriptive behavioral regime, but current independent evidence is insufficient to promote it to a semantic distributed/mobile-work rule.
+
