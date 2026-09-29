@@ -160,7 +160,7 @@ def _mean_day_metrics(days: pd.DataFrame) -> dict[str, float]:
 def _day_edge_table(clustered: pd.DataFrame, daily: pd.DataFrame) -> pd.DataFrame:
     usable = daily.loc[
         daily["usable_for_motif"],
-        ["user_id", "local_date", "local_weekday"],
+        ["user_id", "local_date"],
     ].drop_duplicates()
     source = clustered.merge(usable, on=["user_id", "local_date"], how="inner")
     rows = []
@@ -179,7 +179,7 @@ def _day_edge_table(clustered: pd.DataFrame, daily: pd.DataFrame) -> pd.DataFram
             {
                 "user_id": user_id,
                 "local_date": local_date,
-                "local_weekday": int(day["local_weekday"].iloc[0]),
+                "local_weekday": int(pd.Timestamp(local_date).weekday()),
                 "edge_counts": dict(Counter(edges)),
             }
         )
