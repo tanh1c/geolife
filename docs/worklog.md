@@ -779,3 +779,24 @@ The first Modal Volume runner exposed two preflight failures before any 03b evid
 
 The continuation now removes the forbidden wording and configures persistent caches explicitly via `GEOLIFE_03A_CACHE_DIR` / `GEOLIFE_03B_CACHE_DIR`. The 03a privacy guard is repointed to the approved cache root at runtime while explicit cache paths are passed to avoid Python default-argument binding issues. No scientific 03b result was accepted from the failed run.
 
+## 2026-09-29 — Mentor follow-up: DBSCAN MinPts sensitivity
+
+Mentor raised a follow-up question for the Home/Office recurring-location benchmark: DBSCAN currently fixes `min_samples=1` while only `eps` has received an explicit sensitivity study.
+
+Repository check confirms:
+
+- `notebooks/03_home_office_baseline.ipynb` uses `DBSCAN(..., min_samples=1)`;
+- `src/geolife/model/home_office.py` also uses `min_samples=1`.
+
+This setting is not considered optimized. With `min_samples=1`, every stay can become a core point, so DBSCAN behaves close to epsilon-neighborhood connected components: isolated stays become singleton clusters instead of noise, and connectivity/chaining is maximally permissive.
+
+Follow-up after the current 03b audit:
+
+- run a DBSCAN `min_samples` sensitivity study rather than assuming 1;
+- test at least `1 / 2 / 3 / 5`;
+- cross-check representative `eps` values rather than changing MinPts in isolation;
+- measure recurring-user coverage, recurring-location count, noise/singleton behavior, p95/max diameter, clusters above 200 m, and users losing all recurring-location support;
+- compare the result with complete-link 200 m under the same frozen stay inventory.
+
+Do not choose a MinPts value merely because it maximizes coverage. The goal is an explainable coverage–density–compactness trade-off.
+
