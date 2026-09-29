@@ -138,7 +138,11 @@ def _sample_equalized_days(
         right_parts.append(right_stratum.loc[right_idx])
 
     left_sample = pd.concat(left_parts, ignore_index=True) if left_parts else left.iloc[0:0].copy()
-    right_sample = (\n        pd.concat(right_parts, ignore_index=True)\n        if right_parts\n        else right.iloc[0:0].copy()\n    )
+    right_sample = (
+        pd.concat(right_parts, ignore_index=True)
+        if right_parts
+        else right.iloc[0:0].copy()
+    )
     return (
         left_sample.drop(columns=["_is_weekday"], errors="ignore"),
         right_sample.drop(columns=["_is_weekday"], errors="ignore"),
@@ -211,7 +215,11 @@ def _sample_equalized_edge_days(
         right_parts.append(right_stratum.loc[right_idx])
 
     left_sample = pd.concat(left_parts, ignore_index=True) if left_parts else left.iloc[0:0].copy()
-    right_sample = pd.concat(right_parts, ignore_index=True) if right_parts else right.iloc[0:0].copy()
+    right_sample = (
+        pd.concat(right_parts, ignore_index=True)
+        if right_parts
+        else right.iloc[0:0].copy()
+    )
     return (
         left_sample.drop(columns=["_is_weekday"], errors="ignore"),
         right_sample.drop(columns=["_is_weekday"], errors="ignore"),
@@ -607,7 +615,12 @@ def _render_report(summary: dict[str, object]) -> str:
         ]
         return "\n".join([header, separator, *rows])
 
-    next_step = summary.get(\n        "next_step",\n        "Review the controlled evidence before changing production or notebook-03 semantics.",\n    )\n\n    return f"""# 03b.1 Observation-support-controlled audit
+    next_step = summary.get(
+        "next_step",
+        "Review the controlled evidence before changing production or notebook-03 semantics.",
+    )
+
+    return f"""# 03b.1 Observation-support-controlled audit
 
 ## Status
 Research-only follow-up to 03b. No production Home/Office rule, occupation label,\nor semantic work-role classifier is created.
