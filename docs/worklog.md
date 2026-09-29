@@ -918,3 +918,18 @@ The notebook reuses the existing Modal Volume caches from 03a, 03b, and 03b.1 ra
 
 The notebook intentionally shows aggregate outputs only and does not expose private case-level identifiers, coordinates, or trajectories.
 
+## 2026-09-29 — Expanded 03c mentor demo with user-level maps
+
+Upgraded `notebooks/03c_behavior_eda_mentor_demo.ipynb` from an aggregate-only narrative to a more visual internal mentor demo.
+
+The notebook now reuses frozen caches to show:
+
+- deterministic representative users for dominant-anchor, two-anchor, and multiple-anchor classes;
+- raw GeoLife user IDs and interactive Folium maps of cached CP1 stays, recurring L* locations, and chronological stay paths;
+- a deterministic representative Group A candidate (edge entropy nearest the Group A median) and its actual matched Group B control;
+- user-level daily cleaned-distance, movement-proxy, and boundary timelines for that A/B pair;
+- within-day L* transition heatmaps for the same pair;
+- existing aggregate sensitivity and 03b.1 exposure-controlled confidence-interval charts.
+
+This is an internal side-project demo over public GeoLife data, so raw dataset IDs/coordinates are shown intentionally. The notebook still separates illustrative case diagnostics from population evidence and does not infer occupation or Home/Office ground truth from individual maps.
+
