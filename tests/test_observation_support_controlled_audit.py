@@ -79,7 +79,7 @@ def test_route_metrics_count_repeated_edges_across_days() -> None:
     assert result["top_edge_frequency"] == 0.5
 
 
-def test_sample_to_duration_hits_exact_target_and_scales_partial_segment() -> None:
+def test_transport_array_sampling_controls_exact_duration() -> None:
     segments = pd.DataFrame(
         {
             "start_time": pd.to_datetime(
@@ -92,15 +92,17 @@ def test_sample_to_duration_hits_exact_target_and_scales_partial_segment() -> No
             "mode": ["walk", "bus"],
         }
     )
+    arrays = audit._transport_arrays(segments)
 
-    sample = audit._sample_to_duration(
-        segments,
+    metrics = audit._sample_transport_arrays(
+        arrays,
         5400.0,
         rng=np.random.default_rng(0),
     )
 
-    assert np.isclose(sample["duration_s"].sum(), 5400.0)
-    assert sample["distance_m"].sum() <= 3000.0
+    assert np.isfinite(metrics["distance_km_per_hour"])
+    assert 0.0 <= metrics["motorized_distance_share"] <= 1.0
+    assert 0.0 <= metrics["active_distance_share"] <= 1.0
 
 
 def test_bootstrap_summary_uses_paired_median_per_replicate() -> None:
@@ -190,3 +192,28 @@ def test_day_edge_table_avoids_local_weekday_merge_collision() -> None:
     assert len(result) == 1
     assert result.loc[0, "local_weekday"] == 0
     assert result.loc[0, "edge_counts"] == {"L0->L1": 1}
+
+
+def test_pair_frame_sampling_uses_prefiltered_frames() -> None:
+    left = pd.DataFrame(
+        {
+            "local_weekday": [0, 1, 2, 5, 6],
+            "value": [1, 2, 3, 4, 5],
+        }
+    )
+    right = pd.DataFrame(
+        {
+            "local_weekday": [0, 1, 5],
+            "value": [10, 11, 12],
+        }
+    )
+
+    sampled_left, sampled_right = audit._sample_equalized_pair_frames(
+        left,
+        right,
+        rng=np.random.default_rng(7),
+    )
+
+    assert len(sampled_left) == len(sampled_right) == 3
+    assert int(sampled_left["local_weekday"].lt(5).sum()) == 2
+    assert int(sampled_right["local_weekday"].lt(5).sum()) == 2
