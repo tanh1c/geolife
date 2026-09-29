@@ -337,3 +337,26 @@ The existing production `HomeOfficeConfig` remains the frozen CP2 v1 implementat
 
 The prior 80/80 Asia/Shanghai-focused notebook candidate should be treated as superseded, not as an additional frozen contract.
 
+### Open follow-up: DBSCAN MinPts sensitivity
+
+The current DBSCAN benchmark fixes `min_samples=1`. This was useful for an initial coverage-oriented benchmark but has not been justified by a MinPts sensitivity study.
+
+A follow-up experiment should hold the frozen stay inventory constant and test at least:
+
+```text
+min_samples = 1 / 2 / 3 / 5
+```
+
+across representative epsilon values. Required diagnostics should include:
+
+- total and recurring clusters;
+- users with recurring locations;
+- fraction of stays labeled as DBSCAN noise;
+- singleton / sparse-cluster behavior;
+- p95 and maximum recurring-cluster diameter;
+- recurring clusters above 200 m;
+- users that lose all recurring-location support;
+- comparison with complete-link 200 m.
+
+No MinPts value is frozen or claimed optimal yet. A higher value may reduce permissive chaining/noise retention but can also reduce coverage for sparsely observed users.
+
