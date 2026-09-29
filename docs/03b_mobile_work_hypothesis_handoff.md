@@ -222,3 +222,20 @@ Continuation behavior is now:
 
 The failed Modal run produced no accepted 03b evidence and no `summary.json`; downstream missing-summary errors were consequences of the earlier materialization stop.
 
+## Full-release result — 2026-09-29
+
+The corrected Modal run completed and passed all verification gates.
+
+Key aggregate findings:
+
+- frozen parity: `23 / 23 / 23 / 0`;
+- sensitivity: exact same cohort at 100 m / 200 m / 300 m; Jaccard 0.958 for -10% mobility threshold and 0.957 for +10%; ±1 weekday support leaves cohort unchanged;
+- support: A/B matched 23/23 with no unmatched candidates, but Group A still has much denser observation support than Group B;
+- route evidence: A median transitions `13`, recurrent edges `0`, edge entropy `3.55`; B `8 / 0 / 2.81`; C `9.5 / 1 / 3.00`;
+- transport labels: A `6`, B `12`, C `3` labeled users; motorized distance shares `0.693 / 0.732 / 0.742`;
+- weekday-minus-weekend distance delta: A `-0.12`, B `-10.24`, C `-2.47` km/day.
+
+Research decision: **mixed evidence**.
+
+The candidate set is robust as a descriptive mobility regime, but current independent evidence does not justify a semantic distributed/mobile-work classifier. Frozen Home/Office production semantics remain unchanged.
+
