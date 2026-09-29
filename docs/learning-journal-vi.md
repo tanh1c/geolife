@@ -487,3 +487,13 @@ Cách này giúp phân biệt rõ research finding với semantic claim. Ví d�
 
 Bài học: reproducibility notebook và communication notebook có mục tiêu khác nhau. Runner cần auditability; mentor notebook cần giữ provenance nhưng tối ưu cho reasoning và decision trace.
 
+## 2026-09-29 — Case maps nên minh họa aggregate finding, không thay thế aggregate finding
+
+Mentor demo dễ hiểu hơn khi có spatial cases thật thay vì chỉ bảng aggregate. Nhưng nếu chọn case bằng mắt thì rất dễ cherry-pick.
+
+03c visual v2 vì vậy chọn case deterministic: archetype user gần median active-days của class; A/B pair dùng candidate có edge entropy gần median Group A rồi lấy đúng matched control.
+
+Map hiển thị raw GeoLife user ID, cached CP1 stays, L* recurring locations và chronological stay path. Daily timeline và L* transition heatmap giúp nối intuition với 03b/03b.1.
+
+Bài học: case visualization nên trả lời “pattern này trông như thế nào?”; câu “pattern có tồn tại ở population không?” vẫn phải dựa vào sensitivity, matched controls và bootstrap exposure control.
+
