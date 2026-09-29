@@ -857,3 +857,17 @@ The experiment equalizes usable observation exposure within each matched pair be
 
 This phase is explicitly a confounding audit, not a semantic classifier. Construction-overlapping mobility metrics remain descriptive; recurrent route structure is the main independent evidence stream. No 03b.1 result is accepted until the Modal full-release run and verification gates pass.
 
+## 2026-09-29 — Fixed 03b.1 weekday merge collision
+
+The first 03b.1 Modal run passed preflight and reproduced the frozen setup, then stopped in `_day_edge_table()` with `KeyError: local_weekday` before generating evidence.
+
+Cause: the clustered stay table already contained `local_weekday`, while the usable-day eligibility table also carried `local_weekday`. Merging on `user_id + local_date` caused pandas to suffix the duplicate columns (`local_weekday_x` / `local_weekday_y`), while downstream code still requested the unsuffixed name.
+
+Fix:
+
+- use the daily table only as an eligibility gate with `user_id + local_date`;
+- derive weekday deterministically from `local_date` inside the route-day table;
+- add a regression test where both inputs contain `local_weekday`.
+
+No 03b.1 evidence was accepted from the failed run. Missing report/summary errors later in the notebook were downstream consequences of the route-table failure.
+
