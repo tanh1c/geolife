@@ -483,3 +483,13 @@ This keeps research findings separate from semantic claims. The 23-user set is s
 
 Lesson: reproducibility notebooks and communication notebooks serve different purposes. The former optimize for auditability; the latter should preserve provenance while making the reasoning and decision trace easy to follow.
 
+## 2026-09-29 — Case maps should illustrate aggregate findings, not replace them
+
+The mentor demo is easier to understand with real spatial cases, but visual case selection can easily become cherry-picking.
+
+03c visual v2 therefore uses deterministic selection: archetype users nearest the class median active-day support, and an A/B pair whose Group A edge entropy is nearest the Group A median plus its actual matched control.
+
+The notebook shows raw public GeoLife IDs, cached CP1 stays, recurring L* locations, chronological stay paths, daily mobility timelines, and L* transition heatmaps.
+
+Lesson: a case visualization answers what a measured pattern looks like; whether the pattern exists at population level still comes from sensitivity, matched controls, and exposure-controlled bootstrap evidence.
+
