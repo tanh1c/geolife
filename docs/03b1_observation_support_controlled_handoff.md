@@ -108,3 +108,19 @@ Day bootstrap now prefilters pair-local frames outside the repetition loop. Tran
 
 No evidence from the interrupted run is valid.
 
+## Full-release result — 2026-09-29
+
+The optimized Modal run completed successfully in about 3.1 minutes and passed targeted tests, full repository tests, targeted Ruff, frozen parity, and public-report privacy checks.
+
+Measured result:
+
+- all 23 matched pairs contributed controlled temporal days; median controlled exposure was 45 days;
+- 22 pairs contributed controlled motif days; median controlled route exposure was 8 days;
+- movement magnitude remained higher in Group A after exposure control: +22.88 km/day cleaned distance and +0.74 h/day movement-duration proxy;
+- recurring-location count/day and stay count/day did not separate A/B;
+- edge entropy remained higher in Group A (+0.232, 95% bootstrap interval [0.006, 0.455]);
+- recurrent-edge count/day remained exactly 0 difference, and transition/day / distinct-edge/day intervals touched zero;
+- only one matched pair had enough transportation-label coverage, so transportation evidence is not population-level.
+
+Decision: the cohort remains a robust descriptive **mobility-complexity** cohort, but current independent evidence does not validate a distributed/mobile-work semantic class. The mobile-work hypothesis audit can be closed unless new independent semantic evidence becomes available.
+
