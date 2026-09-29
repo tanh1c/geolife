@@ -902,3 +902,19 @@ Key findings after pairwise exposure control:
 
 Research decision: freeze the 23-user set as a robust descriptive mobility-complexity cohort, not a validated mobile-work class. No production Home/Office change is justified. The current mobile-work hypothesis audit is closed pending independent semantic evidence.
 
+## 2026-09-29 — Added consolidated behavior EDA mentor demo notebook
+
+Added `notebooks/03c_behavior_eda_mentor_demo.ipynb` as the mentor-facing narrative notebook for the new behavior EDA.
+
+The notebook reuses the existing Modal Volume caches from 03a, 03b, and 03b.1 rather than rerunning raw GeoLife. It walks through:
+
+- frozen CP1/CP2 baseline and why upstream behavior remains frozen;
+- 03a coverage, anchor heterogeneity, schedule/JSD negative result, and the 23-user exploratory cohort;
+- 03b sensitivity, matched-control imbalance, route and transport evidence;
+- 03b.1 pairwise exposure control with mobility and route bootstrap intervals;
+- final research/production decision;
+- mentor-ready talking points;
+- the separate DBSCAN MinPts follow-up.
+
+The notebook intentionally shows aggregate outputs only and does not expose private case-level identifiers, coordinates, or trajectories.
+
