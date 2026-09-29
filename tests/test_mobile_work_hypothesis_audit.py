@@ -158,7 +158,7 @@ def test_matching_reports_observation_support_balance() -> None:
             "cp1_stay_count": [8, 8],
             "active_days": [10, 10],
             "usable_temporal_days": [5, 5],
-            "observed_span_h": [30.0, 30.0],
+            "usable_active_days": [5, 5],
         }
     )
     baseline = pd.DataFrame(
@@ -236,7 +236,7 @@ def test_support_balance_reports_unmatched_group_a() -> None:
             "user_id": ["A1", "A2", "B1", "C1"],
             "active_days": [10, 12, 11, 20],
             "usable_temporal_days": [5, 6, 5, 10],
-            "observed_span_h": [30.0, 40.0, 35.0, 80.0],
+            "usable_active_days": [5, 6, 5, 10],
             "cp1_stay_count": [8, 9, 8, 30],
         }
     )
