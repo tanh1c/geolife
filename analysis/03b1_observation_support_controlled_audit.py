@@ -607,7 +607,7 @@ def _render_report(summary: dict[str, object]) -> str:
         ]
         return "\n".join([header, separator, *rows])
 
-    return f"""# 03b.1 Observation-support-controlled audit
+    next_step = summary.get(\n        "next_step",\n        "Review the controlled evidence before changing production or notebook-03 semantics.",\n    )\n\n    return f"""# 03b.1 Observation-support-controlled audit
 
 ## Status
 Research-only follow-up to 03b. No production Home/Office rule, occupation label,\nor semantic work-role classifier is created.
@@ -665,7 +665,7 @@ A persistent difference after exposure control means richer observation alone do
 {summary.get("decision", "semantic decision deferred")}
 
 ## Next step
-{summary.get("next_step", "Review the controlled evidence before changing " +\n    "production or notebook-03 semantics.")}
+{next_step}
 """
 
 
