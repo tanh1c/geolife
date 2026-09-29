@@ -594,7 +594,18 @@ def _render_report(summary: dict[str, object]) -> str:
             ]
             if column in frame.columns
         ]
-        return frame.loc[:, columns].round(4).to_markdown(index=False)
+        shown = frame.loc[:, columns].copy()
+        for column in shown.select_dtypes(include=[np.number]).columns:
+            shown[column] = shown[column].map(
+                lambda value: "" if pd.isna(value) else f"{float(value):.4f}"
+            )
+        header = "| " + " | ".join(columns) + " |"
+        separator = "| " + " | ".join(["---"] * len(columns)) + " |"
+        rows = [
+            "| " + " | ".join(str(row[column]) for column in columns) + " |"
+            for _, row in shown.iterrows()
+        ]
+        return "\n".join([header, separator, *rows])
 
     return f"""# 03b.1 Observation-support-controlled audit
 
