@@ -456,3 +456,11 @@ The optimized implementation preserves the same experiment while:
 
 Lesson: reproducible research code also needs observable progress and sufficiently efficient execution to support actual reruns.
 
+## 2026-09-29 — Exposure-controlled 03b.1 result
+
+After equalizing usable-day exposure within each A/B pair, Group A still shows higher movement magnitude: about +22.9 km/day cleaned distance and +0.74 h/day movement proxy.
+
+Route evidence is narrower: edge entropy is higher by about 0.232 with a 95% bootstrap interval above zero, while recurrent-edge difference is zero and transition/day plus distinct-edge/day intervals touch zero.
+
+Appropriate interpretation: observation imbalance does not fully explain the behavioral difference, but current evidence supports only a descriptive mobility-complexity cohort. Home/Office semantics remain unchanged.
+
