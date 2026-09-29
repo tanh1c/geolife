@@ -933,3 +933,18 @@ The notebook now reuses frozen caches to show:
 
 This is an internal side-project demo over public GeoLife data, so raw dataset IDs/coordinates are shown intentionally. The notebook still separates illustrative case diagnostics from population evidence and does not infer occupation or Home/Office ground truth from individual maps.
 
+## 2026-09-29 — Fixed 03c mentor-demo cache bootstrap
+
+The visual mentor-demo notebook initially assumed that the full 03a `summary.json` and `user_behavior_features.csv` had already been persisted under `/mnt/geolife-data/cache/03a_user_behavior_deep_dive`. That assumption was false on the current Modal Volume: 03b/03b.1 had reused the frozen stay/point-day caches without necessarily persisting the complete 03a derived artifact bundle.
+
+The corrected mentor-demo notebook now uses a self-healing cache path:
+
+- load full 03a derived artifacts when present;
+- discover legacy 03a artifact locations when available;
+- otherwise rebuild only derived 03a EDA from `stays_baseline_v1.pkl` + `cleaned_point_daily_metrics.pkl`;
+- read the release-user listing from the GeoLife ZIP only for the 182-user reconciliation;
+- never rescan raw `.plt` trajectory files during this fallback;
+- persist rebuilt `summary.json`, `user_behavior_features.csv`, and `baseline_user_audit.csv` back to the canonical 03a Volume cache for later demos.
+
+The visual layer still uses real public GeoLife user IDs, recurring-location maps, matched A/B examples, daily mobility timelines, and L* transition heatmaps for internal mentor review.
+
