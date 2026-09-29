@@ -91,3 +91,12 @@ After the full run:
 6. evidence review.
 
 Do not modify frozen Home/Office semantics or notebook 03 from this audit alone.
+
+## Modal correction — local_weekday collision
+
+The first full Modal attempt stopped before evidence generation with `KeyError: local_weekday` in `_day_edge_table()`.
+
+Root cause: `clustered` and the daily eligibility frame both contained `local_weekday`; the merge produced suffixed columns. The route-day builder now joins only `user_id + local_date` for motif eligibility and derives weekday directly from the date. A regression test covers this exact collision.
+
+No report or summary from the failed run is valid evidence.
+
