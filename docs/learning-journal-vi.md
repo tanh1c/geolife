@@ -403,3 +403,19 @@ Bài học:
 
 Ngoài ra, verification gate phải phân biệt lỗi của change hiện tại với technical debt sẵn có. Full pytest vẫn có giá trị regression, nhưng Ruff cho 03b nên target file 03b thay vì fail vì notebook lint cũ không liên quan.
 
+## 2026-09-29 — Robust candidate set chưa đồng nghĩa semantic regime đã được validate
+
+03b cho một ví dụ rõ về khác biệt giữa **robustness** và **semantic validation**.
+
+Candidate set 23 users cực kỳ ổn định: anchor threshold 100/200/300 m đều giữ nguyên 23 users; thay mobility threshold ±10% chỉ thêm/bớt 1 user; support ±1 weekday không đổi cohort.
+
+Tuy nhiên independent evidence chưa đủ mạnh:
+
+- A/B aggregate observation support vẫn lệch đáng kể dù đã match đủ 23 cặp;
+- transportation labels chỉ phủ 6/23 A users, 12/23 B users và 3/16 C users;
+- motorized share của A/B/C khá giống nhau;
+- median recurrent route edges của A và B đều bằng 0;
+- A có nhiều transitions và edge entropy cao hơn, nhưng điều đó mô tả mobility complexity chứ chưa chứng minh work semantics.
+
+Bài học: một wrapper có membership stability rất cao chỉ cho thấy definition ổn định quanh các threshold đã thử. Nó không tự tạo ra external/independent semantic evidence. Vì vậy decision đúng là `mixed evidence`, không phải `supported work regime`.
+
