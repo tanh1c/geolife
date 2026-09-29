@@ -888,3 +888,17 @@ The audit now:
 
 The scientific design and default 500 bootstrap repetitions are unchanged. The interrupted long-running attempt produced no accepted 03b.1 evidence.
 
+## 2026-09-29 — 03b.1 support-controlled audit completed
+
+The optimized 03b.1 Modal run completed successfully and passed all verification gates.
+
+Key findings after pairwise exposure control:
+
+- 23/23 temporal pairs retained; median controlled temporal exposure 45 days;
+- 22 route pairs retained; median controlled motif exposure 8 days;
+- Group A still shows materially higher movement magnitude (+22.88 km/day cleaned distance; +0.74 h/day movement proxy), so richer observation alone does not explain the descriptive high-mobility pattern;
+- route evidence is mixed: edge entropy remains higher (+0.232; 95% interval 0.006–0.455), while recurrent-edge difference is 0 and transition/distinct-edge intervals touch zero;
+- only 1 matched pair has enough transport-label exposure, so mode evidence cannot support a cohort-level conclusion.
+
+Research decision: freeze the 23-user set as a robust descriptive mobility-complexity cohort, not a validated mobile-work class. No production Home/Office change is justified. The current mobile-work hypothesis audit is closed pending independent semantic evidence.
+
