@@ -460,3 +460,11 @@ Fix giữ nguyên experiment nhưng thay execution:
 
 Bài học: reproducibility không chỉ là deterministic output; long-running audit cũng cần progress observability và implementation đủ rẻ để rerun được.
 
+## 2026-09-29 — Exposure-controlled 03b.1 result
+
+Sau khi equalize usable-day exposure trong từng A/B pair, Group A vẫn có movement magnitude cao hơn: khoảng +22.9 km/day cleaned distance và +0.74 h/day movement proxy.
+
+Route evidence hẹp hơn: edge entropy cao hơn khoảng 0.232 với 95% bootstrap interval trên 0, nhưng recurrent-edge difference bằng 0 và transition/day cùng distinct-edge/day có interval chạm 0.
+
+Kết luận phù hợp: observation imbalance không giải thích hết behavioral difference, nhưng evidence hiện tại chỉ support một descriptive mobility-complexity cohort. Không thay đổi Home/Office semantics từ kết quả này.
+
