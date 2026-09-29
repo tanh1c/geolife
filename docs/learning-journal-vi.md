@@ -391,3 +391,15 @@ min_samples tăng
 
 Vì vậy cần sensitivity riêng `min_samples=1/2/3/5`, tốt nhất kết hợp với representative eps values, trước khi nói DBSCAN configuration có lý do đầy đủ.
 
+## 2026-09-29 — Support matching phải dùng đúng schema đã freeze
+
+03b từng dùng `observed_span_h` để match/support-balance vì field này tồn tại ở point-day layer trong design, nhưng frozen 03a user feature table không export nó. Full audit vì vậy fail dù unit tests synthetic vẫn pass.
+
+Bài học:
+
+- audit downstream phải kiểm tra schema thật từ upstream artifact, không suy ra field chỉ từ design/spec;
+- test fixture nên phản ánh frozen upstream schema, không thêm convenience fields mà production table không có;
+- với support balance, dùng các field thật sự đã freeze: `active_days`, `usable_temporal_days`, `usable_active_days`, `cp1_stay_count`.
+
+Ngoài ra, verification gate phải phân biệt lỗi của change hiện tại với technical debt sẵn có. Full pytest vẫn có giá trị regression, nhưng Ruff cho 03b nên target file 03b thay vì fail vì notebook lint cũ không liên quan.
+
