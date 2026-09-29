@@ -434,3 +434,11 @@ Route analysis independently uses controlled `usable_for_motif` days. The transp
 
 Lesson: per-day normalization is useful but can still leave support imbalance. Pairwise exposure control directly tests that confounding mechanism.
 
+## 2026-09-29 — Narrow eligibility joins avoid hidden schema collisions
+
+03b.1 failed because both the clustered stay table and the daily eligibility table carried `local_weekday`. A merge on `user_id + local_date` therefore produced suffixed weekday columns, while downstream code still requested the unsuffixed field.
+
+The better fix is not to pick one suffix. The daily table is only an eligibility gate for `usable_for_motif`, so the join now carries only `user_id + local_date`; weekday is derived deterministically from `local_date`.
+
+Lesson: when a merge exists only to filter eligibility, keep the join payload minimal. Narrow joins reduce collision risk and make data provenance easier to reason about.
+
