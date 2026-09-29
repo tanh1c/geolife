@@ -258,6 +258,41 @@ def _route_metrics(days: pd.DataFrame) -> dict[str, float]:
     }
 
 
+def _sample_equalized_pair_frames(
+    left: pd.DataFrame,
+    right: pd.DataFrame,
+    *,
+    rng: np.random.Generator,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Downsample two prefiltered user-day frames within weekday/weekend strata."""
+    left_parts = []
+    right_parts = []
+    for is_weekday in (True, False):
+        left_mask = left["local_weekday"].lt(5).eq(is_weekday)
+        right_mask = right["local_weekday"].lt(5).eq(is_weekday)
+        left_stratum = left.loc[left_mask]
+        right_stratum = right.loc[right_mask]
+        n = min(len(left_stratum), len(right_stratum))
+        if n == 0:
+            continue
+        left_idx = rng.choice(left_stratum.index.to_numpy(), size=n, replace=False)
+        right_idx = rng.choice(right_stratum.index.to_numpy(), size=n, replace=False)
+        left_parts.append(left_stratum.loc[left_idx])
+        right_parts.append(right_stratum.loc[right_idx])
+
+    left_sample = (
+        pd.concat(left_parts, ignore_index=True)
+        if left_parts
+        else left.iloc[0:0].copy()
+    )
+    right_sample = (
+        pd.concat(right_parts, ignore_index=True)
+        if right_parts
+        else right.iloc[0:0].copy()
+    )
+    return left_sample, right_sample
+
+
 def _paired_bootstrap(
     daily: pd.DataFrame,
     edge_days: pd.DataFrame,
@@ -296,11 +331,9 @@ def _paired_bootstrap(
         )
 
         for bootstrap_index in range(n_bootstraps):
-            left_days, right_days = _sample_equalized_days(
-                daily,
-                left_user,
-                right_user,
-                quality_column="usable_for_temporal_profile",
+            left_days, right_days = _sample_equalized_pair_frames(
+                left_temporal,
+                right_temporal,
                 rng=rng,
             )
             if len(left_days) and len(left_days) == len(right_days):
@@ -319,10 +352,9 @@ def _paired_bootstrap(
                         }
                     )
 
-            left_route, right_route = _sample_equalized_edge_days(
-                edge_days,
-                left_user,
-                right_user,
+            left_route, right_route = _sample_equalized_pair_frames(
+                left_motif,
+                right_motif,
                 rng=rng,
             )
             if len(left_route) >= 2 and len(left_route) == len(right_route):
