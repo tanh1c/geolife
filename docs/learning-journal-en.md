@@ -364,3 +364,26 @@ The fix keeps the guard intact and removes the symlink. The runner supplies expl
 
 General lesson: persistence plumbing must not silently change privacy invariants. A symlink is part of the path-security model when guards validate resolved paths.
 
+## 2026-09-29 — DBSCAN has a second modeling assumption: MinPts
+
+Notebook 03 studied `eps` in detail while keeping `min_samples=1` fixed. That is still an unvalidated modeling choice.
+
+In scikit-learn DBSCAN, `min_samples` is the number of samples in an epsilon neighborhood required for a point to be a core point, including the point itself. Therefore:
+
+```text
+min_samples = 1
+→ every point is core
+→ no density-based noise
+→ isolated stays become singleton clusters
+→ connectivity is maximally permissive
+
+higher min_samples
+→ stronger local-density requirement
+→ more transient/sparse stays may become noise
+→ but valid sparse recurring places may also be lost
+```
+
+The downstream `stay_count >= 2` recurring-location rule is not equivalent to `min_samples=2`: the former is a post-cluster visit-count condition, while MinPts is a local epsilon-neighborhood density condition.
+
+A later sensitivity experiment should test at least `1/2/3/5` across representative epsilon values and compare coverage, noise, compactness, chaining, and downstream recurring-user support before giving the DBSCAN benchmark a fully justified configuration.
+
