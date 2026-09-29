@@ -509,3 +509,9 @@ cheap derived demo artifacts
 
 If the derived layer is missing, the demo rebuilds it from frozen inputs instead of rescanning raw trajectories. This makes the mentor notebook more self-contained while keeping reruns practical.
 
+## 2026-09-29 — Cloning a repository does not make its src package importable
+
+03c cloned the repository successfully on a fresh Modal runtime but failed when importing `analysis/03a...` because that module imports `geolife`, while the project had not yet been installed and `src/` was not on Python's import path.
+
+Lesson: notebook setup must follow `checkout -> install project -> add import paths -> import analysis helpers`. A source tree existing under `/tmp/geolife` does not by itself make `src/geolife` importable.
+
