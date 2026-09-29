@@ -497,3 +497,19 @@ Map hiển thị raw GeoLife user ID, cached CP1 stays, L* recurring locations v
 
 Bài học: case visualization nên trả lời “pattern này trông như thế nào?”; câu “pattern có tồn tại ở population không?” vẫn phải dựa vào sensitivity, matched controls và bootstrap exposure control.
 
+## 2026-09-29 — Demo notebook không nên giả định derived cache luôn tồn tại
+
+03c mentor demo fail vì mình giả định `03a/summary.json` luôn có trên Modal Volume. Thực tế 03b có thể reuse `stays_baseline_v1.pkl` và `cleaned_point_daily_metrics.pkl` mà không chạy/persist toàn bộ output 03a.
+
+Fix tốt hơn là tách cache thành hai tầng:
+
+```text
+frozen expensive inputs
+= stays + point-day metrics
+
+cheap derived demo artifacts
+= summary + user features + audit tables
+```
+
+Nếu derived layer thiếu, notebook rebuild từ frozen inputs thay vì scan raw trajectories. Như vậy demo notebook vừa self-contained hơn vừa giữ runtime hợp lý.
+
