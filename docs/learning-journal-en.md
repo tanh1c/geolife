@@ -442,3 +442,17 @@ The better fix is not to pick one suffix. The daily table is only an eligibility
 
 Lesson: when a merge exists only to filter eligibility, keep the join payload minimal. Narrow joins reduce collision risk and make data provenance easier to reason about.
 
+## 2026-09-29 — Statistically valid bootstrap code can still be operationally unusable
+
+The first 03b.1 bootstrap design was conceptually valid but operationally slow because every repetition refiltered/copied pandas frames, while the transport path also rebuilt DataFrames and iterated segments with `iloc`.
+
+The optimized implementation preserves the same experiment while:
+
+- prefiltering each A/B pair once;
+- sampling only pair-local frames;
+- precomputing compact NumPy transport arrays once per user;
+- using vectorized permutation/cumulative-duration sampling for matched labeled hours;
+- emitting stage/pair progress.
+
+Lesson: reproducible research code also needs observable progress and sufficiently efficient execution to support actual reruns.
+
