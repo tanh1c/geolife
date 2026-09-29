@@ -387,3 +387,15 @@ The downstream `stay_count >= 2` recurring-location rule is not equivalent to `m
 
 A later sensitivity experiment should test at least `1/2/3/5` across representative epsilon values and compare coverage, noise, compactness, chaining, and downstream recurring-user support before giving the DBSCAN benchmark a fully justified configuration.
 
+## 2026-09-29 — Support matching must use the frozen upstream schema
+
+03b referenced `observed_span_h` for support matching because that field exists at the point-day layer in the design, but the frozen 03a user-level feature table does not export it. The full audit therefore failed even though synthetic unit fixtures had passed.
+
+Lessons:
+
+- downstream audits must validate the actual upstream artifact schema rather than infer fields from a design document;
+- fixtures should mirror the frozen upstream schema instead of introducing convenient fields absent from production tables;
+- support balance now uses `active_days`, `usable_temporal_days`, `usable_active_days`, and `cp1_stay_count`.
+
+Verification should also separate current-change quality from unrelated repository lint debt. Full pytest remains a regression gate, while Ruff is targeted to the 03b runner and tests.
+
