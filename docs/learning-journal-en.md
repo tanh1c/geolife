@@ -399,3 +399,19 @@ Lessons:
 
 Verification should also separate current-change quality from unrelated repository lint debt. Full pytest remains a regression gate, while Ruff is targeted to the 03b runner and tests.
 
+## 2026-09-29 — A robust candidate set is not the same as a validated semantic regime
+
+03b provides a clean example of the difference between **robustness** and **semantic validation**.
+
+The 23-user candidate set is highly stable: anchor thresholds 100/200/300 m retain the exact same cohort; ±10% mobility thresholds change only one user; ±1 weekday support leaves membership unchanged.
+
+Independent evidence is weaker:
+
+- aggregate observation support remains materially different between matched A/B groups;
+- transportation labels cover only 6/23 A users, 12/23 B users, and 3/16 C users;
+- motorized distance share is similar across A/B/C;
+- median recurrent route-edge count is zero in both A and B;
+- A has more transitions and higher edge entropy, but those describe mobility complexity rather than work semantics.
+
+Lesson: high membership stability shows that a descriptive wrapper is robust around the tested thresholds. It does not manufacture external or independent semantic evidence. The appropriate decision remains `mixed evidence`, not a validated distributed-work class.
+
