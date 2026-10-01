@@ -92,3 +92,11 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Compares chronological OD-distribution shifts against random balanced day partitions.
 - Bootstraps departure-time concentration by active day and applies stricter multimodal GMM checks.
 - This is the readiness gate before Stage 07 behavioral change detection.
+
+
+### Stage 06c — change-detection representation feasibility
+
+- `06c_change_detection_representation_feasibility.ipynb`
+- Reuses private Stage-06 day/transition caches plus Stage-03a cleaned point-day metrics; no raw rescan.
+- Evaluates 28/42/56-day coarse support-normalized features, adjacent-window test-retest stability, support-matched random-partition nulls, and feature bootstrap uncertainty.
+- Keeps exact-edge JSD as a baseline comparator; Stage 07 remains blocked until the measured 06c tables are reviewed.
