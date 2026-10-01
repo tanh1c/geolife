@@ -99,3 +99,36 @@ Key interpretation:
 
 This does not select 30 m as the production clustering threshold. It demonstrates why DBSCAN eps is not a hard location-size contract and why the complete-link audit remains necessary.
 
+
+
+## DBSCAN MinPts follow-up — 2026-10-01
+
+A focused notebook-04 follow-up tested `min_samples = 1/2/3/5` across `eps = 20/50/100/200 m` on the frozen 97-user Home/Office semantic cohort.
+
+This follow-up uses the production semantic cohort and therefore should not be conflated with the separate full-stay DBSCAN rerun above. The complete-link comparator is the same frozen 200 m representation: 1,111 locations, 486 recurring locations, and 73 users with recurrence.
+
+For recurring clusters only, the current notebook-04 comparator reports:
+
+- p95 diameter: 180.95 m;
+- maximum diameter: 199.23 m;
+- recurring clusters above 200 m: 0.
+
+The older table above reports p95 over its original audit aggregation and is retained as historical evidence; the maximum-diameter contract is unchanged.
+
+At DBSCAN `eps=200 m`:
+
+| min_samples | locations | recurring locations | recurring users | singleton locations | noise stays | p95 recurring diameter m | max recurring diameter m | recurring clusters >200 m |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 1003 | 418 | 73 | 585 | 0 | 365.01 | 836.66 | 68 |
+| 2 | 418 | 418 | 73 | 0 | 585 | 365.01 | 836.66 | 68 |
+| 3 | 239 | 239 | 64 | 0 | 943 | 407.80 | 836.66 | 68 |
+| 5 | 131 | 131 | 56 | 0 | 1317 | 457.27 | 836.66 | 56 |
+
+Interpretation:
+
+- moving from `min_samples=1` to `2` leaves recurring-user and recurring-location counts unchanged; it mainly reclassifies 585 singleton stays as noise;
+- raising MinPts to 3 or 5 materially reduces recurring-user coverage;
+- the widest chained recurring cluster remains ~837 m for every tested MinPts value;
+- therefore MinPts tuning does not solve the compactness problem that motivated complete linkage.
+
+Decision remains unchanged: keep complete-link 200 m as the frozen recurring-location representation for semantic Home/Office work. The next research step is POI / land-use enrichment as auxiliary semantic evidence, not a production relabeling rule.
