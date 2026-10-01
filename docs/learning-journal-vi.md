@@ -951,3 +951,49 @@ Nhưng comparator motif hiện cho phép sequence chỉ có một location, ví 
 Vì vậy zero overlap không nên được đọc như hai routine representations khám phá hai nhóm mobility hoàn toàn khác nhau.
 
 Lesson: khi comparator dùng unit khác nhau, eligibility phải match cả support lẫn behavior type. Nếu mục tiêu là mobility routine, collapsed motif comparator nên yêu cầu ít nhất một transition.
+
+## 2026-10-01 — Cửa sổ lịch dài hơn không tự tạo thêm longitudinal support
+
+Stage 06c thử các cửa sổ lịch cố định 28 / 42 / 56 ngày với điều kiện tối thiểu 6 usable days.
+
+Kết quả median usable days trên eligible window chỉ tăng từ 8 → 8 → 9 ngày, trong khi số user có adjacent eligible pair giảm 11 → 9 → 7.
+
+Bài học:
+
+```text
+calendar span dài hơn
+!=
+observation support dày hơn
+```
+
+Trong GeoLife, sampling theo thời gian quá không đều. Nếu tăng window chỉ kéo dài khoảng lịch nhưng không thêm nhiều usable observations, detector sẽ mất số cặp so sánh mà không mua được nhiều statistical support.
+
+Vì vậy sau 06c không nên tiếp tục thử 70 / 84-day fixed calendar windows. Hướng đúng hơn là support-indexed windows: gom cố định 6 / 8 / 10 usable days rồi kiểm soát calendar span bằng cap.
+
+## 2026-10-01 — Coarsening giúp representation nhưng không sửa được coverage bottleneck
+
+Exact OD vẫn rất bất ổn ở 06c: median chronological JSD gần 1 và random-partition JSD cũng gần 1. Điều này lặp lại finding của 06b rằng identity-sensitive representation bị sampling chi phối.
+
+Một số coarse feature tốt hơn rõ rệt. Ở 42d:
+
+- cleaned distance / usable day: Spearman ~0.729, chronological > random p95 ở 6.7% pair, bootstrap-width / observed-IQR ~0.814;
+- active locations / usable day: Spearman ~0.540, random-p95 exceedance 0%, bootstrap ratio ~0.866.
+
+Tuy nhiên toàn bộ 45 feature × window combinations vẫn fail readiness vì không window nào đạt predeclared 20 adjacent comparable pairs.
+
+Bài học: representation quality và population coverage là hai gate độc lập. Coarsening có thể làm feature ổn định hơn nhưng không tự tạo thêm longitudinal observations.
+
+## 2026-10-01 — Không hạ readiness gate sau khi nhìn kết quả
+
+Ba combination vượt tất cả non-coverage gates:
+
+- 28d time_00_06_share;
+- 42d active_location_count_per_usable_day;
+- 42d cleaned_distance_km_per_usable_day.
+
+Nhưng comparable pairs tối đa chỉ là 16, thấp hơn gate 20 đã khai báo trước.
+
+Bài học: không nên hạ gate từ 20 xuống 15/16 chỉ vì kết quả hiện tại gần pass. Làm vậy sẽ biến feasibility audit thành post-hoc tuning.
+
+Decision đúng là giữ Stage 07 blocked và thay đổi window construction, không thay đổi acceptance criterion sau khi xem output.
+
