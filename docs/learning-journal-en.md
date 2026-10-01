@@ -598,3 +598,51 @@ Stage 05 pivots from POI lookup to reliability validation:
 recurring locations -> multiple semantic rankers -> split-half -> held-out -> dropout -> cross-method agreement -> schedule-sensitivity
 
 The frozen 27 HOME / 16 OFFICE result is now only a parity comparator. New candidate coverage may be larger, but no method is treated as truth until the reliability axes are measured.
+
+
+## 2026-10-01 — HOME is more stable than OFFICE; more coverage is not better semantics
+
+Stage 05 reproduced the frozen 27 HOME / 16 OFFICE parity, but before the final production emission gate the fixed-window ranker already yields 35 HOME and 27 OFFICE candidates. The recurrence ranker can rank 73 HOME and 31 OFFICE candidates. Thus 27/16 is a conservative emission-policy outcome, not the natural ceiling of the data.
+
+More importantly, agreement differs sharply between HOME and OFFICE.
+
+HOME:
+
+- fixed vs HoWDe-style: 18/19 same location = 94.7%;
+- fixed vs recurrence: 29/35 = 82.9%;
+- HoWDe-style vs recurrence: 17/20 = 85.0%.
+
+OFFICE:
+
+- fixed vs HoWDe-style remains reasonably high at 13/16 = 81.3%;
+- fixed vs recurrence falls to 7/22 = 31.8%;
+- HoWDe-style vs recurrence is only 3/20 = 15.0%.
+
+Lessons:
+
+- HOME has a strong dominant recurrent-anchor signal, so materially different assumptions often converge on the same location;
+- OFFICE depends much more strongly on temporal semantics — recurrence at an alternate anchor is not sufficient evidence of a workplace;
+- larger coverage is not stronger evidence: recurrence HOME covers 73 users but held-out top-1 persistence is only about 43.3%;
+- reliability must be interpreted jointly with coverage.
+
+Missing-data stress also shows relatively strong fixed-HOME robustness: after dropping 30% of stays, candidate retention is about 84.8%; recurrence HOME retains about 87.2%. HoWDe-style HOME drops to about 68.3%, indicating that the current hourly proportional implementation is more sensitive to sparse stop support in GeoLife.
+
+## 2026-10-01 — A time shift tests assumptions, not accuracy
+
+Shifting every local timestamp by +12 h while preserving physical locations provides a useful metamorphic stress test:
+
+- recurrence HOME retains 100% of candidates;
+- recurrence OFFICE retains about 77.4%;
+- fixed HOME retains about 37.1% and fixed OFFICE 14.8%;
+- HoWDe-style HOME/OFFICE retain about 25.0% / 14.3%.
+
+This does not mean recurrence is semantically more accurate. Fixed-window and HoWDe-style methods intentionally encode clock windows, so sensitivity is part of their design.
+
+The appropriate lessons are:
+
+- the +12 h test measures schedule dependence;
+- HOME can separate physical-anchor recurrence from circadian interpretation;
+- OFFICE needs adaptive/sliding-window reasoning if atypical schedules are in scope;
+- a single global time window should not be loosened merely to increase coverage.
+
+Next decision: quantify HOME consensus/support tiers and run sliding-window/adaptive audits for unstable OFFICE/WORK assignments before changing production inference.
