@@ -1058,3 +1058,28 @@ Decision:
 - OFFICE remains substantially more method-dependent and should not be broadened from recurrence alone;
 - the next semantic follow-up should quantify consensus tiers and use sliding-window/adaptive behavior for unstable users rather than tuning another single global clock threshold;
 - no reported metric is semantic accuracy because GeoLife still lacks HOME/OFFICE ground truth.
+
+## 2026-10-01 — Stage 05b scaffolded: HOME consensus tiers + adaptive secondary-anchor audit
+
+Stage 05 showed strong HOME convergence but method-dependent OFFICE behavior. Stage 05b now separates those two follow-ups instead of tuning another global office window.
+
+Added:
+
+- `analysis/05b_home_consensus_adaptive_work.py`;
+- `notebooks/05b_home_consensus_adaptive_work.ipynb`;
+- `docs/eda/19_home_consensus_adaptive_work.md`;
+- `docs/05b_home_consensus_adaptive_work_handoff.md`.
+
+HOME candidate tiers reuse the private Stage-05 assignment/split/holdout/dropout tables.
+
+Tier logic is transparent and non-probabilistic:
+
+- HIGH = unique vote winner, >=2 methods agree, and split + held-out top-1 + 30% dropout axes all have confirming evidence;
+- MEDIUM = unique vote winner, >=2 methods agree, and at least 2/3 reliability axes confirm;
+- UNCERTAIN = otherwise.
+
+The adaptive secondary-anchor audit runs only for HIGH/MEDIUM HOME users. It excludes HOME and tracks recurring non-HOME anchors in overlapping windows without using a fixed 09–17 selection window. Primary audit uses 42-day windows with 14-day steps, plus 28/42/56-day and 0.60/0.70/0.80 persistence sensitivity.
+
+A synthetic execution test initially exposed a timezone bug: production semantic timestamps are timezone-aware while the first sliding-window implementation created timezone-naive boundaries. The code now derives normalized window boundaries directly from timezone-aware semantic timestamps. Synthetic HOME tiering and a two-secondary-anchor switching case both pass.
+
+No production HOME/OFFICE rule changed. Stage 05b remains an audit layer until measured outputs are reviewed.
