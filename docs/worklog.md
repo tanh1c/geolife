@@ -1145,3 +1145,46 @@ The primary design is within-user rather than population-threshold based. A cand
 The audit also includes paired bootstrap differences versus each user's peer median, peer-support sensitivity at 2/3/5 active days, and descriptive stratification by static OFFICE agreement.
 
 No production HOME/OFFICE change is implied. The notebook is self-contained and reuses private Stage-05b caches.
+
+## 2026-10-01 — Stage 05c independent-evidence audit completed
+
+Stage 05c evaluated the nine Stage-05b stable secondary anchors against same-user recurring non-HOME peers on four evidence axes that were not used as the primary sliding-window persistence rule.
+
+Primary comparator support (>=3 active days, >=2 stays):
+
+- 9 stable-secondary users upstream;
+- 7 had at least one fair recurring non-HOME peer;
+- median peer-anchor count = 4.
+
+Axis-level result among the seven comparable users:
+
+- weekday-weekend visit contrast: 5/7 candidate anchors ranked top-1; median candidate-minus-peer-median = +0.198;
+- direct HOME<->secondary transition-day share: 3/7 top-1; median difference = +0.102;
+- arrival-hour concentration: 0/7 top-1; median difference = -0.181;
+- dwell-duration regularity: 0/7 top-1; median difference = -0.092.
+
+Multi-axis convergence:
+
+- 0/7 users ranked top-1 on >=3 of 4 axes;
+- 1/7 ranked top-1 on exactly 2 axes;
+- 6/7 ranked top-1 on only 0-1 axes;
+- 3/7 beat the peer median on >=3 axes, but this weaker criterion did not translate into top-rank convergence.
+
+Paired bootstrap intervals for candidate-minus-peer-median differences all crossed zero. The strongest directional signals were weekday contrast and HOME-pair transition share, but small-N uncertainty remained substantial.
+
+Peer-support sensitivity:
+
+- min 2 active days: 9 comparable users, 0 with >=3 top axes;
+- min 3 active days: 7 users, 0 with >=3 top axes;
+- min 5 active days: sample collapsed to 3 users; 1 reached >=3 top axes.
+
+Decision: close broad semantic WORK/OFFICE expansion. Stable secondary anchors remain a useful behavioral state, but current evidence does not support relabeling them as workplace. Production HOME/OFFICE remains unchanged.
+
+Related-work direction after 05c:
+
+- keep the frozen CP1 stay detector and complete-link 200 m representation; do not replace the current audited backbone with Trackintel mid-project;
+- use Trackintel only as an external reference/benchmark and source of tracking-quality ideas if a new behavior-change track needs them;
+- adopt the report's coverage-before-change-detection principle;
+- prefer Andrade-style routine/habit mining and downstream change detection as the next research direction because they do not require WORK semantics;
+- treat HoWDe as a comparator/lesson source rather than a reason to continue tuning WORK labels;
+- use Dong-style commute/OD features as sanity/interpretability signals, not as a GeoLife population-law claim.
