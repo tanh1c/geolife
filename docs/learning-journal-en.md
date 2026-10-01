@@ -792,3 +792,28 @@ The appropriate integration now is:
 - treat the change-detection repository as research code to refactor/test rather than importing its defaults as truth.
 
 General lesson: literature integration must respect accumulated validation debt. A mature external library is not automatically worth replacing an already-audited pipeline if the replacement destroys comparability with prior experiments.
+
+
+## 2026-10-01 — Routines can be represented by OD + time without WORK semantics
+
+After Stage 05c, forcing a persistent secondary anchor into OFFICE semantics no longer produced strong convergent evidence. Stage 06 changes the unit of analysis from semantic place to behavioral routine:
+
+```text
+supported daily sequence
+→ directed OD edge
+→ recurrence
+→ local departure-time habit
+```
+
+Lessons:
+
+- a directed OD pair can repeat even when the exact whole-day motif changes because of an extra or missing stop;
+- exact motifs are a strict comparator, not the only useful representation;
+- recurrence and clock regularity should remain separate evidence axes rather than be fused into a pseudo-confidence;
+- clock time is cyclic: 23:30 and 00:30 must be treated as close, so ordinary linear averages are inappropriate;
+- sequence order should use UTC timestamps, while departure habits should use the origin's local clock;
+- support gates must run before routine mining so missing observation is not converted into behavioral absence.
+
+For edges with sufficient transitions, Stage 06 fits 1–3 departure-time modes after circular unwrapping and uses BIC only as a descriptive multimodality tool. The number of modes is a temporal pattern, not an occupation or trip-purpose label.
+
+Only if routine coverage and split-half stability are adequate should Stage 07 perform behavioral change detection on this representation.

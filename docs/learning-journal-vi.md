@@ -800,3 +800,28 @@ Deep-research report đề xuất Trackintel làm backbone, HoWDe làm robust HO
 - nếu dùng change-detection repo thì refactor/test như research algorithm, không copy default parameter rồi coi là truth.
 
 Bài học tổng quát: literature integration phải tôn trọng accumulated validation debt. Một thư viện tốt không tự động đáng để thay một pipeline đã được audit nếu việc thay đó làm mất toàn bộ comparability của các experiment trước.
+
+
+## 2026-10-01 — Routine nên được biểu diễn bằng OD + thời gian, không cần semantic WORK
+
+Sau 05c, việc cố xác nhận secondary anchor là OFFICE không còn tạo thêm evidence mạnh. Stage 06 đổi đơn vị phân tích từ semantic place sang behavioral routine:
+
+```text
+supported daily sequence
+→ directed OD edge
+→ recurrence
+→ local departure-time habit
+```
+
+Bài học:
+
+- một OD pair có thể lặp ổn định dù whole-day motif thay đổi vì thêm/bớt một stop;
+- exact motif là comparator strict, không nên là representation duy nhất;
+- recurrence và clock regularity phải giữ thành hai axes riêng, không cộng thành pseudo-confidence;
+- giờ trong ngày là cyclic: 23:30 và 00:30 phải gần nhau, vì vậy mean/concentration tuyến tính thông thường là không phù hợp;
+- sequence order nên dùng UTC timestamp, còn departure habit dùng local clock;
+- support gate phải chạy trước routine mining để missing observation không biến thành behavioral absence.
+
+Với edge có đủ transitions, Stage 06 thử 1–3 departure-time modes sau circular unwrapping và dùng BIC để mô tả multimodality. Số mode chỉ là temporal pattern, không phải loại nghề hay trip purpose.
+
+Nếu routine coverage và split-half stability đủ tốt, representation này mới phù hợp để Stage 07 detect behavior change.
