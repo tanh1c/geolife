@@ -889,3 +889,55 @@ Stage 06b calls a result strict multimodal only when all are satisfied:
 - centers separated by >=2 hours.
 
 Lesson: model-selection criteria do not replace minimum support and component-interpretability checks.
+
+## 2026-10-01 — High JSD is not temporal drift when random splits are equally high
+
+Stage 06b initially looks extremely unstable:
+
+- 45 users have edge distributions in both halves;
+- median chronological JSD = 1.0;
+- median weighted Jaccard = 0;
+- median top-3 overlap = 0.
+
+Read alone, that could be mistaken for strong behavioral change.
+
+But balanced random partitions of the same supported days also have median JSD = 1.0. Only 2/45 users have chronological JSD above their own random-partition p95.
+
+Lesson:
+
+```text
+high chronological difference
+!= temporal change
+
+high chronological difference
++ equally high random-partition difference
+≈ sparse representation / sampling instability
+```
+
+A within-user sampling null is therefore essential before change detection.
+
+## 2026-10-01 — Exact OD identity is too sparse for broad change detection
+
+Support contracts quickly:
+
+```text
+>=2 active days -> 23 users
+>=3 active days ->  9 users
+>=5 active days ->  2 users
+```
+
+Strong supported edges do show robust departure timing: median concentration ~0.964 and median bootstrap lower bound ~0.944. However, the 12 strong edges come from only 2 users.
+
+Strict multimodality is narrower still: six modeled edges from one user and one strict multimodal edge.
+
+Lesson: a feature can be highly reliable conditional on strong support while still lacking the population coverage needed to serve as a detector backbone.
+
+## 2026-10-01 — A motif comparator must distinguish stationary repeated days from mobility routines
+
+The primary Stage-06b comparator reports 8 repeated-OD users, 9 supported collapsed-motif users and zero overlap.
+
+However, the current motif comparator permits a one-location sequence such as `L0`, which is a repeated stationary-day pattern without an OD transition.
+
+The zero overlap therefore should not be interpreted as evidence that the two representations discover fully disjoint mobility populations.
+
+Lesson: when comparators use different units, eligibility should match both observation support and behavior type. A mobility-motif comparator should require at least one transition.
