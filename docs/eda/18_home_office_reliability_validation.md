@@ -188,3 +188,94 @@ Before changing production inference, require:
 3. split-half, held-out, dropout, and cross-method summaries are complete;
 4. results are interpreted as reliability evidence rather than accuracy;
 5. a separate decision is made on whether an adaptive/sliding-window model is justified.
+
+
+## Measured reliability matrix — 2026-10-01
+
+The complete run reproduced the expected 27 HOME / 16 OFFICE production parity.
+
+### Cohort and candidate coverage
+
+The frozen semantic representation contained 97 users, 1,111 locations, 486 recurring locations and 73 users with at least one recurring anchor.
+
+| method | label | candidate users | production emitted |
+|---|---|---:|---:|
+| fixed_window | HOME | 35 | 27 |
+| fixed_window | OFFICE | 27 | 16 |
+| howde_style | HOME | 20 | n/a |
+| howde_style | OFFICE | 21 | n/a |
+| recurrence | HOME | 73 | n/a |
+| recurrence | OFFICE | 31 | n/a |
+
+The gap between fixed-window candidate counts and final emissions confirms that 27/16 is a conservative gate outcome rather than the candidate ceiling.
+
+### Cross-method convergence
+
+HOME agreement is high across all three pairwise comparisons:
+
+- fixed_window ↔ howde_style: 18/19 = 94.7%;
+- fixed_window ↔ recurrence: 29/35 = 82.9%;
+- howde_style ↔ recurrence: 17/20 = 85.0%.
+
+OFFICE behaves differently:
+
+- fixed_window ↔ howde_style: 13/16 = 81.3%;
+- fixed_window ↔ recurrence: 7/22 = 31.8%;
+- howde_style ↔ recurrence: 3/20 = 15.0%.
+
+This supports a strong dominant-anchor interpretation for HOME, while alternate-location recurrence alone is not a reliable OFFICE semantic proxy.
+
+### Test–retest
+
+Same-location agreement among users where both halves produced a candidate:
+
+| split | method | HOME | OFFICE |
+|---|---|---:|---:|
+| first vs second half | fixed_window | 76.5% (13/17) | 55.6% (5/9) |
+| first vs second half | howde_style | 66.7% (2/3) | 50.0% (2/4) |
+| first vs second half | recurrence | 50.0% (30/60) | 27.3% (3/11) |
+| odd vs even week | fixed_window | 80.0% (12/15) | 88.9% (8/9) |
+| odd vs even week | howde_style | 80.0% (4/5) | 80.0% (4/5) |
+| odd vs even week | recurrence | 58.6% (34/58) | 42.9% (6/14) |
+
+The small overlap counts for some OFFICE/HoWDe comparisons prevent strong population-level conclusions from those high percentages.
+
+### Held-out predictive persistence
+
+Using the first 60% of observed dates for inference and the last 40% for evaluation:
+
+| method | HOME top-1 | OFFICE top-1 |
+|---|---:|---:|
+| fixed_window | 55.6% | 44.4% |
+| howde_style | 60.0% | 36.4% |
+| recurrence | 43.3% | 37.5% |
+
+These are persistence metrics, not semantic accuracy.
+
+### Missing-data robustness
+
+At 30% random stay dropout, candidate retention was:
+
+- fixed_window: HOME 84.8%, OFFICE 76.5%;
+- howde_style: HOME 68.3%, OFFICE 54.0%;
+- recurrence: HOME 87.2%, OFFICE 64.5%.
+
+Fixed HOME and recurrence HOME are therefore comparatively robust to this perturbation, while the current HoWDe-style implementation is more support-sensitive.
+
+### +12 h schedule stress
+
+Candidate retention after preserving physical locations and shifting local time by +12 h:
+
+- fixed_window: HOME 37.1%, OFFICE 14.8%;
+- howde_style: HOME 25.0%, OFFICE 14.3%;
+- recurrence: HOME 100%, OFFICE 77.4%.
+
+This is expected schedule dependence for clock-window methods and must not be interpreted as an accuracy ranking.
+
+## Stage 05 decision
+
+1. Do not change production HOME/OFFICE yet.
+2. HOME has enough convergent evidence to justify a candidate-level consensus expansion audit beyond the 27 emitted baseline cases.
+3. OFFICE does not: recurrence-based OFFICE coverage is method-dependent and should not be promoted.
+4. The next semantic experiment should build privacy-safe HOME reliability tiers and a sliding-window/adaptive WORK audit.
+5. GeoLife still lacks semantic ground truth, so all conclusions remain reliability/behavioral evidence rather than accuracy claims.
