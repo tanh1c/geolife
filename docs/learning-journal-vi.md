@@ -602,3 +602,51 @@ Stage 05 pivot từ POI lookup sang reliability validation:
 recurring locations -> multiple semantic rankers -> split-half -> held-out -> dropout -> cross-method agreement -> schedule-sensitivity
 
 Frozen 27 HOME / 16 OFFICE chỉ còn là parity comparator. Candidate coverage mới được phép lớn hơn, nhưng không method nào được coi là truth cho tới khi qua các reliability axes.
+
+
+## 2026-10-01 — HOME ổn định hơn OFFICE; coverage lớn hơn không đồng nghĩa semantic tốt hơn
+
+Stage 05 xác nhận frozen parity 27 HOME / 16 OFFICE, nhưng khi bỏ final emission gate thì fixed-window đã có 35 HOME và 27 OFFICE candidates. Recurrence ranker còn có thể xếp 73 HOME candidates và 31 OFFICE candidates. Vì vậy 27/16 là kết quả của conservative emission policy, không phải trần tự nhiên của dữ liệu.
+
+Điểm quan trọng hơn là agreement khác nhau rõ giữa HOME và OFFICE.
+
+HOME:
+
+- fixed vs HoWDe-style cùng location 18/19 = 94.7%;
+- fixed vs recurrence 29/35 = 82.9%;
+- HoWDe-style vs recurrence 17/20 = 85.0%.
+
+OFFICE:
+
+- fixed vs HoWDe-style vẫn khá cao 13/16 = 81.3%;
+- nhưng fixed vs recurrence chỉ 7/22 = 31.8%;
+- HoWDe-style vs recurrence chỉ 3/20 = 15.0%.
+
+Bài học:
+
+- HOME có một recurrent dominant-anchor signal khá mạnh, nên nhiều assumptions khác nhau vẫn hội tụ về cùng location;
+- OFFICE phụ thuộc mạnh hơn vào temporal semantics — recurrence của một anchor ban ngày chưa đủ để gọi nó là workplace;
+- emit nhiều hơn không phải là bằng chứng tốt hơn; recurrence HOME có coverage 73 users nhưng held-out top-1 chỉ ~43.3%;
+- reliability phải đọc cùng coverage, không đọc riêng từng cột.
+
+Missing-data stress cũng cho thấy fixed HOME tương đối bền: khi bỏ ngẫu nhiên 30% stays, retention vẫn ~84.8%; recurrence HOME ~87.2%. HoWDe-style giảm còn ~68.3%, cho thấy proportional hourly design hiện tại nhạy hơn với sparse stop support trong GeoLife.
+
+## 2026-10-01 — Time-shift là stress test của assumption, không phải accuracy test
+
+Dịch toàn bộ local timestamps +12 h nhưng giữ nguyên physical locations tạo ra một metamorphic test hữu ích:
+
+- recurrence HOME giữ 100% candidate;
+- recurrence OFFICE giữ ~77.4%;
+- fixed HOME chỉ giữ ~37.1%, fixed OFFICE ~14.8%;
+- HoWDe-style HOME/OFFICE giữ ~25.0% / ~14.3%.
+
+Không nên diễn giải rằng recurrence vì thế "đúng hơn". Fixed-window và HoWDe-style cố ý dùng clock windows, nên sensitivity là thuộc tính thiết kế.
+
+Bài học đúng là:
+
+- +12 h test đo schedule dependence;
+- HOME physical-anchor evidence có thể tách phần recurrence khỏi phần circadian interpretation;
+- OFFICE cần adaptive/sliding-window reasoning nếu muốn hỗ trợ atypical schedules;
+- một global time window không nên được mở rộng chỉ vì muốn tăng coverage.
+
+Quyết định tiếp theo: xây consensus/support tiers cho HOME và sliding-window/adaptive audit cho các OFFICE/WORK assignments không ổn định, thay vì thay production rule ngay.
