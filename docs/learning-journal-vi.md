@@ -557,3 +557,48 @@ Bài học:
 Decision hợp lý vẫn là giữ complete-link 200 m cho semantic Home/Office work. Đây là robustness/engineering evidence, không phải accuracy claim vì GeoLife không có Home/Office ground truth.
 
 Scope cần giữ rõ: follow-up này chạy trên 97-user semantic cohort, không thay thế full-stay DBSCAN audit và không revalidate trực tiếp các anchor counts của behavior EDA trên 136 users.
+
+
+## 2026-10-01 — Bài học từ related work: đánh giá HOME/OFFICE không nhất thiết cần POI
+
+### Andrade, Cancela & Gama (2019) — meaningful places và DBSCAN chaining
+
+Paper Mining Human Mobility Data to Discover Locations and Habits xây meaningful places từ stay points và recurrence mà không cần external semantic source. Trong experiment GeoLife, họ dùng 200 m / 20 phút cho stay point; với user 004, 2.437 stay points được gom thành 50 meaningful places và hai place có tần suất cao nhất được diễn giải thành Home/Work. Paper cũng chỉ ra một nhược điểm đúng với audit của project: DBSCAN có thể tạo cluster dài do density-connected chaining.
+
+Lesson cho GeoLife project:
+
+- semantic map/POI không phải điều kiện bắt buộc để khai phá recurrent anchors;
+- compactness của location và recurrence của visit/movement là evidence độc lập cần giữ;
+- user 004 chỉ là sanity reference của paper, không phải ground truth cho toàn dataset;
+- kết quả Stage 04 giữ complete-link 200 m có support phương pháp luận mạnh hơn sau khi đối chiếu cảnh báo chaining này.
+
+### Dong et al. (2022) — threshold không phải classifier
+
+Paper The universality in urban commuting across and within cities dùng 200 m / 10 phút để detect stay, DBSCAN MinPoint=1 để tạo stay locations, nhưng HOME/WORK cuối cùng được phân loại bằng XGBoost với 28 features và self-reported ground truth. Feature set gồm support ở cấp user, weekday/weekend, daytime/nighttime ratios, location shares, transfer-matrix counts và POI residential/work counts.
+
+Lesson:
+
+- không được hiểu 200 m + recurring là đủ để suy ra HOME/OFFICE;
+- transition structure, recurrence và observation support là các trục evidence riêng;
+- POI chỉ là một phần nhỏ của feature design, không phải toàn bộ validation;
+- accuracy 94.1% HOME / 93.0% WORK của paper gắn với supervised labels của dataset họ, không được transfer sang GeoLife.
+
+### HoWDe (2025) — coverage và semantic selection phải tách nhau
+
+HoWDe biến stop sequences thành hourly bins, lọc day theo temporal coverage, dùng tỷ lệ observed hours thay vì raw absolute time, dùng sliding windows và cho phép not detected. Paper đánh giá đồng thời detected accuracy và fraction-not-detected, tức accuracy/retention là trade-off chứ không phải cứ emit nhiều là tốt hơn.
+
+Lesson:
+
+- support gate và semantic score nên là hai khái niệm tách biệt;
+- abstention là output hợp lệ;
+- proportion trên observed data phù hợp hơn raw count khi sampling không đều;
+- sliding window là hướng follow-up hợp lý nếu static assignment không ổn định;
+- HoWDe cũng nói rõ giới hạn: temporal pattern không tự suy ra semantic purpose chi tiết và một run chưa trực tiếp giải quyết rotating night-shift lifestyles.
+
+### Quyết định áp dụng
+
+Stage 05 pivot từ POI lookup sang reliability validation:
+
+recurring locations -> multiple semantic rankers -> split-half -> held-out -> dropout -> cross-method agreement -> schedule-sensitivity
+
+Frozen 27 HOME / 16 OFFICE chỉ còn là parity comparator. Candidate coverage mới được phép lớn hơn, nhưng không method nào được coi là truth cho tới khi qua các reliability axes.
