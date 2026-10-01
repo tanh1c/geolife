@@ -17,7 +17,11 @@ Do not reopen unless a specific failure requires it:
 
 ## New implementation
 
-analysis/05_home_office_reliability.py provides:
+Run notebook:
+
+- notebooks/05_home_office_reliability_validation.ipynb
+
+Analysis helper analysis/05_home_office_reliability.py provides:
 
 - full-period candidate ranking for the fixed-window comparator;
 - a HoWDe-inspired observed-hour proportional ranker;
