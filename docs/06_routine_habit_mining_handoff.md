@@ -60,3 +60,9 @@ It cannot support:
 - semantic accuracy.
 
 If coverage and split-half stability are adequate, Stage 07 may build sliding-window behavioral representations for change detection.
+
+## Modal runtime note
+
+Stage 06 requires `timezonefinder==9.0.0` because it reuses the Stage-03a per-stay timezone resolver.
+
+The notebook now checks this dependency explicitly and installs it only when missing. An importable `/tmp/geolife/src` tree is not treated as proof that runtime dependencies are complete.

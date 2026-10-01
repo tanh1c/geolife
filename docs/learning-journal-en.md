@@ -817,3 +817,17 @@ Lessons:
 For edges with sufficient transitions, Stage 06 fits 1–3 departure-time modes after circular unwrapping and uses BIC only as a descriptive multimodality tool. The number of modes is a temporal pattern, not an occupation or trip-purpose label.
 
 Only if routine coverage and split-half stability are adequate should Stage 07 perform behavioral change detection on this representation.
+
+## 2026-10-01 — An importable source tree does not imply complete runtime dependencies
+
+The first Stage-06 Modal run hit a case where `geolife` was importable from `/tmp/geolife/src`, but `timezonefinder` was not installed.
+
+The old setup only ran `pip install -e .` when the main package import failed. Because the source tree was already on `sys.path`, that branch was skipped and `resolve_stay_timezones()` failed later.
+
+Lessons:
+
+- notebook setup must check runtime dependencies actually required by imported helpers, not only whether the main package imports;
+- adding a source tree to `sys.path` can make the package import successfully while leaving its environment partially installed;
+- dependency checks should be idempotent: install when missing and skip when present.
+
+Stage 06 now checks for `timezonefinder==9.0.0` explicitly before importing the Stage-03a behavior helper.
