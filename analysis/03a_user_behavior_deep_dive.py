@@ -794,8 +794,10 @@ def build_baseline_user_audit(release_users: set[str], stays: pd.DataFrame) -> p
     assert not audit.duplicated(["user_id", "label"]).any()
     assert audit["reject_reason"].isin(REASON_ORDER).all()
     emitted = infer_home_office(stays, config=config).loc[:, ["user_id", "label"]]
-    audited = audit.loc[audit["reject_reason"] == "emitted", ["user_id", "label"]].reset_index(drop=True)
-    assert audited.equals(emitted.reset_index(drop=True))
+    audited = audit.loc[audit["reject_reason"] == "emitted", ["user_id", "label"]]
+    audited_pairs = set(audited.itertuples(index=False, name=None))
+    emitted_pairs = set(emitted.itertuples(index=False, name=None))
+    assert audited_pairs == emitted_pairs
     return audit
 
 

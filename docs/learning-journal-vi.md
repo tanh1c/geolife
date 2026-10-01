@@ -349,3 +349,454 @@ Schedule evidence lại là negative result hữu ích. Dù 46 users đủ suppo
 
 Signal đáng đào tiếp là 23 mobile-work-like candidates: cả 23 có multiple anchors, cả 23 bị frozen OFFICE abstain, và không ai OFFICE emitted. Điều này không xác nhận nghề nghiệp hay semantic WORK, nhưng là hypothesis rõ ràng rằng fixed-office baseline có thể bỏ sót một distributed-mobility regime. 03b phải kiểm tra bằng evidence độc lập như mode labels, route/transition recurrence, weekday-weekend contrast, sensitivity và negative controls, không dùng lại wrapper features để tự chứng minh wrapper.
 
+## 2026-09-27 — Audit code phải tách “chạy được” khỏi “đủ làm evidence”
+
+03b cho thấy một script chạy được chưa có nghĩa output đã đủ chất lượng để dùng làm evidence. Hai lỗi thiết kế ban đầu rất điển hình:
+
+1. transportation summary dùng thời lượng label window thay vì movement segments đã qua frozen cleaning;
+2. sensitivity giữ nguyên candidate cohort thay vì thực sự rerun candidate wrapper.
+
+Bản continuation sửa hai điểm này trước khi đọc kết quả. Bài học là validation pipeline cần kiểm tra **provenance của evidence** và **rerun đúng causal dependency** chứ không chỉ kiểm tra code không lỗi.
+
+Các thay đổi hiện chỉ là engineering hardening; chưa có kết luận behavior mới cho tới khi full-release run và verification pass.
+
+## 2026-09-28 — Symlink có thể phá privacy guard dựa trên resolved path
+
+Modal runner đầu tiên symlink `artifacts/03a` sang persistent Volume. Cách này nhìn hợp lý về execution nhưng 03a privacy guard dùng `Path.resolve()`, nên path sau resolve không còn chứa `artifacts/03a` và bị reject.
+
+Cách sửa tốt hơn là không làm yếu guard và không dùng symlink. Runner truyền cache root rõ ràng qua environment, cập nhật approved private root của module rồi truyền explicit `stay_cache` / `point_day_cache` vào materialization.
+
+Bài học: persistence layer không nên thay đổi semantic của privacy/path invariants. Nếu guard kiểm tra resolved path, symlink là một phần của threat model chứ không chỉ là filesystem convenience.
+
+## 2026-09-29 — DBSCAN không chỉ có eps; MinPts cũng là modeling assumption
+
+Notebook 03 đã audit `eps` khá kỹ nhưng vẫn cố định `min_samples=1`. Đây là một assumption đáng test.
+
+Với scikit-learn DBSCAN, `min_samples` là số samples trong epsilon-neighborhood để một point được coi là core point, tính cả chính point đó. Vì vậy:
+
+```text
+min_samples = 1
+→ mọi point tự nó là core
+→ không có noise theo density
+→ isolated stay thành singleton cluster
+→ chaining permissive hơn
+
+min_samples tăng
+→ cần local density mạnh hơn
+→ có thể loại transient/sparse stays thành noise
+→ nhưng cũng có thể làm mất recurring places hợp lệ của user ít dữ liệu
+```
+
+Điểm quan trọng: downstream hiện đã có rule recurring location `>=2 stays`, nhưng điều đó **không tương đương** với `min_samples=2`. MinPts kiểm tra local epsilon-neighborhood density, còn recurring rule kiểm tra tổng visits sau clustering.
+
+Vì vậy cần sensitivity riêng `min_samples=1/2/3/5`, tốt nhất kết hợp với representative eps values, trước khi nói DBSCAN configuration có lý do đầy đủ.
+
+## 2026-09-29 — Support matching phải dùng đúng schema đã freeze
+
+03b từng dùng `observed_span_h` để match/support-balance vì field này tồn tại ở point-day layer trong design, nhưng frozen 03a user feature table không export nó. Full audit vì vậy fail dù unit tests synthetic vẫn pass.
+
+Bài học:
+
+- audit downstream phải kiểm tra schema thật từ upstream artifact, không suy ra field chỉ từ design/spec;
+- test fixture nên phản ánh frozen upstream schema, không thêm convenience fields mà production table không có;
+- với support balance, dùng các field thật sự đã freeze: `active_days`, `usable_temporal_days`, `usable_active_days`, `cp1_stay_count`.
+
+Ngoài ra, verification gate phải phân biệt lỗi của change hiện tại với technical debt sẵn có. Full pytest vẫn có giá trị regression, nhưng Ruff cho 03b nên target file 03b thay vì fail vì notebook lint cũ không liên quan.
+
+## 2026-09-29 — Robust candidate set chưa đồng nghĩa semantic regime đã được validate
+
+03b cho một ví dụ rõ về khác biệt giữa **robustness** và **semantic validation**.
+
+Candidate set 23 users cực kỳ ổn định: anchor threshold 100/200/300 m đều giữ nguyên 23 users; thay mobility threshold ±10% chỉ thêm/bớt 1 user; support ±1 weekday không đổi cohort.
+
+Tuy nhiên independent evidence chưa đủ mạnh:
+
+- A/B aggregate observation support vẫn lệch đáng kể dù đã match đủ 23 cặp;
+- transportation labels chỉ phủ 6/23 A users, 12/23 B users và 3/16 C users;
+- motorized share của A/B/C khá giống nhau;
+- median recurrent route edges của A và B đều bằng 0;
+- A có nhiều transitions và edge entropy cao hơn, nhưng điều đó mô tả mobility complexity chứ chưa chứng minh work semantics.
+
+Bài học: một wrapper có membership stability rất cao chỉ cho thấy definition ổn định quanh các threshold đã thử. Nó không tự tạo ra external/independent semantic evidence. Vì vậy decision đúng là `mixed evidence`, không phải `supported work regime`.
+
+## 2026-09-29 — Khi matched users vẫn lệch exposure, cần control ở user-day level
+
+03b match đủ 23 cặp A/B nhưng aggregate support vẫn lệch lớn. Điều này cho thấy user-level matching chưa chắc đã loại được observation confounding.
+
+03b.1 chuyển control xuống user-day level:
+
+```text
+mỗi A/B pair
+→ tách weekday/weekend
+→ lấy min usable days ở mỗi stratum
+→ downsample phía có nhiều ngày hơn
+→ recompute metric
+→ lặp bootstrap
+```
+
+Route analysis dùng riêng `usable_for_motif` days. Transportation subset control theo matched labeled hours. Cách này trả lời câu hẹp hơn: khác biệt A/B có còn khi hai phía được quan sát với lượng exposure tương đương hay không?
+
+Bài học: normalization kiểu km/day hữu ích nhưng chưa đủ khi số ngày quan sát và cấu trúc ngày quan sát lệch mạnh. Pairwise exposure control giúp test trực tiếp confounding đó.
+
+## 2026-09-29 — Merge schema collision có thể ẩn sau preflight synthetic
+
+03b.1 fail vì cả `clustered` và daily eligibility table đều có `local_weekday`. Merge theo `user_id + local_date` khiến pandas tạo `local_weekday_x/y`, nhưng code vẫn gọi `local_weekday`.
+
+Fix tốt hơn không phải chọn một suffix, mà là giảm merge về đúng mục đích: daily table chỉ dùng để gate `usable_for_motif`, nên chỉ cần `user_id + local_date`. Weekday có thể derive deterministic từ `local_date`.
+
+Bài học: khi một merge chỉ nhằm lọc eligibility, đừng mang theo columns không cần thiết. Narrow join schema giảm collision và làm provenance rõ hơn.
+
+## 2026-09-29 — Bootstrap đúng nhưng implementation pandas-naive có thể làm experiment không thực dụng
+
+03b.1 ban đầu đúng về ý tưởng nhưng chậm vì mỗi bootstrap lại filter/copy DataFrame và transport còn iterate `iloc` theo segment. Với 23 cặp × 500 repetitions, overhead pandas lặp lại lớn hơn bản thân thống kê cần tính.
+
+Fix giữ nguyên experiment nhưng thay execution:
+
+- filter A/B pair một lần ngoài loop;
+- sample trên pair-local frames;
+- transport convert sang NumPy arrays một lần/user;
+- dùng permutation + cumulative duration vectorized để đạt exact matched hours;
+- log progress theo stage/pair.
+
+Bài học: reproducibility không chỉ là deterministic output; long-running audit cũng cần progress observability và implementation đủ rẻ để rerun được.
+
+## 2026-09-29 — Exposure-controlled 03b.1 result
+
+Sau khi equalize usable-day exposure trong từng A/B pair, Group A vẫn có movement magnitude cao hơn: khoảng +22.9 km/day cleaned distance và +0.74 h/day movement proxy.
+
+Route evidence hẹp hơn: edge entropy cao hơn khoảng 0.232 với 95% bootstrap interval trên 0, nhưng recurrent-edge difference bằng 0 và transition/day cùng distinct-edge/day có interval chạm 0.
+
+Kết luận phù hợp: observation imbalance không giải thích hết behavioral difference, nhưng evidence hiện tại chỉ support một descriptive mobility-complexity cohort. Không thay đổi Home/Office semantics từ kết quả này.
+
+## 2026-09-29 — Mentor demo nên kể lại reasoning, không chỉ dump chart
+
+Sau 03a → 03b → 03b.1, số lượng runner/report đã đủ nhiều để khó demo trực tiếp. Vì vậy tạo một notebook narrative riêng, reuse cache đã validate thay vì rerun raw data.
+
+Notebook mentor-facing đi theo format:
+
+```text
+câu hỏi
+→ vì sao cần kiểm tra
+→ cách đo
+→ kết quả
+→ không được suy ra gì
+→ decision
+```
+
+Cách này giúp phân biệt rõ research finding với semantic claim. Ví dụ 23-user cohort được trình bày là robust mobility-complexity cohort, đồng thời notebook giải thích vì sao recurrent-route evidence và transport coverage chưa đủ để gọi nó là mobile-work.
+
+Bài học: reproducibility notebook và communication notebook có mục tiêu khác nhau. Runner cần auditability; mentor notebook cần giữ provenance nhưng tối ưu cho reasoning và decision trace.
+
+## 2026-09-29 — Case maps nên minh họa aggregate finding, không thay thế aggregate finding
+
+Mentor demo dễ hiểu hơn khi có spatial cases thật thay vì chỉ bảng aggregate. Nhưng nếu chọn case bằng mắt thì rất dễ cherry-pick.
+
+03c visual v2 vì vậy chọn case deterministic: archetype user gần median active-days của class; A/B pair dùng candidate có edge entropy gần median Group A rồi lấy đúng matched control.
+
+Map hiển thị raw GeoLife user ID, cached CP1 stays, L* recurring locations và chronological stay path. Daily timeline và L* transition heatmap giúp nối intuition với 03b/03b.1.
+
+Bài học: case visualization nên trả lời “pattern này trông như thế nào?”; câu “pattern có tồn tại ở population không?” vẫn phải dựa vào sensitivity, matched controls và bootstrap exposure control.
+
+## 2026-09-29 — Demo notebook không nên giả định derived cache luôn tồn tại
+
+03c mentor demo fail vì mình giả định `03a/summary.json` luôn có trên Modal Volume. Thực tế 03b có thể reuse `stays_baseline_v1.pkl` và `cleaned_point_daily_metrics.pkl` mà không chạy/persist toàn bộ output 03a.
+
+Fix tốt hơn là tách cache thành hai tầng:
+
+```text
+frozen expensive inputs
+= stays + point-day metrics
+
+cheap derived demo artifacts
+= summary + user features + audit tables
+```
+
+Nếu derived layer thiếu, notebook rebuild từ frozen inputs thay vì scan raw trajectories. Như vậy demo notebook vừa self-contained hơn vừa giữ runtime hợp lý.
+
+## 2026-09-29 — Clone repo chưa đồng nghĩa package đã import được
+
+03c trên fresh Modal runtime clone repo thành công nhưng fail khi import `analysis/03a...` vì module đó import package `geolife`, trong khi project chưa được editable-install và `src/` chưa nằm trong Python path.
+
+Bài học: notebook runtime setup phải theo thứ tự `checkout -> install project -> add import paths -> import analysis helpers`. Việc file source tồn tại dưới `/tmp/geolife` không tự làm `src/geolife` trở thành importable package.
+
+
+
+## 2026-10-01 — Tăng DBSCAN MinPts không sửa được chaining
+
+Notebook 04 kiểm tra trực tiếp giả định còn thiếu của DBSCAN: `min_samples = 1/2/3/5` trên cùng 97-user semantic cohort.
+
+Kết quả quan trọng nhất ở `eps=200 m`:
+
+```text
+min_samples=1
+→ 73 recurring users
+→ 418 recurring locations
+→ 585 singleton locations
+→ max diameter ~836.66 m
+
+min_samples=2
+→ vẫn 73 recurring users
+→ vẫn 418 recurring locations
+→ 585 singleton stays chuyển thành noise
+→ max diameter vẫn ~836.66 m
+
+min_samples=3/5
+→ recurring-user coverage giảm còn 64/56
+→ max diameter vẫn ~836.66 m
+```
+
+Trong khi frozen complete-link 200 m giữ cùng 73 recurring users nhưng có 486 recurring locations, p95 recurring diameter ~180.95 m, max ~199.23 m và không có recurring cluster nào vượt 200 m.
+
+Bài học:
+
+- `min_samples=2` không tương đương với downstream rule `stay_count >= 2`; trong run này nó chủ yếu loại singleton thành noise;
+- tăng MinPts có thể giảm coverage trước khi nó giải quyết được representation problem;
+- DBSCAN `eps` + MinPts vẫn không tạo hard maximum-diameter contract vì chaining là thuộc tính của density connectivity;
+- user coverage giống nhau không có nghĩa spatial representation tương đương.
+
+Decision hợp lý vẫn là giữ complete-link 200 m cho semantic Home/Office work. Đây là robustness/engineering evidence, không phải accuracy claim vì GeoLife không có Home/Office ground truth.
+
+Scope cần giữ rõ: follow-up này chạy trên 97-user semantic cohort, không thay thế full-stay DBSCAN audit và không revalidate trực tiếp các anchor counts của behavior EDA trên 136 users.
+
+
+## 2026-10-01 — Bài học từ related work: đánh giá HOME/OFFICE không nhất thiết cần POI
+
+### Andrade, Cancela & Gama (2019) — meaningful places và DBSCAN chaining
+
+Paper Mining Human Mobility Data to Discover Locations and Habits xây meaningful places từ stay points và recurrence mà không cần external semantic source. Trong experiment GeoLife, họ dùng 200 m / 20 phút cho stay point; với user 004, 2.437 stay points được gom thành 50 meaningful places và hai place có tần suất cao nhất được diễn giải thành Home/Work. Paper cũng chỉ ra một nhược điểm đúng với audit của project: DBSCAN có thể tạo cluster dài do density-connected chaining.
+
+Lesson cho GeoLife project:
+
+- semantic map/POI không phải điều kiện bắt buộc để khai phá recurrent anchors;
+- compactness của location và recurrence của visit/movement là evidence độc lập cần giữ;
+- user 004 chỉ là sanity reference của paper, không phải ground truth cho toàn dataset;
+- kết quả Stage 04 giữ complete-link 200 m có support phương pháp luận mạnh hơn sau khi đối chiếu cảnh báo chaining này.
+
+### Dong et al. (2022) — threshold không phải classifier
+
+Paper The universality in urban commuting across and within cities dùng 200 m / 10 phút để detect stay, DBSCAN MinPoint=1 để tạo stay locations, nhưng HOME/WORK cuối cùng được phân loại bằng XGBoost với 28 features và self-reported ground truth. Feature set gồm support ở cấp user, weekday/weekend, daytime/nighttime ratios, location shares, transfer-matrix counts và POI residential/work counts.
+
+Lesson:
+
+- không được hiểu 200 m + recurring là đủ để suy ra HOME/OFFICE;
+- transition structure, recurrence và observation support là các trục evidence riêng;
+- POI chỉ là một phần nhỏ của feature design, không phải toàn bộ validation;
+- accuracy 94.1% HOME / 93.0% WORK của paper gắn với supervised labels của dataset họ, không được transfer sang GeoLife.
+
+### HoWDe (2025) — coverage và semantic selection phải tách nhau
+
+HoWDe biến stop sequences thành hourly bins, lọc day theo temporal coverage, dùng tỷ lệ observed hours thay vì raw absolute time, dùng sliding windows và cho phép not detected. Paper đánh giá đồng thời detected accuracy và fraction-not-detected, tức accuracy/retention là trade-off chứ không phải cứ emit nhiều là tốt hơn.
+
+Lesson:
+
+- support gate và semantic score nên là hai khái niệm tách biệt;
+- abstention là output hợp lệ;
+- proportion trên observed data phù hợp hơn raw count khi sampling không đều;
+- sliding window là hướng follow-up hợp lý nếu static assignment không ổn định;
+- HoWDe cũng nói rõ giới hạn: temporal pattern không tự suy ra semantic purpose chi tiết và một run chưa trực tiếp giải quyết rotating night-shift lifestyles.
+
+### Quyết định áp dụng
+
+Stage 05 pivot từ POI lookup sang reliability validation:
+
+recurring locations -> multiple semantic rankers -> split-half -> held-out -> dropout -> cross-method agreement -> schedule-sensitivity
+
+Frozen 27 HOME / 16 OFFICE chỉ còn là parity comparator. Candidate coverage mới được phép lớn hơn, nhưng không method nào được coi là truth cho tới khi qua các reliability axes.
+
+
+## 2026-10-01 — HOME ổn định hơn OFFICE; coverage lớn hơn không đồng nghĩa semantic tốt hơn
+
+Stage 05 xác nhận frozen parity 27 HOME / 16 OFFICE, nhưng khi bỏ final emission gate thì fixed-window đã có 35 HOME và 27 OFFICE candidates. Recurrence ranker còn có thể xếp 73 HOME candidates và 31 OFFICE candidates. Vì vậy 27/16 là kết quả của conservative emission policy, không phải trần tự nhiên của dữ liệu.
+
+Điểm quan trọng hơn là agreement khác nhau rõ giữa HOME và OFFICE.
+
+HOME:
+
+- fixed vs HoWDe-style cùng location 18/19 = 94.7%;
+- fixed vs recurrence 29/35 = 82.9%;
+- HoWDe-style vs recurrence 17/20 = 85.0%.
+
+OFFICE:
+
+- fixed vs HoWDe-style vẫn khá cao 13/16 = 81.3%;
+- nhưng fixed vs recurrence chỉ 7/22 = 31.8%;
+- HoWDe-style vs recurrence chỉ 3/20 = 15.0%.
+
+Bài học:
+
+- HOME có một recurrent dominant-anchor signal khá mạnh, nên nhiều assumptions khác nhau vẫn hội tụ về cùng location;
+- OFFICE phụ thuộc mạnh hơn vào temporal semantics — recurrence của một anchor ban ngày chưa đủ để gọi nó là workplace;
+- emit nhiều hơn không phải là bằng chứng tốt hơn; recurrence HOME có coverage 73 users nhưng held-out top-1 chỉ ~43.3%;
+- reliability phải đọc cùng coverage, không đọc riêng từng cột.
+
+Missing-data stress cũng cho thấy fixed HOME tương đối bền: khi bỏ ngẫu nhiên 30% stays, retention vẫn ~84.8%; recurrence HOME ~87.2%. HoWDe-style giảm còn ~68.3%, cho thấy proportional hourly design hiện tại nhạy hơn với sparse stop support trong GeoLife.
+
+## 2026-10-01 — Time-shift là stress test của assumption, không phải accuracy test
+
+Dịch toàn bộ local timestamps +12 h nhưng giữ nguyên physical locations tạo ra một metamorphic test hữu ích:
+
+- recurrence HOME giữ 100% candidate;
+- recurrence OFFICE giữ ~77.4%;
+- fixed HOME chỉ giữ ~37.1%, fixed OFFICE ~14.8%;
+- HoWDe-style HOME/OFFICE giữ ~25.0% / ~14.3%.
+
+Không nên diễn giải rằng recurrence vì thế "đúng hơn". Fixed-window và HoWDe-style cố ý dùng clock windows, nên sensitivity là thuộc tính thiết kế.
+
+Bài học đúng là:
+
+- +12 h test đo schedule dependence;
+- HOME physical-anchor evidence có thể tách phần recurrence khỏi phần circadian interpretation;
+- OFFICE cần adaptive/sliding-window reasoning nếu muốn hỗ trợ atypical schedules;
+- một global time window không nên được mở rộng chỉ vì muốn tăng coverage.
+
+Quyết định tiếp theo: xây consensus/support tiers cho HOME và sliding-window/adaptive audit cho các OFFICE/WORK assignments không ổn định, thay vì thay production rule ngay.
+
+## 2026-10-01 — Consensus tier nên tổng hợp evidence axes, không cộng raw score
+
+Ba HOME ranker dùng score có ý nghĩa khác nhau:
+
+- fixed-window dùng dwell share trong frozen time window;
+- HoWDe-style dùng observed-hour / visited-day proportions;
+- recurrence dùng dwell/recurrence ranking.
+
+Vì vậy không nên normalize rồi cộng score để tạo một confidence giả.
+
+Stage 05b giữ riêng:
+
+```text
+method convergence
+split consistency
+held-out top-1
+30% dropout robustness
+```
+
+sau đó chỉ dùng rule minh bạch để tạo HIGH / MEDIUM / UNCERTAIN.
+
+Bài học: khi nhiều weak labelers không cùng thang đo, consensus nên dựa vào agreement + independent validation axes thay vì arithmetic score fusion. Tier cũng chỉ là audit evidence, không phải calibrated probability.
+
+## 2026-10-01 — Adaptive WORK nên chọn anchor trước, đo clock behavior sau
+
+Stage 05 cho thấy OFFICE phụ thuộc mạnh vào temporal assumptions. 05b vì vậy không tạo candidate bằng một khung giờ mới.
+
+Flow mới:
+
+```text
+reliable HOME
+→ exclude HOME
+→ sliding windows
+→ recurring secondary anchor
+→ persistence / switches
+→ arrival-hour center & concentration
+```
+
+Clock pattern được đo sau khi chọn secondary anchor. Điều này cho phép thấy một anchor ổn định nhưng có schedule lệch hoặc thay đổi mà không loại nó ngay từ đầu bằng 09–17.
+
+Bài học: nếu chính time window là hypothesis cần kiểm tra, đừng dùng cùng time window để construct candidate rồi lại dùng candidate đó để validate time window.
+
+## 2026-10-01 — Timezone-aware data cần timezone-aware audit windows
+
+Synthetic execution của 05b bắt được lỗi mà syntax-check không thể thấy: `arrival_time_local` là timezone-aware nhưng window boundaries ban đầu được tạo từ Python date nên timezone-naive.
+
+Fix:
+
+```text
+min/max arrival_time_local
+→ normalize()
+→ pd.date_range()
+```
+
+như vậy sliding windows giữ đúng timezone của semantic stays.
+
+Bài học: notebook research code cần ít nhất một executable synthetic path; syntax-valid không đảm bảo datetime semantics đúng.
+
+## 2026-10-01 — Consensus mạnh làm co lại expansion: 73 recurring HOME candidates chỉ còn 2 case mới đáng review
+
+Stage 05 cho thấy recurrence có thể rank HOME cho 73 users, nhưng Stage 05b buộc candidate phải qua method convergence và reliability axes.
+
+Kết quả winner: HIGH 21, MEDIUM 4, UNCERTAIN 42.
+
+Trong 25 HIGH/MEDIUM winners:
+- 23 đã là production HOME;
+- chỉ 2 chưa emit;
+- cả 2 vẫn là fixed-window HOME candidates, chỉ fail final share/margin emission gate;
+- không có HIGH/MEDIUM winner nào xuất phát từ tập outside-fixed-candidate rộng hơn.
+
+Bài học: coverage exploration rất hữu ích để tìm trần candidate, nhưng multi-axis reliability có thể thu hẹp mạnh phần thật sự đáng mở rộng. Một phương pháp recurrence có coverage cao không đồng nghĩa production nên tăng 27 HOME lên gần 73.
+
+Ngoài ra, 23/27 production HOME emissions xuất hiện như HIGH/MEDIUM unique consensus winners. Bốn emission còn lại không nên gọi là sai; chúng chỉ có convergent evidence yếu hơn dưới audit hiện tại.
+
+## 2026-10-01 — Sliding-window secondary anchor tìm được persistence, nhưng chưa tìm được WORK semantics
+
+Trong 25 user có HOME HIGH/MEDIUM, primary 42-day audit cho 9 stable secondary anchor, 3 multi-anchor, 1 unstable và 12 insufficient.
+
+Vấn đề đầu tiên là support: gần một nửa cohort không đủ evidence cho primary window.
+
+Vấn đề thứ hai là semantic convergence. Dominant adaptive anchor chỉ match fixed OFFICE 40.0%, HoWDe-style OFFICE 28.6%, và recurrence OFFICE 54.5%.
+
+Do đó persistence của một non-HOME anchor là behavioral evidence thật, nhưng chưa đủ để gọi nó là workplace.
+
+Sensitivity ở threshold 0.70: 28d -> 10 sufficient / 6 stable; 42d -> 13 / 9; 56d -> 14 / 10.
+
+Window dài hơn chủ yếu tăng usable support. 42d và 56d không tạo semantic breakthrough; agreement với fixed OFFICE vẫn quanh 40%.
+
+Bài học: khi window length tăng, phải tách hai hiệu ứng: more observation support vs better semantic identification. Không được coi stable-count tăng là accuracy tăng.
+
+Decision: nếu tiếp tục WORK, chỉ audit subset stable-secondary bằng transition/weekday/arrival evidence độc lập. Không tune một threshold persistence khác rồi tự gọi nó là OFFICE.
+
+
+## 2026-10-01 — Khi candidate đã được chọn bằng recurrence, validation tiếp theo phải dùng evidence khác
+
+05b chọn stable secondary anchor dựa chủ yếu vào persistence / recurrence qua sliding windows. Nếu 05c lại dùng active-day share hoặc dominant-window share để xác nhận, đó chỉ là self-validation.
+
+Thiết kế 05c chuyển sang bốn trục khác:
+
+- weekday-weekend contrast;
+- direct HOME ↔ secondary transition regularity;
+- arrival-time concentration;
+- dwell-duration regularity.
+
+Bài học: candidate construction và validation nên tách feature càng nhiều càng tốt. Trong dữ liệu không có ground truth, việc dùng cùng feature để tạo candidate rồi dùng lại feature đó làm validation rất dễ tạo confidence giả.
+
+## 2026-10-01 — Same-user peers tốt hơn một threshold toàn cục cho audit nhỏ
+
+Subset 05c chỉ có 9 stable-secondary users. Với N nhỏ và user heterogeneity lớn, đặt thêm một rule kiểu arrival concentration > X hay weekday share > Y sẽ rất tùy ý.
+
+05c vì vậy hỏi:
+
+candidate này có nổi bật hơn các recurring non-HOME anchors khác của chính user không?
+
+Output là within-user percentile, top-1 axis, và candidate-minus-peer-median.
+
+Bài học: với mobility behavior cá nhân hóa mạnh, relative within-user evidence thường phù hợp hơn một global cutoff mới. Nhưng cần ít nhất một peer đủ support; nếu không top-1 chỉ là kết quả vacuous.
+
+## 2026-10-01 — Persistence của secondary anchor không đồng nghĩa commute-like regularity hội tụ
+
+05c kiểm tra 9 stable-secondary users từ 05b bằng evidence khác với rule chọn candidate. Chỉ 7 users có ít nhất một recurring non-HOME peer đủ support để so sánh công bằng.
+
+Kết quả primary:
+
+- weekday-weekend contrast: 5/7 candidate đứng top-1;
+- HOME<->secondary transition-day share: 3/7 top-1;
+- arrival-time concentration: 0/7 top-1;
+- dwell-duration regularity: 0/7 top-1.
+
+Quan trọng nhất: không user nào đứng top-1 trên >=3/4 axes. Chỉ 1 user đạt 2 axes; 6 users chỉ đạt 0-1 axis.
+
+Bootstrap candidate-minus-peer-median cho cả bốn metrics đều có 95% interval cắt 0. Weekday contrast và HOME-pair transition có hướng dương, nhưng N=7 quá nhỏ và evidence không hội tụ.
+
+Bài học: persistence qua sliding windows là một property riêng. Nó không tự kéo theo arrival regularity, dwell regularity hay transition dominance. Vì vậy stable_secondary_anchor nên giữ là behavioral state, không nâng thành OFFICE.
+
+## 2026-10-01 — Related-work nên được áp dụng theo trạng thái hiện tại của project, không theo kiến trúc greenfield
+
+Deep-research report đề xuất Trackintel làm backbone, HoWDe làm robust HOME/WORK estimator, rồi habit/change-detection downstream. Kiến trúc đó hợp lý nếu bắt đầu mới, nhưng project hiện đã audit sâu CP1 cleaning/stays và complete-link locations.
+
+Áp dụng hợp lý lúc này:
+
+- không thay frozen CP1/CP2 bằng Trackintel;
+- có thể dùng Trackintel như external comparator và tracking-quality reference;
+- formalize coverage-before-change-detection;
+- chuyển trọng tâm sang meaningful routines / OD habits / behavior change, vì các bài toán này không cần ép secondary anchor thành WORK;
+- dùng commute distance, OD entropy, transition/mode change như supporting evidence;
+- nếu dùng change-detection repo thì refactor/test như research algorithm, không copy default parameter rồi coi là truth.
+
+Bài học tổng quát: literature integration phải tôn trọng accumulated validation debt. Một thư viện tốt không tự động đáng để thay một pipeline đã được audit nếu việc thay đó làm mất toàn bộ comparability của các experiment trước.

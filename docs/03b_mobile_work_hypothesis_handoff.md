@@ -191,3 +191,51 @@ all artifacts/03b paths are ignored
 report contains Q1–Q10 and a research-only decision
 notebook 03 and production inference files unchanged
 ```
+
+## Takeover status — 2026-09-27
+
+A dedicated continuation branch, `eda/03b-audit-completion`, now hardens the two evidence paths that the handoff marked invalid:
+
+- transport execution uses a private resumable per-file cache, skips trajectory files whose raw UTC extent cannot overlap canonical mode windows, applies frozen CP1 cleaning only to overlapping files, and keeps only positive-duration same-sequence segments fully contained in one unambiguous half-open label window;
+- sensitivity now reruns the frozen wrapper under explicit mobility/support perturbations, and the 100 m / 300 m anchor variants recompute clustering-dependent features before candidate selection.
+
+The continuation also adds:
+
+- edge entropy to usable-day `L*→L*` transition evidence;
+- A/B/C observation-support balance with unmatched Group A accounting;
+- explicit negative-control aggregate tables;
+- a measured public-report renderer for Q1–Q10 rather than placeholder “see artifact” text.
+
+These changes are **implementation hardening only**. No new 03b evidence is accepted until the Modal/full-release run, targeted tests, full repository tests, Ruff, privacy checks, and frozen parity all pass.
+
+### Modal cache-path correction
+
+The first Modal runner attempted to persist `artifacts/03a` / `artifacts/03b` with repo-to-Volume symlinks. This is invalid for 03a because its privacy guard validates the resolved path.
+
+Continuation behavior is now:
+
+- no repo-to-Volume symlinks;
+- `GEOLIFE_03A_CACHE_DIR` points to the approved persistent 03a cache root;
+- `GEOLIFE_03B_CACHE_DIR` points to the persistent 03b cache root;
+- 03a materialization receives explicit stay/point-day cache paths while the module's approved private root is updated to the same cache directory;
+- report wording no longer contains the forbidden `semantic WORK` phrase.
+
+The failed Modal run produced no accepted 03b evidence and no `summary.json`; downstream missing-summary errors were consequences of the earlier materialization stop.
+
+## Full-release result — 2026-09-29
+
+The corrected Modal run completed and passed all verification gates.
+
+Key aggregate findings:
+
+- frozen parity: `23 / 23 / 23 / 0`;
+- sensitivity: exact same cohort at 100 m / 200 m / 300 m; Jaccard 0.958 for -10% mobility threshold and 0.957 for +10%; ±1 weekday support leaves cohort unchanged;
+- support: A/B matched 23/23 with no unmatched candidates, but Group A still has much denser observation support than Group B;
+- route evidence: A median transitions `13`, recurrent edges `0`, edge entropy `3.55`; B `8 / 0 / 2.81`; C `9.5 / 1 / 3.00`;
+- transport labels: A `6`, B `12`, C `3` labeled users; motorized distance shares `0.693 / 0.732 / 0.742`;
+- weekday-minus-weekend distance delta: A `-0.12`, B `-10.24`, C `-2.47` km/day.
+
+Research decision: **mixed evidence**.
+
+The candidate set is robust as a descriptive mobility regime, but current independent evidence does not justify a semantic distributed/mobile-work classifier. Frozen Home/Office production semantics remain unchanged.
+

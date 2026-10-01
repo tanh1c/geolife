@@ -104,7 +104,7 @@ def test_sensitivity_keeps_frozen_candidates_primary() -> None:
     summary = audit.summarize_sensitivity(frozen, variants)
 
     result = summary.set_index("variant")
-    assert result["jaccard_with_frozen"].to_dict() == {
+    assert result["jaccard"].to_dict() == {
         "baseline": 1.0,
         "higher": 0.5,
         "lower": 2 / 3,
@@ -158,7 +158,7 @@ def test_matching_reports_observation_support_balance() -> None:
             "cp1_stay_count": [8, 8],
             "active_days": [10, 10],
             "usable_temporal_days": [5, 5],
-            "observed_span_h": [30.0, 30.0],
+            "usable_active_days": [5, 5],
         }
     )
     baseline = pd.DataFrame(
@@ -187,3 +187,172 @@ def test_report_avoids_semantic_work_claims_and_answers_questions() -> None:
     assert "user_id" not in report
     for number in range(1, 11):
         assert f"## Q{number}" in report
+
+
+def test_transition_structure_reports_edge_entropy() -> None:
+    stays = pd.DataFrame(
+        {
+            "user_id": ["A"] * 6,
+            "local_date": pd.to_datetime(
+                [
+                    "2026-01-01",
+                    "2026-01-01",
+                    "2026-01-01",
+                    "2026-01-02",
+                    "2026-01-02",
+                    "2026-01-02",
+                ]
+            ).date,
+            "arrival_time_local": pd.to_datetime(
+                [
+                    "2026-01-01 08:00",
+                    "2026-01-01 09:00",
+                    "2026-01-01 10:00",
+                    "2026-01-02 08:00",
+                    "2026-01-02 09:00",
+                    "2026-01-02 10:00",
+                ]
+            ),
+            "location_id": [0, 1, 2, 0, 1, 2],
+        }
+    )
+    usable = pd.DataFrame(
+        {
+            "user_id": ["A", "A"],
+            "local_date": pd.to_datetime(["2026-01-01", "2026-01-02"]).date,
+            "usable_for_motif": [True, True],
+        }
+    )
+
+    metrics = audit.build_transition_structure(stays, usable)
+
+    assert metrics.loc[0, "recurrent_edge_count"] == 2
+    assert metrics.loc[0, "edge_entropy"] == 1.0
+
+
+def test_support_balance_reports_unmatched_group_a() -> None:
+    features = pd.DataFrame(
+        {
+            "user_id": ["A1", "A2", "B1", "C1"],
+            "active_days": [10, 12, 11, 20],
+            "usable_temporal_days": [5, 6, 5, 10],
+            "usable_active_days": [5, 6, 5, 10],
+            "cp1_stay_count": [8, 9, 8, 30],
+        }
+    )
+    membership = {"A": {"A1", "A2"}, "B": {"B1"}, "C": {"C1"}}
+    matched = pd.DataFrame(
+        {"candidate_user_id": ["A1"], "control_user_id": ["B1"]}
+    )
+
+    balance = audit._support_balance(features, membership, matched)
+
+    status = balance.loc[balance["group"] == "A_matching_status"].iloc[0]
+    assert status["matched_pairs"] == 1
+    assert status["unmatched_A"] == 1
+
+
+def test_candidate_features_for_anchor_recomputes_clustering_inputs() -> None:
+    class FakeBase:
+        def __init__(self) -> None:
+            self.thresholds = []
+
+        def cluster_behavior_locations(self, resolved, threshold_m):
+            self.thresholds.append(threshold_m)
+            clustered = resolved.copy()
+            clustered["location_id"] = 0
+            return clustered, pd.DataFrame()
+
+        @staticmethod
+        def _point_days_for_behavior(point_days):
+            return point_days
+
+        @staticmethod
+        def build_user_day_features(clustered, point_days):
+            return pd.DataFrame(
+                {
+                    "user_id": ["A"],
+                    "local_date": pd.to_datetime(["2026-01-01"]).date,
+                    "usable_for_temporal_profile": [True],
+                    "usable_for_motif": [True],
+                }
+            )
+
+        @staticmethod
+        def build_user_behavior_features(clustered, point_days):
+            return pd.DataFrame(
+                {
+                    "user_id": ["A"],
+                    "weekday_usable_days": [5],
+                    "weekday_mobility_repeatability": [1.0],
+                    "weekday_distance_km": [10.0],
+                    "recurring_daytime_locations": [2],
+                    "office_dominant": [False],
+                }
+            )
+
+        @staticmethod
+        def compute_schedule_stability(daily):
+            return pd.DataFrame()
+
+        @staticmethod
+        def _enrich_features(features, daily, stability, baseline):
+            return features
+
+        @staticmethod
+        def assign_behavioral_candidates(features):
+            result = features.copy()
+            result["mobile_work_like_candidate"] = True
+            return result
+
+    base = FakeBase()
+    resolved = pd.DataFrame(
+        {
+            "user_id": ["A"],
+            "latitude": [1.0],
+            "longitude": [1.0],
+            "duration_s": [1200.0],
+        }
+    )
+
+    result = audit._candidate_features_for_anchor(
+        base,
+        resolved,
+        pd.DataFrame(),
+        pd.DataFrame(),
+        300.0,
+    )
+
+    assert base.thresholds == [300.0]
+    assert result.loc[0, "mobile_work_like_candidate"]
+
+
+def test_materialize_with_private_cache_repoints_03a_guard(tmp_path, monkeypatch) -> None:
+    class FakeBase:
+        ARTIFACT_DIR = Path("artifacts/03a")
+
+        def materialize_frozen_cp1(self, zip_path, stay_cache, point_day_cache):
+            assert self.ARTIFACT_DIR == tmp_path.resolve()
+            assert stay_cache == tmp_path.resolve() / "stays_baseline_v1.pkl"
+            assert point_day_cache == tmp_path.resolve() / "cleaned_point_daily_metrics.pkl"
+            return pd.DataFrame({"user_id": ["A"]}), pd.DataFrame({"user_id": ["A"]})
+
+    monkeypatch.setenv("GEOLIFE_03A_CACHE_DIR", str(tmp_path))
+    stays, point_days = audit._materialize_with_private_cache(
+        FakeBase(),
+        Path("release.zip"),
+        Path.cwd(),
+    )
+
+    assert len(stays) == 1
+    assert len(point_days) == 1
+
+
+def test_private_03b_root_uses_configured_volume_path(tmp_path, monkeypatch) -> None:
+    target = tmp_path / "03b"
+    monkeypatch.setenv("GEOLIFE_03B_CACHE_DIR", str(target))
+
+    private = audit._private_03b_root(Path.cwd())
+
+    assert private == target.resolve()
+    assert private.is_dir()

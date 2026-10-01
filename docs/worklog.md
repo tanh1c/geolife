@@ -756,3 +756,435 @@ Measured findings:
 
 The next phase is a narrow 03b hypothesis audit using independent transportation, route/transition, weekday-weekend, sensitivity, and negative-control evidence before considering any Home/Work v2 design.
 
+## 2026-09-27 — 03b audit takeover prepared
+
+The 03b mobile/distributed-mobility hypothesis audit was taken over from handoff checkpoint `d2a8a5b` on branch `eda/03b-audit-completion`.
+
+Prepared changes:
+
+- bounded/resumable frozen-CP1 transport-segment audit with canonical half-open label containment;
+- genuine candidate sensitivity including 100 m / 300 m clustering-dependent reruns;
+- A/B/C support-balance summaries;
+- recurrent-transition edge entropy and negative-control summaries;
+- measured Q1–Q10 report rendering.
+
+No scientific result from these changes is accepted yet. Full GeoLife execution remains pending in Modal; frozen CP1, frozen CP2/HomeOffice, API behavior, and notebook 03 are unchanged.
+
+## 2026-09-28 — Fixed Modal cache-path regression in 03b runner
+
+The first Modal Volume runner exposed two preflight failures before any 03b evidence was accepted:
+
+- the public report renderer still contained the forbidden phrase `semantic WORK`, so the targeted report-wording test correctly failed;
+- symlinking `artifacts/03a` to `/mnt/geolife-data` violated 03a's resolved-path privacy guard and stopped materialization before `summary.json` could be produced.
+
+The continuation now removes the forbidden wording and configures persistent caches explicitly via `GEOLIFE_03A_CACHE_DIR` / `GEOLIFE_03B_CACHE_DIR`. The 03a privacy guard is repointed to the approved cache root at runtime while explicit cache paths are passed to avoid Python default-argument binding issues. No scientific 03b result was accepted from the failed run.
+
+## 2026-09-29 — Mentor follow-up: DBSCAN MinPts sensitivity
+
+Mentor raised a follow-up question for the Home/Office recurring-location benchmark: DBSCAN currently fixes `min_samples=1` while only `eps` has received an explicit sensitivity study.
+
+Repository check confirms:
+
+- `notebooks/03_home_office_baseline.ipynb` uses `DBSCAN(..., min_samples=1)`;
+- `src/geolife/model/home_office.py` also uses `min_samples=1`.
+
+This setting is not considered optimized. With `min_samples=1`, every stay can become a core point, so DBSCAN behaves close to epsilon-neighborhood connected components: isolated stays become singleton clusters instead of noise, and connectivity/chaining is maximally permissive.
+
+Follow-up after the current 03b audit:
+
+- run a DBSCAN `min_samples` sensitivity study rather than assuming 1;
+- test at least `1 / 2 / 3 / 5`;
+- cross-check representative `eps` values rather than changing MinPts in isolation;
+- measure recurring-user coverage, recurring-location count, noise/singleton behavior, p95/max diameter, clusters above 200 m, and users losing all recurring-location support;
+- compare the result with complete-link 200 m under the same frozen stay inventory.
+
+Do not choose a MinPts value merely because it maximizes coverage. The goal is an explainable coverage–density–compactness trade-off.
+
+## 2026-09-29 — Fixed 03b support-schema and verification-gate regression
+
+The next Modal run passed the targeted 03b preflight (`12` tests and targeted Ruff) and reached the full audit, then stopped before evidence generation with:
+
+```text
+KeyError: observed_span_h
+```
+
+Cause: 03b support matching/balance referenced `observed_span_h`, which is a point-day field but is not exported by the frozen 03a user-level feature table. The audit now uses only support fields that actually exist in 03a:
+
+```text
+active_days
+usable_temporal_days
+usable_active_days
+cp1_stay_count
+```
+
+The same run also showed that `ruff check .` is not an appropriate 03b verification gate because existing notebooks/tests outside 03b contain unrelated lint debt. Final verification is therefore:
+
+- targeted 03b tests;
+- full repository pytest regression suite;
+- targeted Ruff on the 03b runner and 03b tests;
+- parity/report/privacy checks.
+
+The failed audit produced no accepted `summary.json`; downstream missing-summary errors were consequences of the earlier support-balance failure.
+
+## 2026-09-29 — 03b full-release audit completed
+
+The Modal full-release 03b audit completed successfully after the cache/support fixes.
+
+Verification:
+
+- frozen parity: 23 candidates / 23 multiple-anchor / 23 OFFICE-abstained / 0 OFFICE-emitted;
+- targeted 03b tests passed;
+- full repository tests passed;
+- targeted Ruff passed;
+- report/privacy checks passed.
+
+Measured evidence:
+
+- sensitivity is very stable: 100 m and 300 m anchor variants retain the exact same 23 users (Jaccard 1.0); ±10% mobility threshold changes only one user; ±1 weekday support leaves the set unchanged;
+- A/B support matching is complete (23 pairs, 0 unmatched), but aggregate support remains imbalanced: Group A has substantially more active/usable days and CP1 stays than Group B, so matching quality is not strong enough to treat A/B differences as causal evidence;
+- route structure differs descriptively (A median 13 transitions and edge entropy 3.55 vs B 8 and 2.81), but median recurrent-edge count is 0 in both A and B; Group C has median recurrent-edge count 1;
+- transport labels are sparse and imbalanced (A 6 labeled users, B 12, C 3), so mode composition is supporting evidence only;
+- motorized distance share is similar across groups (A 0.693, B 0.732, C 0.742), which does not independently distinguish Group A;
+- weekday-minus-weekend distance contrast is near zero for A (-0.12 km/day) and is descriptive rather than independent because weekday mobility contributes to candidate construction.
+
+Research decision remains **mixed evidence**. The cohort is robust as a descriptive behavioral regime, but current independent evidence is insufficient to promote it to a semantic distributed/mobile-work rule.
+
+## 2026-09-29 — Started 03b.1 observation-support-controlled audit
+
+03b finished with a robust 23-user cohort but materially imbalanced observation support between matched A/B groups. A narrow follow-up, 03b.1, is now implemented on branch `eda/03b1-support-controlled-audit`.
+
+The experiment equalizes usable observation exposure within each matched pair before recomputing mobility and route metrics. Weekday/weekend day counts are controlled separately; route evidence uses independently controlled `usable_for_motif` days; transportation-label comparisons additionally control matched labeled hours where both sides have enough label coverage.
+
+This phase is explicitly a confounding audit, not a semantic classifier. Construction-overlapping mobility metrics remain descriptive; recurrent route structure is the main independent evidence stream. No 03b.1 result is accepted until the Modal full-release run and verification gates pass.
+
+## 2026-09-29 — Fixed 03b.1 weekday merge collision
+
+The first 03b.1 Modal run passed preflight and reproduced the frozen setup, then stopped in `_day_edge_table()` with `KeyError: local_weekday` before generating evidence.
+
+Cause: the clustered stay table already contained `local_weekday`, while the usable-day eligibility table also carried `local_weekday`. Merging on `user_id + local_date` caused pandas to suffix the duplicate columns (`local_weekday_x` / `local_weekday_y`), while downstream code still requested the unsuffixed name.
+
+Fix:
+
+- use the daily table only as an eligibility gate with `user_id + local_date`;
+- derive weekday deterministically from `local_date` inside the route-day table;
+- add a regression test where both inputs contain `local_weekday`.
+
+No 03b.1 evidence was accepted from the failed run. Missing report/summary errors later in the notebook were downstream consequences of the route-table failure.
+
+## 2026-09-29 — Optimized 03b.1 bootstrap runtime
+
+A 500-repetition 03b.1 Modal run spent more than an hour inside the audit process without progress output. Inspection showed two avoidable hot loops:
+
+- day bootstrap repeatedly filtered the full `daily` / `edge_days` tables for every pair and repetition;
+- transport bootstrap rebuilt pandas DataFrames, recomputed datetimes, permuted rows, and iterated with `iloc` for every pair and repetition.
+
+The audit now:
+
+- prefilters each matched A/B pair once before its bootstrap loop;
+- samples only pair-local weekday/weekend frames;
+- precomputes compact NumPy transport arrays once per user;
+- performs duration-controlled transport sampling with vectorized cumulative sums rather than per-row DataFrame construction;
+- prints stage and pair-level progress.
+
+The scientific design and default 500 bootstrap repetitions are unchanged. The interrupted long-running attempt produced no accepted 03b.1 evidence.
+
+## 2026-09-29 — 03b.1 support-controlled audit completed
+
+The optimized 03b.1 Modal run completed successfully and passed all verification gates.
+
+Key findings after pairwise exposure control:
+
+- 23/23 temporal pairs retained; median controlled temporal exposure 45 days;
+- 22 route pairs retained; median controlled motif exposure 8 days;
+- Group A still shows materially higher movement magnitude (+22.88 km/day cleaned distance; +0.74 h/day movement proxy), so richer observation alone does not explain the descriptive high-mobility pattern;
+- route evidence is mixed: edge entropy remains higher (+0.232; 95% interval 0.006–0.455), while recurrent-edge difference is 0 and transition/distinct-edge intervals touch zero;
+- only 1 matched pair has enough transport-label exposure, so mode evidence cannot support a cohort-level conclusion.
+
+Research decision: freeze the 23-user set as a robust descriptive mobility-complexity cohort, not a validated mobile-work class. No production Home/Office change is justified. The current mobile-work hypothesis audit is closed pending independent semantic evidence.
+
+## 2026-09-29 — Added consolidated behavior EDA mentor demo notebook
+
+Added `notebooks/03c_behavior_eda_mentor_demo.ipynb` as the mentor-facing narrative notebook for the new behavior EDA.
+
+The notebook reuses the existing Modal Volume caches from 03a, 03b, and 03b.1 rather than rerunning raw GeoLife. It walks through:
+
+- frozen CP1/CP2 baseline and why upstream behavior remains frozen;
+- 03a coverage, anchor heterogeneity, schedule/JSD negative result, and the 23-user exploratory cohort;
+- 03b sensitivity, matched-control imbalance, route and transport evidence;
+- 03b.1 pairwise exposure control with mobility and route bootstrap intervals;
+- final research/production decision;
+- mentor-ready talking points;
+- the separate DBSCAN MinPts follow-up.
+
+The notebook intentionally shows aggregate outputs only and does not expose private case-level identifiers, coordinates, or trajectories.
+
+## 2026-09-29 — Expanded 03c mentor demo with user-level maps
+
+Upgraded `notebooks/03c_behavior_eda_mentor_demo.ipynb` from an aggregate-only narrative to a more visual internal mentor demo.
+
+The notebook now reuses frozen caches to show:
+
+- deterministic representative users for dominant-anchor, two-anchor, and multiple-anchor classes;
+- raw GeoLife user IDs and interactive Folium maps of cached CP1 stays, recurring L* locations, and chronological stay paths;
+- a deterministic representative Group A candidate (edge entropy nearest the Group A median) and its actual matched Group B control;
+- user-level daily cleaned-distance, movement-proxy, and boundary timelines for that A/B pair;
+- within-day L* transition heatmaps for the same pair;
+- existing aggregate sensitivity and 03b.1 exposure-controlled confidence-interval charts.
+
+This is an internal side-project demo over public GeoLife data, so raw dataset IDs/coordinates are shown intentionally. The notebook still separates illustrative case diagnostics from population evidence and does not infer occupation or Home/Office ground truth from individual maps.
+
+## 2026-09-29 — Fixed 03c mentor-demo cache bootstrap
+
+The visual mentor-demo notebook initially assumed that the full 03a `summary.json` and `user_behavior_features.csv` had already been persisted under `/mnt/geolife-data/cache/03a_user_behavior_deep_dive`. That assumption was false on the current Modal Volume: 03b/03b.1 had reused the frozen stay/point-day caches without necessarily persisting the complete 03a derived artifact bundle.
+
+The corrected mentor-demo notebook now uses a self-healing cache path:
+
+- load full 03a derived artifacts when present;
+- discover legacy 03a artifact locations when available;
+- otherwise rebuild only derived 03a EDA from `stays_baseline_v1.pkl` + `cleaned_point_daily_metrics.pkl`;
+- read the release-user listing from the GeoLife ZIP only for the 182-user reconciliation;
+- never rescan raw `.plt` trajectory files during this fallback;
+- persist rebuilt `summary.json`, `user_behavior_features.csv`, and `baseline_user_audit.csv` back to the canonical 03a Volume cache for later demos.
+
+The visual layer still uses real public GeoLife user IDs, recurring-location maps, matched A/B examples, daily mobility timelines, and L* transition heatmaps for internal mentor review.
+
+## 2026-09-29 — Fixed 03c fresh-runtime package import
+
+A fresh Modal runtime failed before the 03c demo cache fallback could run with `ModuleNotFoundError: geolife`. The notebook cloned the repository but imported `analysis/03a_user_behavior_deep_dive.py` before installing the project package or adding `src/` to Python's import path.
+
+The mentor-demo runner is corrected to follow the same setup contract as the audit runners: checkout the branch, run `pip install -e .[dev] timezonefinder==9.0.0`, add both the repository root and `src/` to `sys.path`, and only then import 03a analysis helpers. This is a runtime/setup bug only; no EDA evidence or frozen result changes.
+
+
+
+## 2026-10-01 — Clustering robustness follow-up completed
+
+Executed notebook 04 re-audited the frozen 97-user Home/Office semantic cohort with DBSCAN `eps = 20/50/100/200 m` × `min_samples = 1/2/3/5`, using frozen complete-link 200 m as the engineering comparator.
+
+Measured complete-link 200 m reference:
+
+- 1,111 locations;
+- 486 recurring locations;
+- 73 users with at least one recurring location;
+- p95 recurring-cluster diameter 180.95 m;
+- maximum recurring-cluster diameter 199.23 m;
+- 0 recurring clusters above 200 m.
+
+At DBSCAN `eps=200 m`:
+
+- `min_samples=1`: 73 recurring users, 418 recurring locations, 585 singleton locations, 0 noise stays, max recurring diameter 836.66 m, 68 recurring clusters above 200 m;
+- `min_samples=2`: the same 73 recurring users and 418 recurring locations, but the 585 singleton stays become noise; max diameter and 68 >200 m clusters are unchanged;
+- `min_samples=3`: recurring-user coverage falls to 64 while max diameter remains 836.66 m;
+- `min_samples=5`: recurring-user coverage falls to 56 while max diameter remains 836.66 m.
+
+Decision: increasing DBSCAN MinPts does not resolve the chaining problem. `min_samples=2` mostly reclassifies singleton locations as noise, while higher values lose recurring-location support without controlling the widest clusters. Keep frozen complete-link 200 m for semantic work.
+
+Scope caveat: notebook 04 is a follow-up on the 97-user Home/Office semantic cohort. It does not replace the separate full-stay DBSCAN audit or revalidate the 136-user behavior-EDA anchor counts.
+
+Next research step: POI / land-use enrichment as auxiliary semantic evidence for frozen behavioral HOME/OFFICE labels; no production label change is implied.
+
+
+## 2026-10-01 — Stage 05 pivoted from historical POI to behavioral reliability
+
+The historical-OSM path was completed before this pivot. All 42 emitted-anchor historical requests completed, but the primary 150 m audit remained dominated by missing historical map context: 22/27 HOME and 14/16 OFFICE labels were unknown. Historical OSM therefore remains a documented negative result rather than a semantic ground-truth source.
+
+Stage 05 now evaluates Home/Office inference without external semantic ground truth.
+
+Frozen foundations remain unchanged:
+
+- CP1 cleaning/stay semantics;
+- complete-link 200 m spatial representation;
+- Beijing-focused semantic geography/timezone policy;
+- production baseline as a parity comparator only (27 HOME / 16 OFFICE).
+
+New analysis scaffold:
+
+- analysis/05_home_office_reliability.py;
+- notebooks/05_home_office_reliability_validation.ipynb;
+- docs/eda/18_home_office_reliability_validation.md;
+- docs/05_home_office_reliability_handoff.md.
+
+The new audit compares three independent-ish candidate rankers:
+
+- current fixed-window semantics before final emission gates;
+- a lightweight HoWDe-inspired observed-hour proportional ranker;
+- a schedule-light recurrence comparator.
+
+Validation axes are:
+
+- candidate coverage;
+- cross-method agreement;
+- first/second-half and odd/even-week test-retest reliability;
+- 60/40 held-out predictive persistence;
+- 10/20/30% stay-dropout robustness;
+- +12 h schedule-sensitivity stress.
+
+This stage explicitly does not report accuracy because GeoLife has no HOME/OFFICE ground truth. The immediate next step is to run the scaffold on Modal, preserve user-level details privately, and interpret only aggregate reliability tables before changing production inference.
+
+
+## 2026-10-01 — Stage 05 Home/Office reliability results
+
+The new reliability audit ran successfully on the frozen semantic representation:
+
+- 5,821 CP1 stays from 136 stay-bearing users;
+- 97 users in the frozen Beijing semantic cohort;
+- 1,111 semantic locations;
+- 486 recurring locations across 73 recurring-anchor users;
+- production parity reproduced exactly: 27 HOME and 16 OFFICE emissions.
+
+Candidate coverage before treating any method as truth:
+
+- fixed-window ranker: 35 HOME candidates / 27 OFFICE candidates;
+- HoWDe-style proportional ranker: 20 HOME / 21 OFFICE;
+- schedule-light recurrence ranker: 73 HOME / 31 OFFICE.
+
+The 27/16 production counts are therefore confirmed to be conservative emission-policy outputs rather than the ceiling of recurring-anchor evidence.
+
+Cross-method agreement is much stronger for HOME than OFFICE:
+
+- HOME same-location agreement: fixed vs HoWDe-style 94.7% (18/19), fixed vs recurrence 82.9% (29/35), HoWDe-style vs recurrence 85.0% (17/20);
+- OFFICE: fixed vs HoWDe-style 81.3% (13/16), but fixed vs recurrence only 31.8% (7/22) and HoWDe-style vs recurrence 15.0% (3/20).
+
+Reliability/persistence evidence:
+
+- fixed HOME split agreement: 76.5% first-vs-second half and 80.0% odd-vs-even weeks;
+- fixed OFFICE: 55.6% first-vs-second and 88.9% odd-vs-even, but only 9 users contributed to each overlap;
+- held-out top-1 persistence: HOME 55.6% fixed, 60.0% HoWDe-style, 43.3% recurrence; OFFICE 44.4%, 36.4%, and 37.5% respectively;
+- at 30% random stay dropout, candidate retention remained 84.8%/76.5% for fixed HOME/OFFICE, 68.3%/54.0% for HoWDe-style, and 87.2%/64.5% for recurrence HOME/OFFICE;
+- under a +12 h clock shift, recurrence HOME remained 100% stable and recurrence OFFICE 77.4%, while fixed-window and HoWDe-style labels changed substantially as expected from their clock-dependent design.
+
+Decision:
+
+- HOME has meaningful convergent behavioral evidence beyond the 27 emitted baseline cases, but expansion is not yet frozen because user-level consensus/support tiers have not been summarized;
+- OFFICE remains substantially more method-dependent and should not be broadened from recurrence alone;
+- the next semantic follow-up should quantify consensus tiers and use sliding-window/adaptive behavior for unstable users rather than tuning another single global clock threshold;
+- no reported metric is semantic accuracy because GeoLife still lacks HOME/OFFICE ground truth.
+
+## 2026-10-01 — Stage 05b scaffolded: HOME consensus tiers + adaptive secondary-anchor audit
+
+Stage 05 showed strong HOME convergence but method-dependent OFFICE behavior. Stage 05b now separates those two follow-ups instead of tuning another global office window.
+
+Added:
+
+- `analysis/05b_home_consensus_adaptive_work.py`;
+- `notebooks/05b_home_consensus_adaptive_work.ipynb`;
+- `docs/eda/19_home_consensus_adaptive_work.md`;
+- `docs/05b_home_consensus_adaptive_work_handoff.md`.
+
+HOME candidate tiers reuse the private Stage-05 assignment/split/holdout/dropout tables.
+
+Tier logic is transparent and non-probabilistic:
+
+- HIGH = unique vote winner, >=2 methods agree, and split + held-out top-1 + 30% dropout axes all have confirming evidence;
+- MEDIUM = unique vote winner, >=2 methods agree, and at least 2/3 reliability axes confirm;
+- UNCERTAIN = otherwise.
+
+The adaptive secondary-anchor audit runs only for HIGH/MEDIUM HOME users. It excludes HOME and tracks recurring non-HOME anchors in overlapping windows without using a fixed 09–17 selection window. Primary audit uses 42-day windows with 14-day steps, plus 28/42/56-day and 0.60/0.70/0.80 persistence sensitivity.
+
+A synthetic execution test initially exposed a timezone bug: production semantic timestamps are timezone-aware while the first sliding-window implementation created timezone-naive boundaries. The code now derives normalized window boundaries directly from timezone-aware semantic timestamps. Synthetic HOME tiering and a two-secondary-anchor switching case both pass.
+
+No production HOME/OFFICE rule changed. Stage 05b remains an audit layer until measured outputs are reviewed.
+
+## 2026-10-01 — Stage 05b HOME consensus + adaptive secondary-anchor audit completed
+
+Stage 05b reused the private Stage-05 reliability details and measured candidate-level HOME consensus plus sliding-window secondary-anchor persistence.
+
+HOME consensus winners:
+
+- 67 users had a unique method-vote winner;
+- 21 HIGH, 4 MEDIUM, 42 UNCERTAIN;
+- among HIGH/MEDIUM winners, 23 were already production HOME emissions;
+- only 2 additional HIGH/MEDIUM users were outside baseline emission, and both were already fixed-window HOME candidates that had failed the final production emission gate;
+- there were no HIGH/MEDIUM winners from the broad outside-fixed-candidate set.
+
+This means the earlier 73-user recurrence HOME coverage does not translate into a large reliable expansion. The frozen 27-HOME baseline already captures most of the strongest multi-axis HOME evidence. Of the 27 production HOME emissions, 23 appear as HIGH/MEDIUM unique consensus winners; the remaining emissions should be interpreted as weaker/more method-dependent evidence, not as demonstrated errors.
+
+Adaptive secondary-anchor audit among the 25 HIGH/MEDIUM HOME users:
+
+Primary 42-day windows, 14-day step, 0.70 dominant-window-share threshold:
+
+- 9 stable secondary-anchor users;
+- 3 multi-anchor users;
+- 1 unstable user;
+- 12 insufficient-support users.
+
+Among the 13 users with sufficient 42-day evidence, the dominant adaptive secondary anchor matched:
+
+- fixed-window OFFICE in 4/10 comparable users (40.0%);
+- HoWDe-style OFFICE in 2/7 (28.6%);
+- recurrence OFFICE in 6/11 (54.5%).
+
+Window sensitivity at the 0.70 threshold:
+
+- 28 days: 10 sufficient users, 6 stable;
+- 42 days: 13 sufficient, 9 stable;
+- 56 days: 14 sufficient, 10 stable.
+
+At 42/56 days, stable-secondary counts remain similar across 0.70/0.80 thresholds (9/9 and 10/10 respectively). The main limitation is observation support, not a collapse of persistence under a slightly stricter threshold.
+
+Decision:
+
+- do not broaden HOME production inference wholesale;
+- retain the two non-emitted HIGH/MEDIUM HOME cases as targeted review candidates only;
+- do not promote stable secondary anchors to OFFICE: static-method agreement remains low and about half of eligible HOME-consensus users are still insufficient at the primary 42-day setting;
+- Stage 05b closes the broad expansion question. Any further WORK step should test independent temporal/transition evidence for the small stable-secondary subset rather than tune another global threshold.
+
+
+## 2026-10-01 — Stage 05c stable-secondary independent-evidence audit scaffolded
+
+Stage 05b left only nine users with a stable secondary anchor under the primary 42-day audit, while static OFFICE agreement remained weak. Stage 05c narrows the question further instead of tuning another global OFFICE threshold.
+
+For each stable-secondary user, the persistent non-HOME anchor is compared with recurring non-HOME peers from the same user on four axes not used as the primary Stage-05b selection rule:
+
+- weekday-versus-weekend visit contrast;
+- direct HOME ↔ secondary transition-day share;
+- arrival-time concentration;
+- dwell-duration regularity.
+
+The primary design is within-user rather than population-threshold based. A candidate must have at least one eligible peer anchor before top-rank evidence is computed, preventing vacuous top-1 results.
+
+The audit also includes paired bootstrap differences versus each user's peer median, peer-support sensitivity at 2/3/5 active days, and descriptive stratification by static OFFICE agreement.
+
+No production HOME/OFFICE change is implied. The notebook is self-contained and reuses private Stage-05b caches.
+
+## 2026-10-01 — Stage 05c independent-evidence audit completed
+
+Stage 05c evaluated the nine Stage-05b stable secondary anchors against same-user recurring non-HOME peers on four evidence axes that were not used as the primary sliding-window persistence rule.
+
+Primary comparator support (>=3 active days, >=2 stays):
+
+- 9 stable-secondary users upstream;
+- 7 had at least one fair recurring non-HOME peer;
+- median peer-anchor count = 4.
+
+Axis-level result among the seven comparable users:
+
+- weekday-weekend visit contrast: 5/7 candidate anchors ranked top-1; median candidate-minus-peer-median = +0.198;
+- direct HOME<->secondary transition-day share: 3/7 top-1; median difference = +0.102;
+- arrival-hour concentration: 0/7 top-1; median difference = -0.181;
+- dwell-duration regularity: 0/7 top-1; median difference = -0.092.
+
+Multi-axis convergence:
+
+- 0/7 users ranked top-1 on >=3 of 4 axes;
+- 1/7 ranked top-1 on exactly 2 axes;
+- 6/7 ranked top-1 on only 0-1 axes;
+- 3/7 beat the peer median on >=3 axes, but this weaker criterion did not translate into top-rank convergence.
+
+Paired bootstrap intervals for candidate-minus-peer-median differences all crossed zero. The strongest directional signals were weekday contrast and HOME-pair transition share, but small-N uncertainty remained substantial.
+
+Peer-support sensitivity:
+
+- min 2 active days: 9 comparable users, 0 with >=3 top axes;
+- min 3 active days: 7 users, 0 with >=3 top axes;
+- min 5 active days: sample collapsed to 3 users; 1 reached >=3 top axes.
+
+Decision: close broad semantic WORK/OFFICE expansion. Stable secondary anchors remain a useful behavioral state, but current evidence does not support relabeling them as workplace. Production HOME/OFFICE remains unchanged.
+
+Related-work direction after 05c:
+
+- keep the frozen CP1 stay detector and complete-link 200 m representation; do not replace the current audited backbone with Trackintel mid-project;
+- use Trackintel only as an external reference/benchmark and source of tracking-quality ideas if a new behavior-change track needs them;
+- adopt the report's coverage-before-change-detection principle;
+- prefer Andrade-style routine/habit mining and downstream change detection as the next research direction because they do not require WORK semantics;
+- treat HoWDe as a comparator/lesson source rather than a reason to continue tuning WORK labels;
+- use Dong-style commute/OD features as sanity/interpretability signals, not as a GeoLife population-law claim.

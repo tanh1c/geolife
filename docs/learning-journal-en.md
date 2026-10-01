@@ -343,3 +343,452 @@ The schedule result is a useful negative finding. Although 46 users meet support
 
 The next hypothesis is the 23 mobile-work-like candidates: all 23 have multiple anchors, all 23 abstain under frozen OFFICE, and none emits frozen OFFICE. This does not confirm an occupation or semantic WORK label, but it supports testing whether the fixed-office baseline misses a distributed-mobility regime. A 03b audit must use independent evidence—mode labels, route/transition recurrence, weekday-weekend contrast, sensitivity, and negative controls—rather than reusing construction features to validate the wrapper.
 
+## 2026-09-27 — Runnable audit code is not automatically evidence-grade
+
+The 03b handoff exposed a useful distinction: a script can run successfully while its outputs are still not evidence-grade.
+
+Two early paths were invalid for scientific interpretation:
+
+1. transportation summaries used label-window duration rather than frozen-cleaned movement segments;
+2. sensitivity reused the frozen candidate cohort instead of rerunning the candidate wrapper.
+
+The continuation fixes both before any result is interpreted. The general lesson is that an audit must verify **evidence provenance** and **the dependency actually being perturbed**, not merely that code executes.
+
+These are engineering hardening changes only; no new behavioral conclusion is accepted until the full-release run and verification gates pass.
+
+## 2026-09-28 — Symlinks can invalidate resolved-path privacy guards
+
+The first Modal runner symlinked `artifacts/03a` into the persistent Volume. That was convenient operationally, but 03a intentionally validates private paths using `Path.resolve()`; after resolution the path no longer contained the approved `artifacts/03a` root and materialization correctly stopped.
+
+The fix keeps the guard intact and removes the symlink. The runner supplies explicit persistent cache roots through environment configuration, repoints the module's approved private root, and passes explicit cache paths into materialization to avoid default-argument binding surprises.
+
+General lesson: persistence plumbing must not silently change privacy invariants. A symlink is part of the path-security model when guards validate resolved paths.
+
+## 2026-09-29 — DBSCAN has a second modeling assumption: MinPts
+
+Notebook 03 studied `eps` in detail while keeping `min_samples=1` fixed. That is still an unvalidated modeling choice.
+
+In scikit-learn DBSCAN, `min_samples` is the number of samples in an epsilon neighborhood required for a point to be a core point, including the point itself. Therefore:
+
+```text
+min_samples = 1
+→ every point is core
+→ no density-based noise
+→ isolated stays become singleton clusters
+→ connectivity is maximally permissive
+
+higher min_samples
+→ stronger local-density requirement
+→ more transient/sparse stays may become noise
+→ but valid sparse recurring places may also be lost
+```
+
+The downstream `stay_count >= 2` recurring-location rule is not equivalent to `min_samples=2`: the former is a post-cluster visit-count condition, while MinPts is a local epsilon-neighborhood density condition.
+
+A later sensitivity experiment should test at least `1/2/3/5` across representative epsilon values and compare coverage, noise, compactness, chaining, and downstream recurring-user support before giving the DBSCAN benchmark a fully justified configuration.
+
+## 2026-09-29 — Support matching must use the frozen upstream schema
+
+03b referenced `observed_span_h` for support matching because that field exists at the point-day layer in the design, but the frozen 03a user-level feature table does not export it. The full audit therefore failed even though synthetic unit fixtures had passed.
+
+Lessons:
+
+- downstream audits must validate the actual upstream artifact schema rather than infer fields from a design document;
+- fixtures should mirror the frozen upstream schema instead of introducing convenient fields absent from production tables;
+- support balance now uses `active_days`, `usable_temporal_days`, `usable_active_days`, and `cp1_stay_count`.
+
+Verification should also separate current-change quality from unrelated repository lint debt. Full pytest remains a regression gate, while Ruff is targeted to the 03b runner and tests.
+
+## 2026-09-29 — A robust candidate set is not the same as a validated semantic regime
+
+03b provides a clean example of the difference between **robustness** and **semantic validation**.
+
+The 23-user candidate set is highly stable: anchor thresholds 100/200/300 m retain the exact same cohort; ±10% mobility thresholds change only one user; ±1 weekday support leaves membership unchanged.
+
+Independent evidence is weaker:
+
+- aggregate observation support remains materially different between matched A/B groups;
+- transportation labels cover only 6/23 A users, 12/23 B users, and 3/16 C users;
+- motorized distance share is similar across A/B/C;
+- median recurrent route-edge count is zero in both A and B;
+- A has more transitions and higher edge entropy, but those describe mobility complexity rather than work semantics.
+
+Lesson: high membership stability shows that a descriptive wrapper is robust around the tested thresholds. It does not manufacture external or independent semantic evidence. The appropriate decision remains `mixed evidence`, not a validated distributed-work class.
+
+## 2026-09-29 — When matched users still differ in exposure, control at the user-day level
+
+03b matched all 23 A/B pairs, but aggregate observation support remained materially different. User-level matching therefore did not fully remove observation confounding.
+
+03b.1 controls exposure at the user-day level:
+
+```text
+for each A/B pair
+→ stratify weekday/weekend
+→ take the smaller usable-day count in each stratum
+→ downsample the better-observed side
+→ recompute metrics
+→ repeat by bootstrap
+```
+
+Route analysis independently uses controlled `usable_for_motif` days. The transportation subset controls matched labeled hours. This asks a narrower question: do A/B differences persist when both sides contribute comparable observed exposure?
+
+Lesson: per-day normalization is useful but can still leave support imbalance. Pairwise exposure control directly tests that confounding mechanism.
+
+## 2026-09-29 — Narrow eligibility joins avoid hidden schema collisions
+
+03b.1 failed because both the clustered stay table and the daily eligibility table carried `local_weekday`. A merge on `user_id + local_date` therefore produced suffixed weekday columns, while downstream code still requested the unsuffixed field.
+
+The better fix is not to pick one suffix. The daily table is only an eligibility gate for `usable_for_motif`, so the join now carries only `user_id + local_date`; weekday is derived deterministically from `local_date`.
+
+Lesson: when a merge exists only to filter eligibility, keep the join payload minimal. Narrow joins reduce collision risk and make data provenance easier to reason about.
+
+## 2026-09-29 — Statistically valid bootstrap code can still be operationally unusable
+
+The first 03b.1 bootstrap design was conceptually valid but operationally slow because every repetition refiltered/copied pandas frames, while the transport path also rebuilt DataFrames and iterated segments with `iloc`.
+
+The optimized implementation preserves the same experiment while:
+
+- prefiltering each A/B pair once;
+- sampling only pair-local frames;
+- precomputing compact NumPy transport arrays once per user;
+- using vectorized permutation/cumulative-duration sampling for matched labeled hours;
+- emitting stage/pair progress.
+
+Lesson: reproducible research code also needs observable progress and sufficiently efficient execution to support actual reruns.
+
+## 2026-09-29 — Exposure-controlled 03b.1 result
+
+After equalizing usable-day exposure within each A/B pair, Group A still shows higher movement magnitude: about +22.9 km/day cleaned distance and +0.74 h/day movement proxy.
+
+Route evidence is narrower: edge entropy is higher by about 0.232 with a 95% bootstrap interval above zero, while recurrent-edge difference is zero and transition/day plus distinct-edge/day intervals touch zero.
+
+Appropriate interpretation: observation imbalance does not fully explain the behavioral difference, but current evidence supports only a descriptive mobility-complexity cohort. Home/Office semantics remain unchanged.
+
+## 2026-09-29 — A mentor demo should preserve the reasoning chain, not just charts
+
+After 03a → 03b → 03b.1, the audit trail had become too fragmented for a clean review conversation. A separate narrative notebook now reuses validated caches instead of rerunning raw data.
+
+The mentor-facing structure is:
+
+```text
+question
+→ why it matters
+→ measurement
+→ result
+→ what cannot be concluded
+→ decision
+```
+
+This keeps research findings separate from semantic claims. The 23-user set is shown as a robust mobility-complexity cohort while explicitly showing why recurrent-route evidence and transport coverage are insufficient for a mobile-work label.
+
+Lesson: reproducibility notebooks and communication notebooks serve different purposes. The former optimize for auditability; the latter should preserve provenance while making the reasoning and decision trace easy to follow.
+
+## 2026-09-29 — Case maps should illustrate aggregate findings, not replace them
+
+The mentor demo is easier to understand with real spatial cases, but visual case selection can easily become cherry-picking.
+
+03c visual v2 therefore uses deterministic selection: archetype users nearest the class median active-day support, and an A/B pair whose Group A edge entropy is nearest the Group A median plus its actual matched control.
+
+The notebook shows raw public GeoLife IDs, cached CP1 stays, recurring L* locations, chronological stay paths, daily mobility timelines, and L* transition heatmaps.
+
+Lesson: a case visualization answers what a measured pattern looks like; whether the pattern exists at population level still comes from sensitivity, matched controls, and exposure-controlled bootstrap evidence.
+
+## 2026-09-29 — Demo notebooks should not assume derived caches already exist
+
+03c initially assumed the full 03a `summary.json` existed on the Modal Volume. In practice, 03b can reuse the frozen stay and point-day caches without ever persisting the complete 03a derived bundle.
+
+The corrected design separates two cache layers:
+
+```text
+expensive frozen inputs
+= stays + point-day metrics
+
+cheap derived demo artifacts
+= summary + user features + audit tables
+```
+
+If the derived layer is missing, the demo rebuilds it from frozen inputs instead of rescanning raw trajectories. This makes the mentor notebook more self-contained while keeping reruns practical.
+
+## 2026-09-29 — Cloning a repository does not make its src package importable
+
+03c cloned the repository successfully on a fresh Modal runtime but failed when importing `analysis/03a...` because that module imports `geolife`, while the project had not yet been installed and `src/` was not on Python's import path.
+
+Lesson: notebook setup must follow `checkout -> install project -> add import paths -> import analysis helpers`. A source tree existing under `/tmp/geolife` does not by itself make `src/geolife` importable.
+
+
+
+## 2026-10-01 — Increasing DBSCAN MinPts does not fix chaining
+
+Notebook 04 directly tested the remaining DBSCAN assumption: `min_samples = 1/2/3/5` on the same 97-user semantic cohort.
+
+The clearest result is at `eps=200 m`:
+
+```text
+min_samples=1
+→ 73 recurring users
+→ 418 recurring locations
+→ 585 singleton locations
+→ max diameter ~836.66 m
+
+min_samples=2
+→ still 73 recurring users
+→ still 418 recurring locations
+→ 585 singleton stays become noise
+→ max diameter still ~836.66 m
+
+min_samples=3/5
+→ recurring-user coverage falls to 64/56
+→ max diameter still ~836.66 m
+```
+
+The frozen complete-link 200 m comparator keeps the same 73 recurring users with 486 recurring locations, p95 recurring diameter ~180.95 m, maximum ~199.23 m, and zero recurring clusters above 200 m.
+
+Lessons:
+
+- `min_samples=2` is not equivalent to the downstream `stay_count >= 2` recurrence rule; in this run it mainly converts singleton stays into noise;
+- increasing MinPts can lose coverage before it solves the representation problem;
+- DBSCAN epsilon + MinPts still cannot provide a hard maximum-diameter contract because chaining follows from density connectivity;
+- equal user coverage does not imply an equivalent spatial representation.
+
+The engineering decision therefore remains complete-link 200 m for semantic Home/Office work. This is robustness evidence, not an accuracy claim, because GeoLife has no Home/Office ground truth.
+
+Scope remains important: this follow-up runs on the 97-user semantic cohort. It does not replace the full-stay DBSCAN audit and does not directly revalidate behavior-EDA anchor counts across all 136 stay-bearing users.
+
+
+## 2026-10-01 — Related-work lesson: HOME/OFFICE can be evaluated without making POI the primary validator
+
+### Andrade, Cancela & Gama (2019) — meaningful places and DBSCAN chaining
+
+Mining Human Mobility Data to Discover Locations and Habits builds meaningful places from stay points and recurrence without requiring an external semantic source. In its GeoLife experiment it uses 200 m / 20 min stay-point parameters; for user 004, 2,437 stay points are reduced to 50 meaningful places and the two most frequent places are interpreted as Home/Work. The paper also highlights a failure mode that matches our own audit: density-connected DBSCAN points can chain into location clusters that are too extended.
+
+Project lesson:
+
+- external map/POI semantics are not required to discover recurrent structure;
+- spatial compactness and recurrence of visits/movements are independent evidence axes;
+- paper user 004 is a sanity reference, not GeoLife-wide ground truth;
+- the Stage 04 complete-link 200 m decision is methodologically consistent with the paper's chaining warning.
+
+### Dong et al. (2022) — the spatial threshold is not the semantic classifier
+
+The universality in urban commuting across and within cities uses 200 m / 10 min stay detection and DBSCAN MinPoint=1 for stay locations, but final HOME/WORK classification uses XGBoost with 28 features and self-reported ground truth. The feature set includes user support, weekday/weekend and day/night ratios, within-user location shares, transfer-matrix counts, and residential/work POI counts.
+
+Project lesson:
+
+- 200 m + recurrence is not sufficient to establish HOME/OFFICE;
+- transition structure, recurrence, and observation support provide separate evidence;
+- POI is auxiliary rather than the complete validation strategy;
+- the paper's reported supervised HOME/WORK accuracy must not be transferred to GeoLife because we do not have its self-reported labels.
+
+### HoWDe (2025) — separate coverage from semantic selection
+
+HoWDe converts stop sequences into hourly bins, filters days by temporal coverage, uses proportions over observed hours rather than absolute observed time, supports sliding windows, and explicitly allows not detected. It evaluates both detected accuracy and fraction not detected, making the accuracy/retention trade-off explicit.
+
+Project lesson:
+
+- support gates and semantic scores should be separate concepts;
+- abstention is a valid output;
+- proportions over observed data are preferable to raw counts under uneven sampling;
+- sliding-window inference is a strong follow-up when static assignments are unstable;
+- HoWDe also states relevant limits: temporal behavior does not infer detailed semantic purpose, and a single run does not directly resolve rotating night-shift lifestyles.
+
+### Applied decision
+
+Stage 05 pivots from POI lookup to reliability validation:
+
+recurring locations -> multiple semantic rankers -> split-half -> held-out -> dropout -> cross-method agreement -> schedule-sensitivity
+
+The frozen 27 HOME / 16 OFFICE result is now only a parity comparator. New candidate coverage may be larger, but no method is treated as truth until the reliability axes are measured.
+
+
+## 2026-10-01 — HOME is more stable than OFFICE; more coverage is not better semantics
+
+Stage 05 reproduced the frozen 27 HOME / 16 OFFICE parity, but before the final production emission gate the fixed-window ranker already yields 35 HOME and 27 OFFICE candidates. The recurrence ranker can rank 73 HOME and 31 OFFICE candidates. Thus 27/16 is a conservative emission-policy outcome, not the natural ceiling of the data.
+
+More importantly, agreement differs sharply between HOME and OFFICE.
+
+HOME:
+
+- fixed vs HoWDe-style: 18/19 same location = 94.7%;
+- fixed vs recurrence: 29/35 = 82.9%;
+- HoWDe-style vs recurrence: 17/20 = 85.0%.
+
+OFFICE:
+
+- fixed vs HoWDe-style remains reasonably high at 13/16 = 81.3%;
+- fixed vs recurrence falls to 7/22 = 31.8%;
+- HoWDe-style vs recurrence is only 3/20 = 15.0%.
+
+Lessons:
+
+- HOME has a strong dominant recurrent-anchor signal, so materially different assumptions often converge on the same location;
+- OFFICE depends much more strongly on temporal semantics — recurrence at an alternate anchor is not sufficient evidence of a workplace;
+- larger coverage is not stronger evidence: recurrence HOME covers 73 users but held-out top-1 persistence is only about 43.3%;
+- reliability must be interpreted jointly with coverage.
+
+Missing-data stress also shows relatively strong fixed-HOME robustness: after dropping 30% of stays, candidate retention is about 84.8%; recurrence HOME retains about 87.2%. HoWDe-style HOME drops to about 68.3%, indicating that the current hourly proportional implementation is more sensitive to sparse stop support in GeoLife.
+
+## 2026-10-01 — A time shift tests assumptions, not accuracy
+
+Shifting every local timestamp by +12 h while preserving physical locations provides a useful metamorphic stress test:
+
+- recurrence HOME retains 100% of candidates;
+- recurrence OFFICE retains about 77.4%;
+- fixed HOME retains about 37.1% and fixed OFFICE 14.8%;
+- HoWDe-style HOME/OFFICE retain about 25.0% / 14.3%.
+
+This does not mean recurrence is semantically more accurate. Fixed-window and HoWDe-style methods intentionally encode clock windows, so sensitivity is part of their design.
+
+The appropriate lessons are:
+
+- the +12 h test measures schedule dependence;
+- HOME can separate physical-anchor recurrence from circadian interpretation;
+- OFFICE needs adaptive/sliding-window reasoning if atypical schedules are in scope;
+- a single global time window should not be loosened merely to increase coverage.
+
+Next decision: quantify HOME consensus/support tiers and run sliding-window/adaptive audits for unstable OFFICE/WORK assignments before changing production inference.
+
+## 2026-10-01 — Consensus tiers should combine evidence axes, not raw scores
+
+The three HOME rankers expose scores with different semantics:
+
+- fixed-window uses dwell share in frozen time windows;
+- HoWDe-style uses observed-hour / visited-day proportions;
+- recurrence uses dwell/recurrence ranking.
+
+Normalizing and summing those values would create a pseudo-confidence with no shared measurement scale.
+
+Stage 05b therefore keeps separate:
+
+```text
+method convergence
+split consistency
+held-out top-1
+30% dropout robustness
+```
+
+and uses only transparent rules to form HIGH / MEDIUM / UNCERTAIN audit tiers.
+
+Lesson: when weak labelers are not on a common scale, consensus should be built from agreement plus independent validation axes rather than arithmetic score fusion. The resulting tier is evidence, not a calibrated probability.
+
+## 2026-10-01 — Adaptive WORK should select the anchor before measuring clock behavior
+
+Stage 05 showed that OFFICE assignments depend strongly on temporal assumptions. Stage 05b therefore does not construct candidates with a replacement fixed clock window.
+
+New flow:
+
+```text
+reliable HOME
+→ exclude HOME
+→ sliding windows
+→ recurring secondary anchor
+→ persistence / switches
+→ arrival-hour center & concentration
+```
+
+Clock behavior is measured after the secondary anchor is selected. This allows a physically stable anchor with shifted or changing schedules to remain visible instead of being filtered out by 09–17 at construction time.
+
+Lesson: when the time window itself is the hypothesis under test, do not use the same window to construct the candidate and then treat that candidate as validation of the window.
+
+## 2026-10-01 — Timezone-aware data require timezone-aware audit windows
+
+The Stage-05b executable synthetic test caught a runtime bug that syntax checks could not: `arrival_time_local` is timezone-aware, while the first sliding-window boundaries were created from Python dates and were timezone-naive.
+
+The fix derives normalized boundaries directly from timezone-aware semantic timestamps:
+
+```text
+min/max arrival_time_local
+→ normalize()
+→ pd.date_range()
+```
+
+Lesson: research notebooks need at least one executable synthetic path. Syntactically valid datetime code can still violate timezone semantics.
+
+## 2026-10-01 — Strong consensus sharply contracts expansion: 73 recurring HOME candidates become only 2 new review cases
+
+Stage 05 showed that recurrence can rank HOME for 73 users. Stage 05b then required convergence across methods plus independent reliability axes.
+
+Unique winner results: HIGH 21, MEDIUM 4, UNCERTAIN 42.
+
+Among the 25 HIGH/MEDIUM winners:
+- 23 are already production HOME emissions;
+- only 2 are not emitted;
+- both are still fixed-window HOME candidates that failed only the final share/margin emission gate;
+- no HIGH/MEDIUM winner comes from the much broader outside-fixed-candidate set.
+
+Lesson: broad candidate coverage is useful for testing the ceiling, but multi-axis reliability can sharply contract the credible expansion set. High recurrence coverage does not justify moving production HOME from 27 toward 73.
+
+Also, 23/27 production HOME emissions appear as HIGH/MEDIUM unique consensus winners. The remaining four emissions should not be called wrong; they simply have weaker convergent evidence under this audit.
+
+## 2026-10-01 — Sliding-window secondary-anchor persistence is not WORK semantics
+
+Among 25 users with HIGH/MEDIUM HOME evidence, the primary 42-day audit gives 9 stable secondary anchors, 3 multi-anchor, 1 unstable and 12 insufficient.
+
+The first limitation is support: nearly half of the cohort is insufficient at the primary operating point.
+
+The second limitation is semantic convergence. The dominant adaptive anchor matches fixed OFFICE for 40.0% of comparable users, HoWDe-style OFFICE for 28.6%, and recurrence OFFICE for 54.5%.
+
+Thus persistent non-HOME recurrence is real behavioral evidence, but it is not enough to establish workplace semantics.
+
+At a 0.70 stability threshold: 28d -> 10 sufficient / 6 stable; 42d -> 13 / 9; 56d -> 14 / 10.
+
+Longer windows mainly increase usable observation support. They do not create a semantic breakthrough; fixed-OFFICE agreement remains around 40%.
+
+Lesson: window-size sensitivity must separate more observation support from better semantic identification. An increase in stable-count alone is not an accuracy gain.
+
+Decision: if WORK research continues, restrict it to the stable-secondary subset and add independent transition/weekday/arrival evidence. Do not tune another persistence threshold and rename it OFFICE.
+
+
+## 2026-10-01 — When recurrence selects the candidate, the next validation step should use different evidence
+
+Stage 05b selected stable secondary anchors mainly through persistence / recurrence across sliding windows. Reusing active-day share or dominant-window share as Stage-05c validation would mostly self-validate the construction rule.
+
+Stage 05c therefore moves to four different axes:
+
+- weekday-versus-weekend contrast;
+- direct HOME ↔ secondary transition regularity;
+- arrival-time concentration;
+- dwell-duration regularity.
+
+Lesson: candidate construction and validation should be feature-separated as much as possible. Without ground truth, reusing the same signal to generate and validate a candidate can manufacture false confidence.
+
+## 2026-10-01 — Same-user peers are preferable to another global threshold for a small audit
+
+Stage 05c contains only nine stable-secondary users. With small N and strong user heterogeneity, introducing new cutoffs such as arrival concentration > X or weekday share > Y would be arbitrary.
+
+The audit instead asks whether the selected anchor stands out relative to the user's other recurring non-HOME anchors.
+
+Outputs are within-user percentile, top-1 evidence axes, and candidate-minus-peer-median differences.
+
+Lesson: for strongly personalized mobility behavior, relative within-user evidence is often more defensible than another global cutoff. At least one supported peer is required; otherwise top-1 would be a vacuous result.
+
+## 2026-10-01 — Secondary-anchor persistence does not imply convergent commute-like regularity
+
+Stage 05c tested the nine stable-secondary users from Stage 05b with evidence different from the primary candidate-selection rule. Only seven users had at least one sufficiently supported recurring non-HOME peer for a fair within-user comparison.
+
+Primary result:
+
+- weekday-weekend contrast: 5/7 candidate anchors ranked top-1;
+- direct HOME<->secondary transition-day share: 3/7 top-1;
+- arrival-time concentration: 0/7 top-1;
+- dwell-duration regularity: 0/7 top-1.
+
+Most importantly, no user ranked top-1 on >=3/4 axes. One user reached two axes; six reached only zero or one.
+
+Paired bootstrap intervals for all four candidate-minus-peer-median metrics crossed zero. Weekday contrast and HOME-pair transitions had a positive direction, but N=7 was too small and the evidence did not converge.
+
+Lesson: persistence across sliding windows is a separate property. It does not automatically imply arrival regularity, dwell regularity, or transition dominance. Keep stable_secondary_anchor as a behavioral state rather than promote it to OFFICE.
+
+## 2026-10-01 — Apply related work to the project's current state, not as a greenfield architecture
+
+The deep-research report recommends Trackintel as a backbone, HoWDe for robust HOME/WORK inference, then habit/change detection downstream. That architecture is sensible from scratch, but this project already has deeply audited CP1 cleaning/stays and complete-link locations.
+
+The appropriate integration now is:
+
+- do not replace the frozen CP1/CP2 backbone with Trackintel;
+- use Trackintel as an external comparator and tracking-quality reference where useful;
+- formalize coverage-before-change-detection;
+- pivot toward meaningful routines, OD habits, and behavior change because those questions do not require forcing a secondary anchor into WORK semantics;
+- use commute distance, OD entropy, transition and mode changes as supporting signals;
+- treat the change-detection repository as research code to refactor/test rather than importing its defaults as truth.
+
+General lesson: literature integration must respect accumulated validation debt. A mature external library is not automatically worth replacing an already-audited pipeline if the replacement destroys comparability with prior experiments.
