@@ -954,3 +954,30 @@ A fresh Modal runtime failed before the 03c demo cache fallback could run with `
 
 The mentor-demo runner is corrected to follow the same setup contract as the audit runners: checkout the branch, run `pip install -e .[dev] timezonefinder==9.0.0`, add both the repository root and `src/` to `sys.path`, and only then import 03a analysis helpers. This is a runtime/setup bug only; no EDA evidence or frozen result changes.
 
+
+
+## 2026-10-01 — Clustering robustness follow-up completed
+
+Executed notebook 04 re-audited the frozen 97-user Home/Office semantic cohort with DBSCAN `eps = 20/50/100/200 m` × `min_samples = 1/2/3/5`, using frozen complete-link 200 m as the engineering comparator.
+
+Measured complete-link 200 m reference:
+
+- 1,111 locations;
+- 486 recurring locations;
+- 73 users with at least one recurring location;
+- p95 recurring-cluster diameter 180.95 m;
+- maximum recurring-cluster diameter 199.23 m;
+- 0 recurring clusters above 200 m.
+
+At DBSCAN `eps=200 m`:
+
+- `min_samples=1`: 73 recurring users, 418 recurring locations, 585 singleton locations, 0 noise stays, max recurring diameter 836.66 m, 68 recurring clusters above 200 m;
+- `min_samples=2`: the same 73 recurring users and 418 recurring locations, but the 585 singleton stays become noise; max diameter and 68 >200 m clusters are unchanged;
+- `min_samples=3`: recurring-user coverage falls to 64 while max diameter remains 836.66 m;
+- `min_samples=5`: recurring-user coverage falls to 56 while max diameter remains 836.66 m.
+
+Decision: increasing DBSCAN MinPts does not resolve the chaining problem. `min_samples=2` mostly reclassifies singleton locations as noise, while higher values lose recurring-location support without controlling the widest clusters. Keep frozen complete-link 200 m for semantic work.
+
+Scope caveat: notebook 04 is a follow-up on the 97-user Home/Office semantic cohort. It does not replace the separate full-stay DBSCAN audit or revalidate the 136-user behavior-EDA anchor counts.
+
+Next research step: POI / land-use enrichment as auxiliary semantic evidence for frozen behavioral HOME/OFFICE labels; no production label change is implied.
