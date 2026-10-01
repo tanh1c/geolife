@@ -899,3 +899,55 @@ Stage 06 permissive GMM chỉ có 11 modeled edges từ 2 users, nhưng 8 edge c
 - center separation >=2 giờ.
 
 Bài học: model selection criterion không thay thế minimum support và component interpretability checks.
+
+## 2026-10-01 — JSD rất cao không có nghĩa temporal drift nếu random split cũng cao như vậy
+
+06b cho kết quả tưởng như rất bất ổn:
+
+- 45 users có edge distribution ở cả hai halves;
+- median chronological JSD = 1.0;
+- weighted Jaccard median = 0;
+- top-3 overlap median = 0.
+
+Nếu chỉ nhìn chronological split, rất dễ kết luận behavior thay đổi mạnh.
+
+Nhưng random balanced partitions của chính các supported days cũng cho median JSD = 1.0. Chỉ 2/45 users có chronological JSD vượt random p95.
+
+Bài học:
+
+```text
+high chronological difference
+≠ temporal change
+
+high chronological difference
++ equally high random-partition difference
+≈ sparse representation / sampling instability
+```
+
+Đây là lý do null model theo từng user quan trọng trước change detection.
+
+## 2026-10-01 — Exact OD identity đang quá sparse cho population-level change detection
+
+Support tiers co rất nhanh:
+
+```text
+>=2 active days → 23 users
+>=3 active days →  9 users
+>=5 active days →  2 users
+```
+
+Departure-time regularity của strong edges khá tốt (median concentration ~0.964; median bootstrap lower bound ~0.944), nhưng 12 strong edges chỉ đến từ 2 users.
+
+Strict multimodality còn hẹp hơn: 6 modeled edges từ 1 user, 1 strict multimodal edge.
+
+Bài học: một feature có thể rất stable conditional on strong support nhưng vẫn không đủ population coverage để làm backbone cho detector.
+
+## 2026-10-01 — Motif comparator phải phân biệt stationary repeated days với mobility routines
+
+Primary 06b comparator cho 8 repeated-OD users, 9 supported collapsed-motif users và 0 overlap.
+
+Nhưng comparator motif hiện cho phép sequence chỉ có một location, ví dụ `L0`, tức ngày lặp stationary pattern nhưng không có OD transition.
+
+Vì vậy zero overlap không nên được đọc như hai routine representations khám phá hai nhóm mobility hoàn toàn khác nhau.
+
+Lesson: khi comparator dùng unit khác nhau, eligibility phải match cả support lẫn behavior type. Nếu mục tiêu là mobility routine, collapsed motif comparator nên yêu cầu ít nhất một transition.
