@@ -736,3 +736,27 @@ Longer windows mainly increase usable observation support. They do not create a 
 Lesson: window-size sensitivity must separate more observation support from better semantic identification. An increase in stable-count alone is not an accuracy gain.
 
 Decision: if WORK research continues, restrict it to the stable-secondary subset and add independent transition/weekday/arrival evidence. Do not tune another persistence threshold and rename it OFFICE.
+
+
+## 2026-10-01 — When recurrence selects the candidate, the next validation step should use different evidence
+
+Stage 05b selected stable secondary anchors mainly through persistence / recurrence across sliding windows. Reusing active-day share or dominant-window share as Stage-05c validation would mostly self-validate the construction rule.
+
+Stage 05c therefore moves to four different axes:
+
+- weekday-versus-weekend contrast;
+- direct HOME ↔ secondary transition regularity;
+- arrival-time concentration;
+- dwell-duration regularity.
+
+Lesson: candidate construction and validation should be feature-separated as much as possible. Without ground truth, reusing the same signal to generate and validate a candidate can manufacture false confidence.
+
+## 2026-10-01 — Same-user peers are preferable to another global threshold for a small audit
+
+Stage 05c contains only nine stable-secondary users. With small N and strong user heterogeneity, introducing new cutoffs such as arrival concentration > X or weekday share > Y would be arbitrary.
+
+The audit instead asks whether the selected anchor stands out relative to the user's other recurring non-HOME anchors.
+
+Outputs are within-user percentile, top-1 evidence axes, and candidate-minus-peer-median differences.
+
+Lesson: for strongly personalized mobility behavior, relative within-user evidence is often more defensible than another global cutoff. At least one supported peer is required; otherwise top-1 would be a vacuous result.
