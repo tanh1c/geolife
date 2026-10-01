@@ -66,3 +66,11 @@ The detailed 03a/03b/03b.1 runners remain the reproducibility/audit source; 03c 
 
 The mentor-demo notebook now also includes a visual v2 layer: deterministic raw GeoLife user IDs, interactive Folium stay/location maps, a representative matched A/B pair, daily mobility timelines, and L* transition heatmaps. Case selection is deterministic and illustrative; aggregate/sensitivity/bootstrap evidence remains the basis for research conclusions. visual v2 adds deterministic raw-ID case maps.
 
+
+
+### Stage 05c — stable secondary independent evidence
+
+- `05c_stable_secondary_independent_evidence.ipynb`
+- Reuses Stage-05b private caches.
+- Compares persistent non-HOME secondary anchors with same-user recurring peers on weekday contrast, HOME-pair transitions, arrival-time concentration, and dwell regularity.
+- Audit only: does not relabel stable secondary anchors as OFFICE.
