@@ -515,3 +515,41 @@ If the derived layer is missing, the demo rebuilds it from frozen inputs instead
 
 Lesson: notebook setup must follow `checkout -> install project -> add import paths -> import analysis helpers`. A source tree existing under `/tmp/geolife` does not by itself make `src/geolife` importable.
 
+
+
+## 2026-10-01 — Increasing DBSCAN MinPts does not fix chaining
+
+Notebook 04 directly tested the remaining DBSCAN assumption: `min_samples = 1/2/3/5` on the same 97-user semantic cohort.
+
+The clearest result is at `eps=200 m`:
+
+```text
+min_samples=1
+→ 73 recurring users
+→ 418 recurring locations
+→ 585 singleton locations
+→ max diameter ~836.66 m
+
+min_samples=2
+→ still 73 recurring users
+→ still 418 recurring locations
+→ 585 singleton stays become noise
+→ max diameter still ~836.66 m
+
+min_samples=3/5
+→ recurring-user coverage falls to 64/56
+→ max diameter still ~836.66 m
+```
+
+The frozen complete-link 200 m comparator keeps the same 73 recurring users with 486 recurring locations, p95 recurring diameter ~180.95 m, maximum ~199.23 m, and zero recurring clusters above 200 m.
+
+Lessons:
+
+- `min_samples=2` is not equivalent to the downstream `stay_count >= 2` recurrence rule; in this run it mainly converts singleton stays into noise;
+- increasing MinPts can lose coverage before it solves the representation problem;
+- DBSCAN epsilon + MinPts still cannot provide a hard maximum-diameter contract because chaining follows from density connectivity;
+- equal user coverage does not imply an equivalent spatial representation.
+
+The engineering decision therefore remains complete-link 200 m for semantic Home/Office work. This is robustness evidence, not an accuracy claim, because GeoLife has no Home/Office ground truth.
+
+Scope remains important: this follow-up runs on the 97-user semantic cohort. It does not replace the full-stay DBSCAN audit and does not directly revalidate behavior-EDA anchor counts across all 136 stay-bearing users.
