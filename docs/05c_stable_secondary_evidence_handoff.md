@@ -64,3 +64,31 @@ Do not turn a 3+ axis result into an OFFICE label automatically.
 A positive result means only that the selected persistent non-HOME anchor also exhibits stronger commute-like / schedule-regular behavior than the user's other recurring non-HOME anchors.
 
 A negative or mixed result means the Stage-05b persistence signal should remain descriptive rather than semantic.
+
+## Measured result — 2026-10-01
+
+Upstream parity remained nine stable-secondary users. Seven had at least one eligible recurring non-HOME peer under the primary >=3-active-day comparator rule; median peer count was four.
+
+Axis summary:
+
+- weekday_weekend_visit_contrast: top-1 for 5/7; median candidate-minus-peer-median +0.198;
+- home_pair_transition_day_share: top-1 for 3/7; median difference +0.102;
+- arrival_hour_concentration: top-1 for 0/7; median difference -0.181;
+- dwell_regularity_score: top-1 for 0/7; median difference -0.092.
+
+Convergence:
+
+- 0 users with >=3 top-1 evidence axes;
+- 1 user with exactly 2;
+- 6 users with 0-1;
+- 3 users beat the peer median on >=3 axes, but that weaker criterion did not produce top-rank convergence.
+
+All four paired-bootstrap 95% intervals crossed zero.
+
+Comparator-support sensitivity:
+
+- >=2 active days: 9 users, 0 with >=3 top axes;
+- >=3 active days: 7 users, 0 with >=3 top axes;
+- >=5 active days: 3 users, 1 with >=3 top axes.
+
+Decision: close semantic WORK/OFFICE expansion. Keep stable_secondary_anchor descriptive only. If the project continues beyond Stage 05, move to routine/habit or behavior-change questions that do not require workplace ground truth.
