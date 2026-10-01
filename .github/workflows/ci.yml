@@ -42,6 +42,7 @@ jobs:
               'notebooks/05_home_office_reliability_validation.ipynb',
               'notebooks/05b_home_consensus_adaptive_work.ipynb',
               'notebooks/05c_stable_secondary_independent_evidence.ipynb',
+              'notebooks/06_routine_habit_mining.ipynb',
           ]:
               json.load(open(path, encoding='utf-8'))
               print(path, 'json ok')
