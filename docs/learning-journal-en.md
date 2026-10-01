@@ -646,3 +646,59 @@ The appropriate lessons are:
 - a single global time window should not be loosened merely to increase coverage.
 
 Next decision: quantify HOME consensus/support tiers and run sliding-window/adaptive audits for unstable OFFICE/WORK assignments before changing production inference.
+
+## 2026-10-01 — Consensus tiers should combine evidence axes, not raw scores
+
+The three HOME rankers expose scores with different semantics:
+
+- fixed-window uses dwell share in frozen time windows;
+- HoWDe-style uses observed-hour / visited-day proportions;
+- recurrence uses dwell/recurrence ranking.
+
+Normalizing and summing those values would create a pseudo-confidence with no shared measurement scale.
+
+Stage 05b therefore keeps separate:
+
+```text
+method convergence
+split consistency
+held-out top-1
+30% dropout robustness
+```
+
+and uses only transparent rules to form HIGH / MEDIUM / UNCERTAIN audit tiers.
+
+Lesson: when weak labelers are not on a common scale, consensus should be built from agreement plus independent validation axes rather than arithmetic score fusion. The resulting tier is evidence, not a calibrated probability.
+
+## 2026-10-01 — Adaptive WORK should select the anchor before measuring clock behavior
+
+Stage 05 showed that OFFICE assignments depend strongly on temporal assumptions. Stage 05b therefore does not construct candidates with a replacement fixed clock window.
+
+New flow:
+
+```text
+reliable HOME
+→ exclude HOME
+→ sliding windows
+→ recurring secondary anchor
+→ persistence / switches
+→ arrival-hour center & concentration
+```
+
+Clock behavior is measured after the secondary anchor is selected. This allows a physically stable anchor with shifted or changing schedules to remain visible instead of being filtered out by 09–17 at construction time.
+
+Lesson: when the time window itself is the hypothesis under test, do not use the same window to construct the candidate and then treat that candidate as validation of the window.
+
+## 2026-10-01 — Timezone-aware data require timezone-aware audit windows
+
+The Stage-05b executable synthetic test caught a runtime bug that syntax checks could not: `arrival_time_local` is timezone-aware, while the first sliding-window boundaries were created from Python dates and were timezone-naive.
+
+The fix derives normalized boundaries directly from timezone-aware semantic timestamps:
+
+```text
+min/max arrival_time_local
+→ normalize()
+→ pd.date_range()
+```
+
+Lesson: research notebooks need at least one executable synthetic path. Syntactically valid datetime code can still violate timezone semantics.
