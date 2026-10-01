@@ -742,3 +742,29 @@ Window dài hơn chủ yếu tăng usable support. 42d và 56d không tạo sema
 Bài học: khi window length tăng, phải tách hai hiệu ứng: more observation support vs better semantic identification. Không được coi stable-count tăng là accuracy tăng.
 
 Decision: nếu tiếp tục WORK, chỉ audit subset stable-secondary bằng transition/weekday/arrival evidence độc lập. Không tune một threshold persistence khác rồi tự gọi nó là OFFICE.
+
+
+## 2026-10-01 — Khi candidate đã được chọn bằng recurrence, validation tiếp theo phải dùng evidence khác
+
+05b chọn stable secondary anchor dựa chủ yếu vào persistence / recurrence qua sliding windows. Nếu 05c lại dùng active-day share hoặc dominant-window share để xác nhận, đó chỉ là self-validation.
+
+Thiết kế 05c chuyển sang bốn trục khác:
+
+- weekday-weekend contrast;
+- direct HOME ↔ secondary transition regularity;
+- arrival-time concentration;
+- dwell-duration regularity.
+
+Bài học: candidate construction và validation nên tách feature càng nhiều càng tốt. Trong dữ liệu không có ground truth, việc dùng cùng feature để tạo candidate rồi dùng lại feature đó làm validation rất dễ tạo confidence giả.
+
+## 2026-10-01 — Same-user peers tốt hơn một threshold toàn cục cho audit nhỏ
+
+Subset 05c chỉ có 9 stable-secondary users. Với N nhỏ và user heterogeneity lớn, đặt thêm một rule kiểu arrival concentration > X hay weekday share > Y sẽ rất tùy ý.
+
+05c vì vậy hỏi:
+
+candidate này có nổi bật hơn các recurring non-HOME anchors khác của chính user không?
+
+Output là within-user percentile, top-1 axis, và candidate-minus-peer-median.
+
+Bài học: với mobility behavior cá nhân hóa mạnh, relative within-user evidence thường phù hợp hơn một global cutoff mới. Nhưng cần ít nhất một peer đủ support; nếu không top-1 chỉ là kết quả vacuous.
