@@ -1251,3 +1251,60 @@ Stage 06b therefore adds:
 - stricter multimodal GMM checks using support, BIC gain, component weights, and circular time separation.
 
 The central pre-Stage-07 question is now whether chronological distribution change exceeds random-partition variability after coverage is controlled. No HOME/OFFICE or production inference changes are introduced.
+
+## 2026-10-01 — Stage 06b measured result: exact-OD instability is mostly sampling-driven
+
+Stage 06b completed successfully and preserved Stage-06 parity:
+
+- 107 supported users;
+- 984 supported days;
+- 1,086 directed transitions;
+- 869 distinct user-edge rows.
+
+Support-aware routine comparison on the primary >=6-usable-day universe:
+
+- 51 eligible users;
+- 8 users had a directed OD repeated on >=3 active days;
+- 9 users had a collapsed-sequence motif repeated on >=3 days and >=50% of usable days;
+- the current comparator reported zero overlap between those groups.
+
+The zero-overlap result requires caution: the collapsed-sequence motif comparator currently permits single-location motifs with no transition. It therefore mixes stationary repeated-day patterns with mobile OD routines and should not be interpreted as evidence that OD and motif representations identify disjoint mobility populations.
+
+Routine support tiers:
+
+- candidate >=2 active days: 66 edges / 23 users (22 with >=6 usable days);
+- supported >=3 active days: 25 edges / 9 users (8 with >=6 usable days);
+- strong >=5 active days: 12 edges / 2 users.
+
+Chronological split-half distribution result:
+
+- 51 users passed support eligibility;
+- 45 had comparable edge distributions in both halves;
+- exact same top edge: 13.3%;
+- median JSD = 1.0;
+- median weighted Jaccard = 0.0;
+- median total variation = 1.0;
+- median top-3 Jaccard = 0.0.
+
+However, the within-user random balanced-partition null is equally sparse:
+
+- median chronological JSD = 1.0;
+- median random-partition JSD = 1.0;
+- median chronological-minus-random-median JSD = 0.0;
+- only 2/45 users (4.4%) had chronological JSD above their random-partition p95.
+
+Interpretation: the very high split-half instability is not evidence of broad temporal behavior change. For most users, exact-OD distributions are so sparse that random balanced partitions are just as disjoint as chronological halves.
+
+Departure-time bootstrap is stronger but concentrated in a tiny subset:
+
+- supported tier (3-4 active days): 13 edges / 8 users, median concentration 0.888, median CI lower bound 0.823;
+- strong tier (>=5 active days): 12 edges / 2 users, median concentration 0.964, median CI lower bound 0.944;
+- 9/12 strong edges retained CI lower bound >=0.7.
+
+Strict multimodality also remains narrow:
+
+- 6 edges from 1 user met the primary strict modeling gate;
+- only 1 edge was strict multimodal;
+- sensitivity across relaxed settings still involved at most 2 users.
+
+Decision: do not proceed to broad Stage-07 change detection on exact OD identity. The next step, if pursued, should first test whether a coarser/support-normalized representation yields interpretable temporal continuity and enough eligible windows. Exact OD identity is currently sampling-limited.
