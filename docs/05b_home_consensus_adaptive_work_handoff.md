@@ -84,3 +84,49 @@ It does not establish:
 - semantic accuracy.
 
 Do not change production HOME/OFFICE until the measured 05b outputs are reviewed.
+
+## Measured result — 2026-10-01
+
+### HOME consensus
+
+The executed audit produced 67 unique HOME vote winners: 21 HIGH, 4 MEDIUM and 42 UNCERTAIN.
+
+Production relationship:
+- HIGH: 20 baseline-emitted + 1 fixed candidate not emitted;
+- MEDIUM: 3 baseline-emitted + 1 fixed candidate not emitted;
+- UNCERTAIN unique winners: 1 baseline-emitted + 4 fixed candidates not emitted + 37 outside-fixed candidates.
+
+Therefore only 2 HIGH/MEDIUM expansion candidates lie outside production HOME. Both are already fixed-window candidates; neither comes from the broad recurrence-only/outside-fixed set.
+
+Interpretation:
+- the 27-HOME production baseline is conservative but already captures most of the strongest consensus evidence;
+- 23 of 27 production emissions are HIGH/MEDIUM unique winners;
+- do not automatically add the two expansion candidates; keep them as targeted review candidates.
+
+### Adaptive secondary-anchor audit
+
+Primary 42-day / 14-day-step / 0.70 stability setting among 25 HIGH/MEDIUM HOME users:
+- stable_secondary_anchor: 9;
+- multi_anchor: 3;
+- unstable: 1;
+- insufficient: 12.
+
+Static-method agreement for users with sufficient evidence:
+- fixed-window OFFICE: 4/10 = 40.0%;
+- HoWDe-style OFFICE: 2/7 = 28.6%;
+- recurrence OFFICE: 6/11 = 54.5%.
+
+Sensitivity at stability threshold 0.70:
+- 28d: 10 sufficient / 6 stable;
+- 42d: 13 sufficient / 9 stable;
+- 56d: 14 sufficient / 10 stable.
+
+At 42d and 56d, moving the persistence threshold from 0.70 to 0.80 leaves stable counts unchanged (9 and 10 respectively). This suggests the primary conclusion is not driven by a knife-edge 0.70 threshold, but the usable sample remains small.
+
+### Handoff decision
+
+Do not change production HOME/OFFICE from Stage 05b alone.
+
+For HOME: baseline already captures nearly all HIGH/MEDIUM consensus cases; only two non-emitted cases merit focused review.
+
+For WORK-like behavior: retain stable_secondary_anchor as a descriptive state only; do not equate it with OFFICE. If a follow-up is needed, test independent weekday/transition/arrival regularity inside the small stable-secondary subset.
