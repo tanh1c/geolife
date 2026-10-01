@@ -553,3 +553,48 @@ Lessons:
 The engineering decision therefore remains complete-link 200 m for semantic Home/Office work. This is robustness evidence, not an accuracy claim, because GeoLife has no Home/Office ground truth.
 
 Scope remains important: this follow-up runs on the 97-user semantic cohort. It does not replace the full-stay DBSCAN audit and does not directly revalidate behavior-EDA anchor counts across all 136 stay-bearing users.
+
+
+## 2026-10-01 — Related-work lesson: HOME/OFFICE can be evaluated without making POI the primary validator
+
+### Andrade, Cancela & Gama (2019) — meaningful places and DBSCAN chaining
+
+Mining Human Mobility Data to Discover Locations and Habits builds meaningful places from stay points and recurrence without requiring an external semantic source. In its GeoLife experiment it uses 200 m / 20 min stay-point parameters; for user 004, 2,437 stay points are reduced to 50 meaningful places and the two most frequent places are interpreted as Home/Work. The paper also highlights a failure mode that matches our own audit: density-connected DBSCAN points can chain into location clusters that are too extended.
+
+Project lesson:
+
+- external map/POI semantics are not required to discover recurrent structure;
+- spatial compactness and recurrence of visits/movements are independent evidence axes;
+- paper user 004 is a sanity reference, not GeoLife-wide ground truth;
+- the Stage 04 complete-link 200 m decision is methodologically consistent with the paper's chaining warning.
+
+### Dong et al. (2022) — the spatial threshold is not the semantic classifier
+
+The universality in urban commuting across and within cities uses 200 m / 10 min stay detection and DBSCAN MinPoint=1 for stay locations, but final HOME/WORK classification uses XGBoost with 28 features and self-reported ground truth. The feature set includes user support, weekday/weekend and day/night ratios, within-user location shares, transfer-matrix counts, and residential/work POI counts.
+
+Project lesson:
+
+- 200 m + recurrence is not sufficient to establish HOME/OFFICE;
+- transition structure, recurrence, and observation support provide separate evidence;
+- POI is auxiliary rather than the complete validation strategy;
+- the paper's reported supervised HOME/WORK accuracy must not be transferred to GeoLife because we do not have its self-reported labels.
+
+### HoWDe (2025) — separate coverage from semantic selection
+
+HoWDe converts stop sequences into hourly bins, filters days by temporal coverage, uses proportions over observed hours rather than absolute observed time, supports sliding windows, and explicitly allows not detected. It evaluates both detected accuracy and fraction not detected, making the accuracy/retention trade-off explicit.
+
+Project lesson:
+
+- support gates and semantic scores should be separate concepts;
+- abstention is a valid output;
+- proportions over observed data are preferable to raw counts under uneven sampling;
+- sliding-window inference is a strong follow-up when static assignments are unstable;
+- HoWDe also states relevant limits: temporal behavior does not infer detailed semantic purpose, and a single run does not directly resolve rotating night-shift lifestyles.
+
+### Applied decision
+
+Stage 05 pivots from POI lookup to reliability validation:
+
+recurring locations -> multiple semantic rankers -> split-half -> held-out -> dropout -> cross-method agreement -> schedule-sensitivity
+
+The frozen 27 HOME / 16 OFFICE result is now only a parity comparator. New candidate coverage may be larger, but no method is treated as truth until the reliability axes are measured.
