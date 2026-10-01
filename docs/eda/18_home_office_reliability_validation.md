@@ -169,6 +169,10 @@ Analysis helper:
 
 - analysis/05_home_office_reliability.py
 
+Modal orchestration notebook:
+
+- notebooks/05_home_office_reliability_validation.ipynb
+
 Private Modal outputs should remain under:
 
 - /mnt/geolife-data/cache/05_home_office_reliability_validation/
