@@ -1083,3 +1083,47 @@ The adaptive secondary-anchor audit runs only for HIGH/MEDIUM HOME users. It exc
 A synthetic execution test initially exposed a timezone bug: production semantic timestamps are timezone-aware while the first sliding-window implementation created timezone-naive boundaries. The code now derives normalized window boundaries directly from timezone-aware semantic timestamps. Synthetic HOME tiering and a two-secondary-anchor switching case both pass.
 
 No production HOME/OFFICE rule changed. Stage 05b remains an audit layer until measured outputs are reviewed.
+
+## 2026-10-01 — Stage 05b HOME consensus + adaptive secondary-anchor audit completed
+
+Stage 05b reused the private Stage-05 reliability details and measured candidate-level HOME consensus plus sliding-window secondary-anchor persistence.
+
+HOME consensus winners:
+
+- 67 users had a unique method-vote winner;
+- 21 HIGH, 4 MEDIUM, 42 UNCERTAIN;
+- among HIGH/MEDIUM winners, 23 were already production HOME emissions;
+- only 2 additional HIGH/MEDIUM users were outside baseline emission, and both were already fixed-window HOME candidates that had failed the final production emission gate;
+- there were no HIGH/MEDIUM winners from the broad outside-fixed-candidate set.
+
+This means the earlier 73-user recurrence HOME coverage does not translate into a large reliable expansion. The frozen 27-HOME baseline already captures most of the strongest multi-axis HOME evidence. Of the 27 production HOME emissions, 23 appear as HIGH/MEDIUM unique consensus winners; the remaining emissions should be interpreted as weaker/more method-dependent evidence, not as demonstrated errors.
+
+Adaptive secondary-anchor audit among the 25 HIGH/MEDIUM HOME users:
+
+Primary 42-day windows, 14-day step, 0.70 dominant-window-share threshold:
+
+- 9 stable secondary-anchor users;
+- 3 multi-anchor users;
+- 1 unstable user;
+- 12 insufficient-support users.
+
+Among the 13 users with sufficient 42-day evidence, the dominant adaptive secondary anchor matched:
+
+- fixed-window OFFICE in 4/10 comparable users (40.0%);
+- HoWDe-style OFFICE in 2/7 (28.6%);
+- recurrence OFFICE in 6/11 (54.5%).
+
+Window sensitivity at the 0.70 threshold:
+
+- 28 days: 10 sufficient users, 6 stable;
+- 42 days: 13 sufficient, 9 stable;
+- 56 days: 14 sufficient, 10 stable.
+
+At 42/56 days, stable-secondary counts remain similar across 0.70/0.80 thresholds (9/9 and 10/10 respectively). The main limitation is observation support, not a collapse of persistence under a slightly stricter threshold.
+
+Decision:
+
+- do not broaden HOME production inference wholesale;
+- retain the two non-emitted HIGH/MEDIUM HOME cases as targeted review candidates only;
+- do not promote stable secondary anchors to OFFICE: static-method agreement remains low and about half of eligible HOME-consensus users are still insufficient at the primary 42-day setting;
+- Stage 05b closes the broad expansion question. Any further WORK step should test independent temporal/transition evidence for the small stable-secondary subset rather than tune another global threshold.
