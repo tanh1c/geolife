@@ -47,3 +47,37 @@ User/window-level tables remain on the private Modal Volume. Public documentatio
 Use notebooks/06c_change_detection_representation_feasibility.ipynb.
 
 No production semantics, HOME/OFFICE inference, or change detector are modified by Stage 06c.
+
+## Measured result — 2026-10-01
+
+Calendar-window support:
+
+- 28d: 16 adjacent eligible pairs from 11 users; median 8 usable days/window;
+- 42d: 15 pairs from 9 users; median 8 usable days/window;
+- 56d: 11 pairs from 7 users; median 9 usable days/window.
+
+Exact OD remains sparse/noisy:
+
+- chronological JSD medians = 0.942 / 1.000 / 1.000;
+- random-partition JSD medians = 0.876 / 0.857 / 0.894;
+- chronological above random p95 = 0% / 0% / 9.1%.
+
+Best interpretable coarse evidence:
+
+- 42d cleaned distance / usable day: Spearman 0.729, random-p95 exceedance 6.7%, bootstrap-width / observed-IQR 0.814;
+- 42d active-location count / usable day: Spearman 0.540, random-p95 exceedance 0%, bootstrap ratio 0.866.
+
+All 45 feature × window combinations remain below the Stage-07 readiness gate because no setting reaches the predeclared 20 comparable adjacent pairs. The threshold must not be lowered post hoc.
+
+## Handoff decision
+
+Do not implement Stage 07 yet.
+
+Next evaluate support-indexed windows:
+
+- 6 / 8 / 10 usable days;
+- 56 / 84-day calendar-span cap sensitivity;
+- same feature, null-calibration, test–retest and bootstrap protocol.
+
+If that still fails coverage/stability, close broad GeoLife within-user change detection as data-limited rather than detector-limited.
+
