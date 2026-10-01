@@ -1127,3 +1127,21 @@ Decision:
 - retain the two non-emitted HIGH/MEDIUM HOME cases as targeted review candidates only;
 - do not promote stable secondary anchors to OFFICE: static-method agreement remains low and about half of eligible HOME-consensus users are still insufficient at the primary 42-day setting;
 - Stage 05b closes the broad expansion question. Any further WORK step should test independent temporal/transition evidence for the small stable-secondary subset rather than tune another global threshold.
+
+
+## 2026-10-01 — Stage 05c stable-secondary independent-evidence audit scaffolded
+
+Stage 05b left only nine users with a stable secondary anchor under the primary 42-day audit, while static OFFICE agreement remained weak. Stage 05c narrows the question further instead of tuning another global OFFICE threshold.
+
+For each stable-secondary user, the persistent non-HOME anchor is compared with recurring non-HOME peers from the same user on four axes not used as the primary Stage-05b selection rule:
+
+- weekday-versus-weekend visit contrast;
+- direct HOME ↔ secondary transition-day share;
+- arrival-time concentration;
+- dwell-duration regularity.
+
+The primary design is within-user rather than population-threshold based. A candidate must have at least one eligible peer anchor before top-rank evidence is computed, preventing vacuous top-1 results.
+
+The audit also includes paired bootstrap differences versus each user's peer median, peer-support sensitivity at 2/3/5 active days, and descriptive stratification by static OFFICE agreement.
+
+No production HOME/OFFICE change is implied. The notebook is self-contained and reuses private Stage-05b caches.
