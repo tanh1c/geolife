@@ -126,3 +126,42 @@ Before any production change:
 4. inspect adaptive secondary-anchor stability under window sensitivity;
 5. compare adaptive dominant anchors with static OFFICE candidates;
 6. keep all conclusions as reliability/behavioral evidence because GeoLife has no semantic HOME/OFFICE ground truth.
+
+## Measured result — 2026-10-01
+
+### HOME: consensus expansion is small
+
+Stage 05b found 67 unique HOME vote winners: 21 HIGH, 4 MEDIUM and 42 UNCERTAIN.
+
+Of the 25 HIGH/MEDIUM winners, 23 were already production HOME emissions. The only two non-emitted HIGH/MEDIUM winners were both fixed-window HOME candidates that had failed the final production emission gate.
+
+No HIGH/MEDIUM winner came from the broad outside-fixed-candidate set.
+
+This is the key Stage-05b HOME result: recurrence can rank many more anchors, but independent reliability evidence does not support a broad expansion from 27 HOME toward the full recurring-anchor population.
+
+### WORK-like: persistence exists in a small subset
+
+Among the 25 HIGH/MEDIUM HOME users, the primary 42-day sliding-window audit classified 9 stable secondary anchors, 3 multi-anchor patterns, 1 unstable pattern, and 12 insufficient-support cases.
+
+For the 13 sufficient users, the adaptive dominant anchor has limited agreement with static semantic candidates: 40.0% with fixed-window OFFICE, 28.6% with HoWDe-style OFFICE, and 54.5% with recurrence OFFICE.
+
+This is evidence of recurring secondary-place structure, not validated workplace semantics.
+
+### Window sensitivity
+
+At dominant-window-share threshold 0.70:
+- 28d: 10 sufficient, 6 stable, 3 multi-anchor, 1 unstable;
+- 42d: 13 sufficient, 9 stable, 3 multi-anchor, 1 unstable;
+- 56d: 14 sufficient, 10 stable, 3 multi-anchor, 1 unstable.
+
+For 42d and 56d, stable-secondary counts are unchanged between 0.70 and 0.80 thresholds. Longer windows mainly improve observation sufficiency.
+
+The result is therefore support-limited more than threshold-fragile, but the sample is too small and cross-method agreement too weak to relabel stable secondary anchors as OFFICE.
+
+## Stage 05b decision
+
+1. Keep production HOME/OFFICE unchanged.
+2. Retain two non-emitted HIGH/MEDIUM HOME cases for targeted review only.
+3. Do not expand HOME using recurrence-only candidates.
+4. Do not convert stable_secondary_anchor to OFFICE.
+5. If Stage 05 continues, the next narrow experiment should add independent transition and weekday/arrival regularity evidence for the stable-secondary subset, rather than search another global threshold.
