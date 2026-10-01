@@ -42,6 +42,30 @@ MIN_WORK_OBSERVED_DAYS = 6
 MIN_WORK_CANDIDATE_DAYS = 3
 MIN_WORK_CANDIDATE_STAYS = 2
 
+WORK_PATTERN_COLUMNS = [
+    "user_id",
+    "home_tier",
+    "window_days",
+    "eligible_windows",
+    "candidate_windows",
+    "candidate_window_share",
+    "distinct_top_locations",
+    "dominant_location_id",
+    "dominant_window_share",
+    "second_location_window_share",
+    "switch_count",
+    "longest_run_windows",
+    "longest_run_share",
+    "median_visit_day_share",
+    "median_arrival_hour_concentration",
+    "median_dominant_hour_shift_h",
+    "window_pattern",
+]
+
+
+def _empty_work_patterns() -> pd.DataFrame:
+    return pd.DataFrame(columns=WORK_PATTERN_COLUMNS)
+
 
 def _method_list(values: pd.Series) -> tuple[str, ...]:
     order = {method: index for index, method in enumerate(METHODS)}
@@ -611,7 +635,7 @@ def summarize_adaptive_work_patterns(
 ) -> pd.DataFrame:
     """Summarize sliding-window secondary-anchor persistence per user."""
     if windows.empty:
-        return pd.DataFrame()
+        return _empty_work_patterns()
 
     rows = []
     for user_id, group in windows.groupby("user_id", sort=True):
