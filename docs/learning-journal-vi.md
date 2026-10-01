@@ -825,3 +825,19 @@ Bài học:
 Với edge có đủ transitions, Stage 06 thử 1–3 departure-time modes sau circular unwrapping và dùng BIC để mô tả multimodality. Số mode chỉ là temporal pattern, không phải loại nghề hay trip purpose.
 
 Nếu routine coverage và split-half stability đủ tốt, representation này mới phù hợp để Stage 07 detect behavior change.
+
+## 2026-10-01 — Import được source tree không có nghĩa runtime dependencies đã đầy đủ
+
+Stage 06 trên Modal gặp case:
+
+`geolife` import được từ `/tmp/geolife/src`, nhưng `timezonefinder` chưa được cài.
+
+Setup cũ chỉ chạy `pip install -e .` khi `geolife` import fail, nên dependency path bị skip và `resolve_stay_timezones()` mới fail ở cell sau.
+
+Bài học:
+
+- notebook setup phải check các optional/runtime dependencies mà helper thực sự cần, không chỉ check package chính có import được hay không;
+- source path trên `sys.path` có thể làm package chính import thành công dù environment chưa được install đầy đủ;
+- dependency check nên idempotent: thiếu thì cài, có rồi thì skip.
+
+Stage 06 hiện check `timezonefinder==9.0.0` trực tiếp trước khi import helper 03a.
