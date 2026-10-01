@@ -702,3 +702,37 @@ min/max arrival_time_local
 ```
 
 Lesson: research notebooks need at least one executable synthetic path. Syntactically valid datetime code can still violate timezone semantics.
+
+## 2026-10-01 — Strong consensus sharply contracts expansion: 73 recurring HOME candidates become only 2 new review cases
+
+Stage 05 showed that recurrence can rank HOME for 73 users. Stage 05b then required convergence across methods plus independent reliability axes.
+
+Unique winner results: HIGH 21, MEDIUM 4, UNCERTAIN 42.
+
+Among the 25 HIGH/MEDIUM winners:
+- 23 are already production HOME emissions;
+- only 2 are not emitted;
+- both are still fixed-window HOME candidates that failed only the final share/margin emission gate;
+- no HIGH/MEDIUM winner comes from the much broader outside-fixed-candidate set.
+
+Lesson: broad candidate coverage is useful for testing the ceiling, but multi-axis reliability can sharply contract the credible expansion set. High recurrence coverage does not justify moving production HOME from 27 toward 73.
+
+Also, 23/27 production HOME emissions appear as HIGH/MEDIUM unique consensus winners. The remaining four emissions should not be called wrong; they simply have weaker convergent evidence under this audit.
+
+## 2026-10-01 — Sliding-window secondary-anchor persistence is not WORK semantics
+
+Among 25 users with HIGH/MEDIUM HOME evidence, the primary 42-day audit gives 9 stable secondary anchors, 3 multi-anchor, 1 unstable and 12 insufficient.
+
+The first limitation is support: nearly half of the cohort is insufficient at the primary operating point.
+
+The second limitation is semantic convergence. The dominant adaptive anchor matches fixed OFFICE for 40.0% of comparable users, HoWDe-style OFFICE for 28.6%, and recurrence OFFICE for 54.5%.
+
+Thus persistent non-HOME recurrence is real behavioral evidence, but it is not enough to establish workplace semantics.
+
+At a 0.70 stability threshold: 28d -> 10 sufficient / 6 stable; 42d -> 13 / 9; 56d -> 14 / 10.
+
+Longer windows mainly increase usable observation support. They do not create a semantic breakthrough; fixed-OFFICE agreement remains around 40%.
+
+Lesson: window-size sensitivity must separate more observation support from better semantic identification. An increase in stable-count alone is not an accuracy gain.
+
+Decision: if WORK research continues, restrict it to the stable-secondary subset and add independent transition/weekday/arrival evidence. Do not tune another persistence threshold and rename it OFFICE.
