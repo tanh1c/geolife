@@ -519,3 +519,41 @@ Nếu derived layer thiếu, notebook rebuild từ frozen inputs thay vì scan r
 
 Bài học: notebook runtime setup phải theo thứ tự `checkout -> install project -> add import paths -> import analysis helpers`. Việc file source tồn tại dưới `/tmp/geolife` không tự làm `src/geolife` trở thành importable package.
 
+
+
+## 2026-10-01 — Tăng DBSCAN MinPts không sửa được chaining
+
+Notebook 04 kiểm tra trực tiếp giả định còn thiếu của DBSCAN: `min_samples = 1/2/3/5` trên cùng 97-user semantic cohort.
+
+Kết quả quan trọng nhất ở `eps=200 m`:
+
+```text
+min_samples=1
+→ 73 recurring users
+→ 418 recurring locations
+→ 585 singleton locations
+→ max diameter ~836.66 m
+
+min_samples=2
+→ vẫn 73 recurring users
+→ vẫn 418 recurring locations
+→ 585 singleton stays chuyển thành noise
+→ max diameter vẫn ~836.66 m
+
+min_samples=3/5
+→ recurring-user coverage giảm còn 64/56
+→ max diameter vẫn ~836.66 m
+```
+
+Trong khi frozen complete-link 200 m giữ cùng 73 recurring users nhưng có 486 recurring locations, p95 recurring diameter ~180.95 m, max ~199.23 m và không có recurring cluster nào vượt 200 m.
+
+Bài học:
+
+- `min_samples=2` không tương đương với downstream rule `stay_count >= 2`; trong run này nó chủ yếu loại singleton thành noise;
+- tăng MinPts có thể giảm coverage trước khi nó giải quyết được representation problem;
+- DBSCAN `eps` + MinPts vẫn không tạo hard maximum-diameter contract vì chaining là thuộc tính của density connectivity;
+- user coverage giống nhau không có nghĩa spatial representation tương đương.
+
+Decision hợp lý vẫn là giữ complete-link 200 m cho semantic Home/Office work. Đây là robustness/engineering evidence, không phải accuracy claim vì GeoLife không có Home/Office ground truth.
+
+Scope cần giữ rõ: follow-up này chạy trên 97-user semantic cohort, không thay thế full-stay DBSCAN audit và không revalidate trực tiếp các anchor counts của behavior EDA trên 136 users.
