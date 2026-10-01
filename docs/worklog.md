@@ -981,3 +981,40 @@ Decision: increasing DBSCAN MinPts does not resolve the chaining problem. `min_s
 Scope caveat: notebook 04 is a follow-up on the 97-user Home/Office semantic cohort. It does not replace the separate full-stay DBSCAN audit or revalidate the 136-user behavior-EDA anchor counts.
 
 Next research step: POI / land-use enrichment as auxiliary semantic evidence for frozen behavioral HOME/OFFICE labels; no production label change is implied.
+
+
+## 2026-10-01 — Stage 05 pivoted from historical POI to behavioral reliability
+
+The historical-OSM path was completed before this pivot. All 42 emitted-anchor historical requests completed, but the primary 150 m audit remained dominated by missing historical map context: 22/27 HOME and 14/16 OFFICE labels were unknown. Historical OSM therefore remains a documented negative result rather than a semantic ground-truth source.
+
+Stage 05 now evaluates Home/Office inference without external semantic ground truth.
+
+Frozen foundations remain unchanged:
+
+- CP1 cleaning/stay semantics;
+- complete-link 200 m spatial representation;
+- Beijing-focused semantic geography/timezone policy;
+- production baseline as a parity comparator only (27 HOME / 16 OFFICE).
+
+New analysis scaffold:
+
+- analysis/05_home_office_reliability.py;
+- docs/eda/18_home_office_reliability_validation.md;
+- docs/05_home_office_reliability_handoff.md.
+
+The new audit compares three independent-ish candidate rankers:
+
+- current fixed-window semantics before final emission gates;
+- a lightweight HoWDe-inspired observed-hour proportional ranker;
+- a schedule-light recurrence comparator.
+
+Validation axes are:
+
+- candidate coverage;
+- cross-method agreement;
+- first/second-half and odd/even-week test-retest reliability;
+- 60/40 held-out predictive persistence;
+- 10/20/30% stay-dropout robustness;
+- +12 h schedule-sensitivity stress.
+
+This stage explicitly does not report accuracy because GeoLife has no HOME/OFFICE ground truth. The immediate next step is to run the scaffold on Modal, preserve user-level details privately, and interpret only aggregate reliability tables before changing production inference.
