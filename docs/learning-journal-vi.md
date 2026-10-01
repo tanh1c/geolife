@@ -708,3 +708,37 @@ min/max arrival_time_local
 như vậy sliding windows giữ đúng timezone của semantic stays.
 
 Bài học: notebook research code cần ít nhất một executable synthetic path; syntax-valid không đảm bảo datetime semantics đúng.
+
+## 2026-10-01 — Consensus mạnh làm co lại expansion: 73 recurring HOME candidates chỉ còn 2 case mới đáng review
+
+Stage 05 cho thấy recurrence có thể rank HOME cho 73 users, nhưng Stage 05b buộc candidate phải qua method convergence và reliability axes.
+
+Kết quả winner: HIGH 21, MEDIUM 4, UNCERTAIN 42.
+
+Trong 25 HIGH/MEDIUM winners:
+- 23 đã là production HOME;
+- chỉ 2 chưa emit;
+- cả 2 vẫn là fixed-window HOME candidates, chỉ fail final share/margin emission gate;
+- không có HIGH/MEDIUM winner nào xuất phát từ tập outside-fixed-candidate rộng hơn.
+
+Bài học: coverage exploration rất hữu ích để tìm trần candidate, nhưng multi-axis reliability có thể thu hẹp mạnh phần thật sự đáng mở rộng. Một phương pháp recurrence có coverage cao không đồng nghĩa production nên tăng 27 HOME lên gần 73.
+
+Ngoài ra, 23/27 production HOME emissions xuất hiện như HIGH/MEDIUM unique consensus winners. Bốn emission còn lại không nên gọi là sai; chúng chỉ có convergent evidence yếu hơn dưới audit hiện tại.
+
+## 2026-10-01 — Sliding-window secondary anchor tìm được persistence, nhưng chưa tìm được WORK semantics
+
+Trong 25 user có HOME HIGH/MEDIUM, primary 42-day audit cho 9 stable secondary anchor, 3 multi-anchor, 1 unstable và 12 insufficient.
+
+Vấn đề đầu tiên là support: gần một nửa cohort không đủ evidence cho primary window.
+
+Vấn đề thứ hai là semantic convergence. Dominant adaptive anchor chỉ match fixed OFFICE 40.0%, HoWDe-style OFFICE 28.6%, và recurrence OFFICE 54.5%.
+
+Do đó persistence của một non-HOME anchor là behavioral evidence thật, nhưng chưa đủ để gọi nó là workplace.
+
+Sensitivity ở threshold 0.70: 28d -> 10 sufficient / 6 stable; 42d -> 13 / 9; 56d -> 14 / 10.
+
+Window dài hơn chủ yếu tăng usable support. 42d và 56d không tạo semantic breakthrough; agreement với fixed OFFICE vẫn quanh 40%.
+
+Bài học: khi window length tăng, phải tách hai hiệu ứng: more observation support vs better semantic identification. Không được coi stable-count tăng là accuracy tăng.
+
+Decision: nếu tiếp tục WORK, chỉ audit subset stable-secondary bằng transition/weekday/arrival evidence độc lập. Không tune một threshold persistence khác rồi tự gọi nó là OFFICE.
