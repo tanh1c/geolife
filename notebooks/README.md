@@ -74,3 +74,11 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Reuses Stage-05b private caches.
 - Compares persistent non-HOME secondary anchors with same-user recurring peers on weekday contrast, HOME-pair transitions, arrival-time concentration, and dwell regularity.
 - Audit only: does not relabel stable secondary anchors as OFFICE.
+
+
+### Stage 06 — routine / habit mining
+
+- `06_routine_habit_mining.ipynb`
+- Uses the broader Stage-03a all-resolved behavior representation.
+- Mines supported daily sequences, directed OD recurrence, cyclic departure-time regularity, multimodal departure habits, and split-half routine stability.
+- No HOME/OFFICE relabeling; user-level routine tables remain private on the Modal Volume.
