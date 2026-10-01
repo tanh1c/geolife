@@ -1019,3 +1019,42 @@ Validation axes are:
 - +12 h schedule-sensitivity stress.
 
 This stage explicitly does not report accuracy because GeoLife has no HOME/OFFICE ground truth. The immediate next step is to run the scaffold on Modal, preserve user-level details privately, and interpret only aggregate reliability tables before changing production inference.
+
+
+## 2026-10-01 — Stage 05 Home/Office reliability results
+
+The new reliability audit ran successfully on the frozen semantic representation:
+
+- 5,821 CP1 stays from 136 stay-bearing users;
+- 97 users in the frozen Beijing semantic cohort;
+- 1,111 semantic locations;
+- 486 recurring locations across 73 recurring-anchor users;
+- production parity reproduced exactly: 27 HOME and 16 OFFICE emissions.
+
+Candidate coverage before treating any method as truth:
+
+- fixed-window ranker: 35 HOME candidates / 27 OFFICE candidates;
+- HoWDe-style proportional ranker: 20 HOME / 21 OFFICE;
+- schedule-light recurrence ranker: 73 HOME / 31 OFFICE.
+
+The 27/16 production counts are therefore confirmed to be conservative emission-policy outputs rather than the ceiling of recurring-anchor evidence.
+
+Cross-method agreement is much stronger for HOME than OFFICE:
+
+- HOME same-location agreement: fixed vs HoWDe-style 94.7% (18/19), fixed vs recurrence 82.9% (29/35), HoWDe-style vs recurrence 85.0% (17/20);
+- OFFICE: fixed vs HoWDe-style 81.3% (13/16), but fixed vs recurrence only 31.8% (7/22) and HoWDe-style vs recurrence 15.0% (3/20).
+
+Reliability/persistence evidence:
+
+- fixed HOME split agreement: 76.5% first-vs-second half and 80.0% odd-vs-even weeks;
+- fixed OFFICE: 55.6% first-vs-second and 88.9% odd-vs-even, but only 9 users contributed to each overlap;
+- held-out top-1 persistence: HOME 55.6% fixed, 60.0% HoWDe-style, 43.3% recurrence; OFFICE 44.4%, 36.4%, and 37.5% respectively;
+- at 30% random stay dropout, candidate retention remained 84.8%/76.5% for fixed HOME/OFFICE, 68.3%/54.0% for HoWDe-style, and 87.2%/64.5% for recurrence HOME/OFFICE;
+- under a +12 h clock shift, recurrence HOME remained 100% stable and recurrence OFFICE 77.4%, while fixed-window and HoWDe-style labels changed substantially as expected from their clock-dependent design.
+
+Decision:
+
+- HOME has meaningful convergent behavioral evidence beyond the 27 emitted baseline cases, but expansion is not yet frozen because user-level consensus/support tiers have not been summarized;
+- OFFICE remains substantially more method-dependent and should not be broadened from recurrence alone;
+- the next semantic follow-up should quantify consensus tiers and use sliding-window/adaptive behavior for unstable users rather than tuning another single global clock threshold;
+- no reported metric is semantic accuracy because GeoLife still lacks HOME/OFFICE ground truth.
