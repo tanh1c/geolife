@@ -85,3 +85,55 @@ Only then decide whether the next semantic model should be:
 - a proportional/coverage-aware static rule;
 - a sliding-window adaptive rule;
 - or an explicit uncertainty/abstention ensemble.
+
+
+## Measured result — 2026-10-01
+
+The run completed all planned axes and reproduced frozen parity.
+
+Cohort:
+
+- 5,821 CP1 stays / 136 stay users;
+- 97 frozen semantic users;
+- 1,111 semantic locations;
+- 486 recurring locations;
+- 73 recurring-anchor users.
+
+Candidate coverage:
+
+| method | HOME | OFFICE |
+|---|---:|---:|
+| fixed_window | 35 | 27 |
+| howde_style | 20 | 21 |
+| recurrence | 73 | 31 |
+
+Production emissions remain 27 HOME / 16 OFFICE.
+
+Cross-method same-location agreement:
+
+| label | comparison | overlap | agreement |
+|---|---|---:|---:|
+| HOME | fixed ↔ howde | 19 | 94.7% |
+| HOME | fixed ↔ recurrence | 35 | 82.9% |
+| HOME | howde ↔ recurrence | 20 | 85.0% |
+| OFFICE | fixed ↔ howde | 16 | 81.3% |
+| OFFICE | fixed ↔ recurrence | 22 | 31.8% |
+| OFFICE | howde ↔ recurrence | 20 | 15.0% |
+
+Primary interpretation:
+
+- HOME evidence converges across methods much more strongly than OFFICE;
+- recurrence-only WORK/OFFICE expansion is rejected;
+- fixed-window HOME appears conservative but reasonably stable under split and dropout stress;
+- candidate expansion is not frozen yet because the current aggregate notebook does not quantify how many non-emitted HOME candidates pass a multi-axis consensus tier;
+- +12 h sensitivity is reported as schedule dependence, not as semantic error.
+
+Next run should create candidate-level consensus tiers without exposing precise coordinates:
+
+1. at least two methods select the same HOME anchor;
+2. sufficient split-half support where available;
+3. candidate seen in held-out data and preferably top-1;
+4. dropout retention under a selected perturbation level;
+5. sliding-window status for temporally unstable cases.
+
+For OFFICE/WORK, prioritize a sliding-window/adaptive behavior audit before any coverage expansion.
