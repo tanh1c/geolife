@@ -44,6 +44,7 @@ jobs:
               'notebooks/05c_stable_secondary_independent_evidence.ipynb',
               'notebooks/06_routine_habit_mining.ipynb',
               'notebooks/06b_routine_representation_robustness.ipynb',
+              'notebooks/06c_change_detection_representation_feasibility.ipynb',
           ]:
               json.load(open(path, encoding='utf-8'))
               print(path, 'json ok')
