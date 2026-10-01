@@ -768,3 +768,35 @@ candidate này có nổi bật hơn các recurring non-HOME anchors khác của 
 Output là within-user percentile, top-1 axis, và candidate-minus-peer-median.
 
 Bài học: với mobility behavior cá nhân hóa mạnh, relative within-user evidence thường phù hợp hơn một global cutoff mới. Nhưng cần ít nhất một peer đủ support; nếu không top-1 chỉ là kết quả vacuous.
+
+## 2026-10-01 — Persistence của secondary anchor không đồng nghĩa commute-like regularity hội tụ
+
+05c kiểm tra 9 stable-secondary users từ 05b bằng evidence khác với rule chọn candidate. Chỉ 7 users có ít nhất một recurring non-HOME peer đủ support để so sánh công bằng.
+
+Kết quả primary:
+
+- weekday-weekend contrast: 5/7 candidate đứng top-1;
+- HOME<->secondary transition-day share: 3/7 top-1;
+- arrival-time concentration: 0/7 top-1;
+- dwell-duration regularity: 0/7 top-1.
+
+Quan trọng nhất: không user nào đứng top-1 trên >=3/4 axes. Chỉ 1 user đạt 2 axes; 6 users chỉ đạt 0-1 axis.
+
+Bootstrap candidate-minus-peer-median cho cả bốn metrics đều có 95% interval cắt 0. Weekday contrast và HOME-pair transition có hướng dương, nhưng N=7 quá nhỏ và evidence không hội tụ.
+
+Bài học: persistence qua sliding windows là một property riêng. Nó không tự kéo theo arrival regularity, dwell regularity hay transition dominance. Vì vậy stable_secondary_anchor nên giữ là behavioral state, không nâng thành OFFICE.
+
+## 2026-10-01 — Related-work nên được áp dụng theo trạng thái hiện tại của project, không theo kiến trúc greenfield
+
+Deep-research report đề xuất Trackintel làm backbone, HoWDe làm robust HOME/WORK estimator, rồi habit/change-detection downstream. Kiến trúc đó hợp lý nếu bắt đầu mới, nhưng project hiện đã audit sâu CP1 cleaning/stays và complete-link locations.
+
+Áp dụng hợp lý lúc này:
+
+- không thay frozen CP1/CP2 bằng Trackintel;
+- có thể dùng Trackintel như external comparator và tracking-quality reference;
+- formalize coverage-before-change-detection;
+- chuyển trọng tâm sang meaningful routines / OD habits / behavior change, vì các bài toán này không cần ép secondary anchor thành WORK;
+- dùng commute distance, OD entropy, transition/mode change như supporting evidence;
+- nếu dùng change-detection repo thì refactor/test như research algorithm, không copy default parameter rồi coi là truth.
+
+Bài học tổng quát: literature integration phải tôn trọng accumulated validation debt. Một thư viện tốt không tự động đáng để thay một pipeline đã được audit nếu việc thay đó làm mất toàn bộ comparability của các experiment trước.
