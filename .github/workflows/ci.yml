@@ -39,6 +39,9 @@ jobs:
               'notebooks/02c_same_second_transport_audit.ipynb',
               'notebooks/03_home_office_baseline.ipynb',
               'notebooks/04_api_contract_validation.ipynb',
+              'notebooks/05_home_office_reliability_validation.ipynb',
+              'notebooks/05b_home_consensus_adaptive_work.ipynb',
+              'notebooks/05c_stable_secondary_independent_evidence.ipynb',
           ]:
               json.load(open(path, encoding='utf-8'))
               print(path, 'json ok')
