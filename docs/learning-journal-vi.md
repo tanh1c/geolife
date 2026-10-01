@@ -650,3 +650,61 @@ Bài học đúng là:
 - một global time window không nên được mở rộng chỉ vì muốn tăng coverage.
 
 Quyết định tiếp theo: xây consensus/support tiers cho HOME và sliding-window/adaptive audit cho các OFFICE/WORK assignments không ổn định, thay vì thay production rule ngay.
+
+## 2026-10-01 — Consensus tier nên tổng hợp evidence axes, không cộng raw score
+
+Ba HOME ranker dùng score có ý nghĩa khác nhau:
+
+- fixed-window dùng dwell share trong frozen time window;
+- HoWDe-style dùng observed-hour / visited-day proportions;
+- recurrence dùng dwell/recurrence ranking.
+
+Vì vậy không nên normalize rồi cộng score để tạo một confidence giả.
+
+Stage 05b giữ riêng:
+
+```text
+method convergence
+split consistency
+held-out top-1
+30% dropout robustness
+```
+
+sau đó chỉ dùng rule minh bạch để tạo HIGH / MEDIUM / UNCERTAIN.
+
+Bài học: khi nhiều weak labelers không cùng thang đo, consensus nên dựa vào agreement + independent validation axes thay vì arithmetic score fusion. Tier cũng chỉ là audit evidence, không phải calibrated probability.
+
+## 2026-10-01 — Adaptive WORK nên chọn anchor trước, đo clock behavior sau
+
+Stage 05 cho thấy OFFICE phụ thuộc mạnh vào temporal assumptions. 05b vì vậy không tạo candidate bằng một khung giờ mới.
+
+Flow mới:
+
+```text
+reliable HOME
+→ exclude HOME
+→ sliding windows
+→ recurring secondary anchor
+→ persistence / switches
+→ arrival-hour center & concentration
+```
+
+Clock pattern được đo sau khi chọn secondary anchor. Điều này cho phép thấy một anchor ổn định nhưng có schedule lệch hoặc thay đổi mà không loại nó ngay từ đầu bằng 09–17.
+
+Bài học: nếu chính time window là hypothesis cần kiểm tra, đừng dùng cùng time window để construct candidate rồi lại dùng candidate đó để validate time window.
+
+## 2026-10-01 — Timezone-aware data cần timezone-aware audit windows
+
+Synthetic execution của 05b bắt được lỗi mà syntax-check không thể thấy: `arrival_time_local` là timezone-aware nhưng window boundaries ban đầu được tạo từ Python date nên timezone-naive.
+
+Fix:
+
+```text
+min/max arrival_time_local
+→ normalize()
+→ pd.date_range()
+```
+
+như vậy sliding windows giữ đúng timezone của semantic stays.
+
+Bài học: notebook research code cần ít nhất một executable synthetic path; syntax-valid không đảm bảo datetime semantics đúng.
