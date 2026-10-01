@@ -999,6 +999,7 @@ Frozen foundations remain unchanged:
 New analysis scaffold:
 
 - analysis/05_home_office_reliability.py;
+- notebooks/05_home_office_reliability_validation.ipynb;
 - docs/eda/18_home_office_reliability_validation.md;
 - docs/05_home_office_reliability_handoff.md.
 
