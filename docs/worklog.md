@@ -1188,3 +1188,31 @@ Related-work direction after 05c:
 - prefer Andrade-style routine/habit mining and downstream change detection as the next research direction because they do not require WORK semantics;
 - treat HoWDe as a comparator/lesson source rather than a reason to continue tuning WORK labels;
 - use Dong-style commute/OD features as sanity/interpretability signals, not as a GeoLife population-law claim.
+
+
+## 2026-10-01 — Stage 06 routine / habit mining scaffolded
+
+Stage 06 starts the post-semantic behavior track.
+
+Scope:
+
+- frozen CP1 stays and Stage-03a daily support caches;
+- broader all-resolved behavior cohort rather than the 97-user Beijing semantic cohort;
+- per-stay local-time resolution;
+- complete-link 200 m behavior locations;
+- parity target: 104 users with at least one recurring location.
+
+The notebook mines supported daily location sequences and directed OD transitions without assigning HOME/WORK meaning.
+
+Primary evidence axes remain separate:
+
+- edge recurrence across supported days;
+- circular departure-time concentration;
+- 1–3 departure-time modes selected by BIC when an edge has enough transitions;
+- exact full-day motif repeatability as a stricter comparator;
+- first-half vs second-half dominant-edge stability;
+- recurrence/concentration threshold sensitivity.
+
+Important design constraint: observation support is applied before routine construction. Unsupported days are not treated as evidence that a routine did not happen.
+
+Stage 06 is preparatory for Stage 07 behavioral change detection. No production inference changes are proposed.
