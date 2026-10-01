@@ -760,3 +760,35 @@ The audit instead asks whether the selected anchor stands out relative to the us
 Outputs are within-user percentile, top-1 evidence axes, and candidate-minus-peer-median differences.
 
 Lesson: for strongly personalized mobility behavior, relative within-user evidence is often more defensible than another global cutoff. At least one supported peer is required; otherwise top-1 would be a vacuous result.
+
+## 2026-10-01 — Secondary-anchor persistence does not imply convergent commute-like regularity
+
+Stage 05c tested the nine stable-secondary users from Stage 05b with evidence different from the primary candidate-selection rule. Only seven users had at least one sufficiently supported recurring non-HOME peer for a fair within-user comparison.
+
+Primary result:
+
+- weekday-weekend contrast: 5/7 candidate anchors ranked top-1;
+- direct HOME<->secondary transition-day share: 3/7 top-1;
+- arrival-time concentration: 0/7 top-1;
+- dwell-duration regularity: 0/7 top-1.
+
+Most importantly, no user ranked top-1 on >=3/4 axes. One user reached two axes; six reached only zero or one.
+
+Paired bootstrap intervals for all four candidate-minus-peer-median metrics crossed zero. Weekday contrast and HOME-pair transitions had a positive direction, but N=7 was too small and the evidence did not converge.
+
+Lesson: persistence across sliding windows is a separate property. It does not automatically imply arrival regularity, dwell regularity, or transition dominance. Keep stable_secondary_anchor as a behavioral state rather than promote it to OFFICE.
+
+## 2026-10-01 — Apply related work to the project's current state, not as a greenfield architecture
+
+The deep-research report recommends Trackintel as a backbone, HoWDe for robust HOME/WORK inference, then habit/change detection downstream. That architecture is sensible from scratch, but this project already has deeply audited CP1 cleaning/stays and complete-link locations.
+
+The appropriate integration now is:
+
+- do not replace the frozen CP1/CP2 backbone with Trackintel;
+- use Trackintel as an external comparator and tracking-quality reference where useful;
+- formalize coverage-before-change-detection;
+- pivot toward meaningful routines, OD habits, and behavior change because those questions do not require forcing a secondary anchor into WORK semantics;
+- use commute distance, OD entropy, transition and mode changes as supporting signals;
+- treat the change-detection repository as research code to refactor/test rather than importing its defaults as truth.
+
+General lesson: literature integration must respect accumulated validation debt. A mature external library is not automatically worth replacing an already-audited pipeline if the replacement destroys comparability with prior experiments.
