@@ -841,3 +841,61 @@ Bài học:
 - dependency check nên idempotent: thiếu thì cài, có rồi thì skip.
 
 Stage 06 hiện check `timezonefinder==9.0.0` trực tiếp trước khi import helper 03a.
+
+
+## 2026-10-01 — Top-1 instability không đồng nghĩa distribution instability
+
+Stage 06 chỉ có 6/45 users giữ cùng dominant OD qua first/second half. Nhưng top-1 là statistic rất giòn: hai edge 40%/38% có thể đổi rank thành 38%/40% dù behavior distribution gần như giữ nguyên.
+
+Stage 06b vì vậy chuyển primary stability evidence sang:
+
+- Jensen-Shannon divergence;
+- weighted Jaccard;
+- total variation;
+- top-3 overlap.
+
+Bài học: trước khi gọi một rank swap là behavioral change, phải kiểm tra toàn distribution.
+
+## 2026-10-01 — Change detection cần null model cho sampling variability
+
+Sparse observation có thể làm first/second halves khác nhau ngay cả khi không có temporal change thật.
+
+06b tạo null trực tiếp trong từng user:
+
+```text
+chronological split
+vs
+200 random balanced partitions
+```
+
+Nếu chronological JSD không lớn hơn random partitions, instability có thể đến từ support/sampling. Nếu nó vượt random p95, ta mới có drift-like evidence đáng mang sang Stage 07.
+
+Đây vẫn không phải ground-truth event; nó chỉ tách temporal ordering khỏi sampling-only variability tốt hơn.
+
+## 2026-10-01 — High circular concentration với N=2 chưa phải strong routine
+
+Stage 06 có median departure concentration cao nhưng nhiều repeated edges chỉ xuất hiện hai ngày. Hai giờ departure gần nhau có thể tạo concentration gần 1 mà uncertainty vẫn rất lớn.
+
+06b bootstrap ở cấp active day:
+
+```text
+one circular mean / edge-day
+→ resample days
+→ concentration CI
+```
+
+Do đó support count và lower confidence bound được đọc cùng point estimate.
+
+## 2026-10-01 — GMM multimodality cần evidence ngoài BIC
+
+Stage 06 permissive GMM chỉ có 11 modeled edges từ 2 users, nhưng 8 edge chọn 3 components. Đây là pattern dễ over-interpret khi N nhỏ.
+
+06b chỉ gọi strict multimodal khi đồng thời có:
+
+- >=5 active days;
+- >=8 transitions;
+- ΔBIC >=10 so với 1 mode;
+- mọi component weight >=0.20;
+- center separation >=2 giờ.
+
+Bài học: model selection criterion không thay thế minimum support và component interpretability checks.
