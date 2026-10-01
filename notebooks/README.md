@@ -82,3 +82,13 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Uses the broader Stage-03a all-resolved behavior representation.
 - Mines supported daily sequences, directed OD recurrence, cyclic departure-time regularity, multimodal departure habits, and split-half routine stability.
 - No HOME/OFFICE relabeling; user-level routine tables remain private on the Modal Volume.
+
+
+### Stage 06b — routine representation robustness
+
+- `06b_routine_representation_robustness.ipynb`
+- Reuses private Stage-06 routine caches; no raw rescan.
+- Fixes the one-day motif-repeatability issue with a common support universe.
+- Compares chronological OD-distribution shifts against random balanced day partitions.
+- Bootstraps departure-time concentration by active day and applies stricter multimodal GMM checks.
+- This is the readiness gate before Stage 07 behavioral change detection.

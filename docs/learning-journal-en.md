@@ -831,3 +831,61 @@ Lessons:
 - dependency checks should be idempotent: install when missing and skip when present.
 
 Stage 06 now checks for `timezonefinder==9.0.0` explicitly before importing the Stage-03a behavior helper.
+
+
+## 2026-10-01 — Top-1 instability is not distribution instability
+
+Stage 06 found that only 6/45 users kept the same dominant OD across chronological halves. But top-1 identity is brittle: a 40%/38% edge mix can become 38%/40% with almost no meaningful distribution shift.
+
+Stage 06b therefore moves primary stability evidence to:
+
+- Jensen-Shannon divergence;
+- weighted Jaccard;
+- total variation;
+- top-3 overlap.
+
+Lesson: before calling a rank swap behavioral change, inspect the full distribution.
+
+## 2026-10-01 — Change detection needs a sampling-variability null
+
+Sparse observation can make first and second halves look different even when there is no real temporal change.
+
+Stage 06b builds a within-user null:
+
+```text
+chronological split
+vs
+200 random balanced day partitions
+```
+
+If chronological JSD is not larger than random partitions, instability may be explained by support/sampling. If it exceeds the random p95, the temporal ordering contains stronger drift-like evidence worth carrying into Stage 07.
+
+This is still not a labeled real-world event.
+
+## 2026-10-01 — High circular concentration with N=2 is weak routine evidence
+
+Stage 06 showed high median departure concentration, but many repeated edges occurred on only two days. Two similar departure times can yield concentration near one while uncertainty remains large.
+
+Stage 06b bootstraps at the active-day level:
+
+```text
+one circular mean / edge-day
+→ resample days
+→ concentration interval
+```
+
+Support count and lower confidence bound must therefore be interpreted together with the point estimate.
+
+## 2026-10-01 — GMM multimodality needs evidence beyond BIC
+
+The permissive Stage-06 GMM modeled only 11 edges from 2 users, yet 8 selected three components. That is easy to over-interpret under small N.
+
+Stage 06b calls a result strict multimodal only when all are satisfied:
+
+- >=5 active days;
+- >=8 transitions;
+- ΔBIC >=10 versus one mode;
+- every component weight >=0.20;
+- centers separated by >=2 hours.
+
+Lesson: model-selection criteria do not replace minimum support and component-interpretability checks.

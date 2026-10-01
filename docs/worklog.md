@@ -1230,3 +1230,24 @@ Fix:
 - when already available, pip is skipped.
 
 This is a notebook-runtime fix only. CP1 stays, complete-link behavior locations, routine definitions and all Stage-06 research thresholds remain unchanged.
+
+
+## 2026-10-01 — Stage 06b routine representation robustness scaffolded
+
+The executed Stage 06 run showed that routine mining has useful signal but is not yet ready for direct change detection:
+
+- repeated OD coverage: 23 users at >=2 active days, 9 at >=3 days, 2 at >=5 days;
+- exact dominant-edge split-half stability: 6/45 users kept the same top edge;
+- the permissive Stage-06 GMM modeled only 11 edges from 2 users, with 8/11 selecting three time modes;
+- the Stage-06 collapsed-sequence motif comparator could mark a one-day user as 100% repeatable.
+
+Stage 06b therefore adds:
+
+- a support-aware motif comparator on a shared >=6-usable-day user universe;
+- routine support tiers at >=2 / >=3 / >=5 active days;
+- split-half OD-distribution metrics (JSD, weighted Jaccard, total variation, top-3 overlap);
+- 200 random balanced day partitions per comparable user to calibrate chronological JSD against sampling-only variability;
+- day-level bootstrap intervals for departure-time concentration;
+- stricter multimodal GMM checks using support, BIC gain, component weights, and circular time separation.
+
+The central pre-Stage-07 question is now whether chronological distribution change exceeds random-partition variability after coverage is controlled. No HOME/OFFICE or production inference changes are introduced.
