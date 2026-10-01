@@ -76,3 +76,52 @@ It cannot establish:
 - semantic accuracy.
 
 If evidence remains mixed, retain stable_secondary_anchor as a descriptive behavioral state and close semantic WORK expansion.
+
+## Measured result — 2026-10-01
+
+### Comparator support
+
+Of the nine Stage-05b stable-secondary users, seven had at least one recurring non-HOME peer with >=3 active days and >=2 stays. Median comparator count was four.
+
+### Independent evidence axes
+
+| metric | top-1 users | top-1 share | median candidate - peer median |
+|---|---:|---:|---:|
+| weekday-weekend visit contrast | 5/7 | 71.4% | +0.198 |
+| HOME-pair transition-day share | 3/7 | 42.9% | +0.102 |
+| arrival-hour concentration | 0/7 | 0% | -0.181 |
+| dwell-duration regularity | 0/7 | 0% | -0.092 |
+
+The candidate anchors therefore show some weekday/transition signal, but not consistent schedule/dwell regularity relative to same-user peers.
+
+### Multi-axis convergence
+
+- 0/7 users were top-1 on >=3 axes;
+- 1/7 was top-1 on exactly 2 axes;
+- 6/7 were top-1 on only 0-1 axes.
+
+Three users beat their peer median on >=3 axes, but this weaker criterion does not change the lack of top-rank convergence.
+
+### Bootstrap
+
+All candidate-minus-peer-median 95% bootstrap intervals crossed zero:
+
+- weekday contrast: median +0.198, CI [-0.113, +0.292];
+- HOME-pair transition share: +0.102, CI [-0.083, +0.333];
+- arrival concentration: -0.181, CI [-0.341, +0.178];
+- dwell regularity: -0.092, CI [-0.231, +0.059].
+
+### Peer-support sensitivity
+
+The primary conclusion is stable at permissive comparator rules:
+
+- >=2 active days: 9 comparable users, 0 with >=3 top axes;
+- >=3 active days: 7 users, 0 with >=3 top axes.
+
+At >=5 days the sample collapses to three users and one reaches >=3 axes; this is too small to overturn the primary result.
+
+## Stage 05c decision
+
+Independent evidence remains mixed and does not converge strongly enough to relabel persistent secondary anchors as OFFICE/WORK.
+
+Close semantic WORK expansion. Keep stable_secondary_anchor as a descriptive mobility state. A future track may study routines or behavioral change without requiring workplace semantics.
