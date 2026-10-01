@@ -62,3 +62,54 @@ Sensitivity varies active-day support, BIC gain, component weight, and separatio
 06b does not create a single readiness score.
 
 Stage 07 should only proceed after inspecting support retention, distributional split stability, random-partition calibration, departure-time bootstrap strength, and strict multimodal stability jointly.
+
+## Measured result — 2026-10-01
+
+### Fair-support routine coverage
+
+On the primary >=6-usable-day universe (51 users):
+
+- directed OD repeated on >=3 active days: 8 users;
+- collapsed-sequence motif repeated on >=3 days and >=50% usable-day share: 9 users;
+- current overlap: 0 users.
+
+The overlap must not be over-interpreted because the current motif comparator permits single-location motifs with no transition. It is therefore a repeated-day-pattern comparator, not yet a fully matched mobility-routine comparator.
+
+### Exact-OD distribution stability
+
+Among 45 users with comparable first/second-half edge distributions:
+
+- same dominant edge: 13.3%;
+- median JSD: 1.0;
+- median weighted Jaccard: 0.0;
+- median total variation: 1.0;
+- median top-3 edge-set Jaccard: 0.0.
+
+### Sampling-null calibration
+
+Balanced random day partitions are equally unstable:
+
+- median chronological JSD: 1.0;
+- median random-partition JSD: 1.0;
+- median chronological-minus-random JSD: 0.0;
+- only 2/45 users exceed the random-partition p95.
+
+Thus the exact-OD space is sparse enough that disjoint halves occur even without preserving chronology. High chronological JSD is therefore not broad evidence of behavior change.
+
+### Departure-time robustness
+
+At 3-4 active days, 13 edges from 8 users have median concentration 0.888 and median bootstrap lower bound 0.823.
+
+At >=5 active days, 12 edges from only 2 users have median concentration 0.964 and median bootstrap lower bound 0.944. Nine of those twelve strong edges retain a lower bound >=0.7.
+
+Clock regularity can therefore be strong conditional on support, but its broad coverage is very small.
+
+### Strict multimodality
+
+Under the primary strict gate, six edges from one user are modeled and one edge is strict multimodal. Relaxed sensitivity reaches at most two users, so population-level multimodal claims are not supported.
+
+## Stage-06b decision
+
+Do not launch broad Stage-07 change detection on exact OD identities.
+
+The representation is currently support-limited: random balanced partitions are nearly as disjoint as chronological halves. A next step should quantify temporal-window feasibility and/or use coarser support-normalized behavioral features before attempting change-point detection.
