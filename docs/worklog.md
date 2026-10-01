@@ -1216,3 +1216,17 @@ Primary evidence axes remain separate:
 Important design constraint: observation support is applied before routine construction. Unsupported days are not treated as evidence that a routine did not happen.
 
 Stage 06 is preparatory for Stage 07 behavioral change detection. No production inference changes are proposed.
+
+## 2026-10-01 — Stage 06 Modal runtime dependency fix
+
+The first Modal execution of Stage 06 failed before routine mining because the runtime already had the local `geolife` source importable but did not have `timezonefinder==9.0.0` installed.
+
+Root cause: the notebook only installed the project when `geolife` import failed, so an already-importable source tree caused the dependency install path to be skipped.
+
+Fix:
+
+- Stage 06 now checks `importlib.util.find_spec('timezonefinder')` explicitly;
+- when missing, the notebook installs `timezonefinder==9.0.0` before importing the Stage-03a behavior helper;
+- when already available, pip is skipped.
+
+This is a notebook-runtime fix only. CP1 stays, complete-link behavior locations, routine definitions and all Stage-06 research thresholds remain unchanged.
