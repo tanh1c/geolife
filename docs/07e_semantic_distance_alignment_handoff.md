@@ -69,3 +69,12 @@ A null or mixed result should remain a negative result and should not trigger se
 - Stage-07b factorized profiles.
 
 It is an external-context audit only.
+
+## Important: stale Stage-07d request logs
+
+A full raw cache can coexist with an older partial `ohsome_request_log_private.pkl` if Stage 07d was resumed by rerunning only the fetch cell without rerunning the save cell.
+
+07e handles this correctly: it recomputes the exact Stage-07d request/cache key per anchor and checks `ohsome_raw/<cache_key>.parquet` directly. The log is audit-only.
+
+If 07e reports `ohsome raw cache is incomplete`, that means Parquet files are genuinely missing. A low count of successful request-log rows alone is not a failure.
+
