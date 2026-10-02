@@ -1343,3 +1343,20 @@ Decision:
 - stop extending fixed calendar windows because 28→56d adds little usable support;
 - next evaluate support-indexed windows (6 / 8 / 10 usable days) with calendar-span caps (56 / 84 days sensitivity), using the same coverage, test–retest, random-null and bootstrap protocol.
 
+## 2026-10-02 — Stage 06d support-indexed window feasibility scaffolded
+
+Measured Stage 06c showed that 28 / 42 / 56-day fixed calendar windows contained only median 8 / 8 / 9 usable days while adjacent comparable users fell as the span increased.
+
+Stage 06d therefore changes only the support unit:
+
+- chronological non-overlapping blocks of 6 / 8 / 10 usable days;
+- 56 / 84-day maximum calendar-span sensitivity;
+- no bridging across span-rejected blocks;
+- same Stage-06c coarse feature family, random balanced-partition null, and day bootstrap;
+- predeclared readiness still requires >=20 comparable adjacent pairs, Spearman >=0.50, random-p95 exceedance <=10%, and bootstrap-width / observed-IQR <=1.0;
+- adds >=10 unique users so many pairs from a few long-history users cannot masquerade as population coverage.
+
+Primary features are frozen from measured 06c before this run: cleaned distance / usable day and active-location count / usable day.
+
+Stop rule: proceed to Stage 07 only if at least one primary feature passes every gate. If all 6 support/cap configurations fail, close broad within-user change detection on GeoLife as longitudinal-data-limited rather than continue tuning windows.
+
