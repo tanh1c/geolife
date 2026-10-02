@@ -1,1 +1,8 @@
 # Stage 07c handoff — External POI / Land-Use Enrichment\n\n## Inputs\n\nPrivate:\n\n- Stage 03a stays_baseline_v1.pkl\n- Stage 05b home_consensus_private.pkl\n- Stage 05b adaptive_work_patterns_42_private.pkl\n- Stage 06 edge_summary_private.pkl\n- Stage 07b factorized_work_profiles_private.pkl or reproducible 07b inputs\n\nNo raw GeoLife trajectory rescan is required.\n\n## Candidate construction\n\n- reliable HOME-context users only;\n- rebuild deterministic 200 m behavior locations;\n- exclude the supported HOME location;\n- keep recurring locations with stay_count >= 2.\n\n## External query\n\n- OpenStreetMap Overpass;\n- batch size default 8 anchors;\n- max query radius 250 m;\n- aggregate at 100 m primary and 250 m sensitivity;\n- raw JSON cache stored privately on the Modal Volume.\n\n## Private outputs\n\n- candidate_anchors_private.pkl\n- osm_elements_private.pkl\n- anchor_element_links_private.pkl\n- anchor_context_private.pkl\n- stable_secondary_peer_private.pkl\n- overpass_request_log_private.pkl\n\n## Aggregate outputs\n\n- coverage_summary.csv\n- category_summary.csv\n- stable_secondary_summary.csv\n- signature_summary.csv\n- radius_sensitivity.csv\n\n## Boundary\n\nDo not export precise coordinates, user IDs, OSM names, or object IDs into committed aggregate artifacts.\n\nDo not turn a nearby POI tag directly into WORK, OFFICE, or an occupation.\n\nUnknown OSM context means missing external evidence, not semantic absence.\n
+
+## OpenStreetMap attribution
+
+Stage 07c uses OpenStreetMap semantic tags via Overpass.
+
+If any Stage-07c aggregate output is published or shown outside the internal research runtime, include OpenStreetMap attribution and the ODbL notice. Raw Overpass JSON remains private and is not committed.
+
