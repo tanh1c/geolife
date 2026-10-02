@@ -288,3 +288,35 @@ def test_free_tier_request_budget_defers_remaining_anchors(tmp_path):
     assert len(context) == 2
     assert log["status"].tolist().count("deferred_request_budget") == 2
 
+def test_attach_anchor_coordinates_from_production_locations():
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "median_observation_year": 2008,
+            }
+        ]
+    )
+    locations = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "latitude": 39.91,
+                "longitude": 116.41,
+                "stay_count": 4,
+            }
+        ]
+    )
+
+    result = module.attach_anchor_coordinates_from_locations(
+        anchors,
+        locations,
+    ).iloc[0]
+
+    assert float(result["latitude"]) == 39.91
+    assert float(result["longitude"]) == 116.41
+    assert int(result["coordinate_stay_count"]) == 4
+
