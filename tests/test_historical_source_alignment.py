@@ -220,3 +220,23 @@ def test_location_namespace_validation_rejects_mismatched_ids():
     else:
         raise AssertionError("mismatched HOME location ids must fail")
 
+def test_stage07c_notebook_uses_production_location_namespace():
+    import json
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07c_historical_source_alignment.ipynb"
+    )
+    notebook = json.loads(path.read_text(encoding="utf-8"))
+    code = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    )
+
+    assert "build_semantic_locations(stays,config=cfg)" in code
+    assert "validate_location_namespace(locations,home,work)" in code
+    assert "anchors['location_namespace']=s07c.PRODUCTION_LOCATION_NAMESPACE" in code
+    assert "cluster_behavior_locations(resolved,200.0)" not in code
+
