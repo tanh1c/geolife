@@ -220,32 +220,95 @@ def test_profile_axis_summary_is_user_level_not_anchor_weighted():
     assert route["share_users_any_work_context"] == 0.5
 
 
-def test_validate_full_cache_rejects_partial_coverage(tmp_path):
+def _cache_anchor(user_id, location_id, lat, lon, date):
+    return {
+        "user_id": user_id,
+        "location_id": location_id,
+        "latitude": lat,
+        "longitude": lon,
+        "median_observation_date": date,
+    }
+
+
+def test_validate_full_cache_rejects_missing_raw_file(tmp_path):
     module = _module()
     anchors = pd.DataFrame(
         [
-            {"user_id": "u1", "location_id": 1},
-            {"user_id": "u1", "location_id": 2},
+            _cache_anchor("u1", 1, 39.90, 116.40, "2009-06-15"),
+            _cache_anchor("u1", 2, 39.91, 116.41, "2009-06-16"),
         ]
     )
-    request_log = pd.DataFrame(
+
+    first_body = module.STAGE07D.build_ohsome_request(anchors.iloc[0])
+    first_key = module.STAGE07D._ohsome_cache_key(first_body)
+    (tmp_path / f"{first_key}.parquet").write_bytes(b"x")
+
+    stale_log = pd.DataFrame(
         [
             {
                 "user_id": "u1",
                 "location_id": 1,
-                "cache_key": "abc",
+                "cache_key": first_key,
                 "status": "cached",
             }
         ]
     )
-    (tmp_path / "abc.parquet").write_bytes(b"x")
 
     try:
-        module.validate_full_ohsome_cache(anchors, request_log, tmp_path)
+        module.validate_full_ohsome_cache(
+            anchors,
+            stale_log,
+            tmp_path,
+        )
     except ValueError as exc:
-        assert "incomplete" in str(exc)
+        assert "raw cache is incomplete" in str(exc)
     else:
-        raise AssertionError("partial cache should be rejected")
+        raise AssertionError("missing raw parquet should be rejected")
+
+
+def test_validate_full_cache_accepts_complete_raw_cache_with_stale_log(tmp_path):
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            _cache_anchor("u1", 1, 39.90, 116.40, "2009-06-15"),
+            _cache_anchor("u1", 2, 39.91, 116.41, "2009-06-16"),
+        ]
+    )
+
+    keys = []
+    for anchor in anchors.to_dict(orient="records"):
+        body = module.STAGE07D.build_ohsome_request(anchor)
+        key = module.STAGE07D._ohsome_cache_key(body)
+        keys.append(key)
+        (tmp_path / f"{key}.parquet").write_bytes(b"x")
+
+    stale_log = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "cache_key": keys[0],
+                "status": "cached",
+            },
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "cache_key": keys[1],
+                "status": "deferred_request_budget",
+            },
+        ]
+    )
+
+    mapping = module.validate_full_ohsome_cache(
+        anchors,
+        stale_log,
+        tmp_path,
+    )
+
+    assert len(mapping) == 2
+    assert mapping["cache_path"].map(Path.exists).all()
+    assert mapping["request_log_is_success"].tolist() == [True, False]
+
 
 
 def test_extract_anchor_feature_distances_from_parquet():
