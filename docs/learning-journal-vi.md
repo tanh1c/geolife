@@ -1163,3 +1163,13 @@ Với data hiện tại:
 - ohsome có cross-check leverage toàn bộ measured anchors;
 - Gaode 2010 hiện là low-priority niche path.
 
+## 2026-10-02 — Partial external API coverage không được biến thành population evidence
+
+Stage 07d cho một ví dụ rõ về khác biệt giữa technical success và statistical support.
+
+CLCD cover gần như toàn bộ 225 anchors nên có thể dùng để kết luận population-level physical context: 96% anchors nằm trên impervious land và point-vs-window agreement gần 99%.
+
+Ngược lại, ohsome free-tier mới hoàn thành 35 anchors và chỉ cover 3 users. Dù 11/35 có semantic context và 10/35 có broad work-compatible context, các tỷ lệ này không đại diện cho 25 users vì sample được quyết định bởi request order + quota.
+
+Bài học: cache/resume giải quyết reliability engineering, nhưng không tự giải quyết sampling bias. Partial API output phải luôn mang coverage denominator và user coverage trước khi diễn giải.
+
