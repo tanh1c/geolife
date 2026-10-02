@@ -104,8 +104,16 @@ def test_align_mobility_roles_marks_exact_dominant_location():
     module = _module()
     anchors = pd.DataFrame(
         [
-            {"user_id": "u1", "location_id": 3},
-            {"user_id": "u1", "location_id": 7},
+            {
+                "user_id": "u1",
+                "location_id": 3,
+                "location_namespace": module.EXPECTED_LOCATION_NAMESPACE,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 7,
+                "location_namespace": module.EXPECTED_LOCATION_NAMESPACE,
+            },
         ]
     )
     work = pd.DataFrame(
@@ -505,4 +513,33 @@ def test_stage07e_notebook_execution_contract():
         source = "".join(cell.get("source", []))
         if "to_pickle(" in source or "to_csv(" in source:
             assert cell.get("cell_type") == "code"
+
+def test_align_mobility_roles_rejects_old_location_namespace():
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "location_namespace": "behavior_dwell_ranked_200m",
+            }
+        ]
+    )
+    work = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "window_pattern": "stable_secondary_anchor",
+                "dominant_location_id": 1,
+            }
+        ]
+    )
+    profiles = pd.DataFrame([{"user_id": "u1"}])
+
+    try:
+        module.align_mobility_roles(anchors, work, profiles)
+    except ValueError as exc:
+        assert "incompatible location namespace" in str(exc)
+    else:
+        raise AssertionError("old behavior-location ids must be rejected")
 
