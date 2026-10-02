@@ -1572,3 +1572,21 @@ ohsome runner behavior:
 - missing historical OSM is missing mapping evidence, not proof of real-world absence.
 
 Exact coordinates and user-level context outputs remain private.
+
+## 2026-10-02 — Stage 07d runtime contract fix: reconstruct anchor coordinates
+
+The first measured 07d run exposed a contract mismatch:
+
+- Stage 07c correctly produced 225 dated recurring non-HOME anchors but its private dated-anchor artifact did not retain latitude/longitude;
+- Stage 07d initially assumed those coordinates were present, causing both CLCD sampling and ohsome request construction to fail.
+
+Fix:
+
+- Stage 07d now detects missing coordinates;
+- reloads the frozen Stage-03a stay cache;
+- resolves timezones and rebuilds the same deterministic 200 m location clustering;
+- attaches per-location median latitude/longitude privately by user_id + location_id;
+- validates that all 225 candidate anchors receive coordinates before any external query.
+
+No aggregate result or Stage-07c source-priority conclusion changes.
+
