@@ -1153,3 +1153,16 @@ The free-tier ohsome cross-check, however, has completed only 35 anchors from 3 
 
 Lesson: caching/resume solves reliability engineering, not sampling bias. Every partial external-API result must carry both anchor coverage and user coverage before interpretation.
 
+## 2026-10-02 — Resume/caching can turn a quota-limited API into a full-coverage audit
+
+Stage 07d shows that a free-tier API can still support a full-coverage research audit when execution reliability is separated from interpretation.
+
+The first ohsome result covered only 35/225 anchors and 3 users, so its proportions were not representative. After caching each anchor response, bounding requests per run, stopping cleanly on 429, and resuming across runs, final coverage reached 225/225 anchors and all 25 candidate users.
+
+Full-universe result:
+- 65/225 anchors have historical OSM semantic context;
+- 48/225 have broad work-compatible context;
+- 8/225 have residential context.
+
+Lesson: quota limits do not necessarily imply incomplete coverage when the pipeline is deterministic and resumable. But full API coverage still does not make the source ground truth; early-China historical OSM remains affected by mapping lag and incompleteness.
+
