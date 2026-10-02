@@ -1163,3 +1163,26 @@ Với data hiện tại:
 - ohsome có cross-check leverage toàn bộ measured anchors;
 - Gaode 2010 hiện là low-priority niche path.
 
+## 2026-10-02 — Partial external API coverage không được biến thành population evidence
+
+Stage 07d cho một ví dụ rõ về khác biệt giữa technical success và statistical support.
+
+CLCD cover gần như toàn bộ 225 anchors nên có thể dùng để kết luận population-level physical context: 96% anchors nằm trên impervious land và point-vs-window agreement gần 99%.
+
+Ngược lại, ohsome free-tier mới hoàn thành 35 anchors và chỉ cover 3 users. Dù 11/35 có semantic context và 10/35 có broad work-compatible context, các tỷ lệ này không đại diện cho 25 users vì sample được quyết định bởi request order + quota.
+
+Bài học: cache/resume giải quyết reliability engineering, nhưng không tự giải quyết sampling bias. Partial API output phải luôn mang coverage denominator và user coverage trước khi diễn giải.
+
+## 2026-10-02 — Resume/caching biến quota-limited API thành full-coverage audit
+
+07d cho thấy một API free-tier vẫn có thể dùng cho full-coverage research nếu execution contract tách reliability khỏi interpretation.
+
+Ban đầu ohsome chỉ cover 35/225 anchors và 3 users nên tỷ lệ semantic context không đại diện. Sau khi cache từng anchor, giới hạn request/run, dừng sạch khi 429 và resume qua nhiều lượt, coverage cuối cùng đạt 225/225 anchors và 25/25 users.
+
+Kết quả full-universe:
+- 65/225 có historical OSM semantic context;
+- 48/225 có broad work-compatible context;
+- 8/225 có residential context.
+
+Bài học: quota không bắt buộc phải làm giảm coverage nếu pipeline deterministic + resumable. Nhưng full API coverage vẫn không biến source thành ground truth; historical OSM ở early China còn mapping lag/incompleteness.
+

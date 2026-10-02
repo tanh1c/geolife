@@ -128,3 +128,10 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Audits candidate historical sources before use: BCL POI 2008, Gaode 2010, 2011 research/archive leads, Baidu 2012 candidate, annual CLCD, Beijing permits/transactions/blocks, and ohsome historical OSM.
 - Emits per-anchor temporal source plans with exact/proxy alignment and explicit blocking reasons.
 - Downloads no historical POI dataset; blocked sources cannot enter Stage 07d automatically.
+### Stage 07d — historical context enrichment
+
+- `07d_historical_context_enrichment.ipynb`
+- Primary runnable source: exact-year CLCD physical land-cover context, remote-sampled from pinned Cloud Optimized GeoTIFFs with point / 3×3 / 5×5 spatial-sensitivity outputs.
+- Optional cross-check: historical OSM via ohsome at the anchor median observation date; requires `OHSOME_API_KEY`.
+- BCL POI 2008 remains blocked until exact file access/license/CRS are verified.
+- No occupation, WORK, or OFFICE semantics are inferred.

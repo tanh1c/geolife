@@ -1545,4 +1545,141 @@ This materially changes external-source priority:
 - 2011 and 2012 candidates affect only 16 anchors total.
 
 Decision: Stage 07d MVP should implement CLCD + ohsome first, while BCL POI 2008 access/license/CRS is resolved. Do not prioritize Gaode/Baidu ingestion yet.
+## 2026-10-02 — Stage 07d historical-context enrichment scaffolded
+
+Measured Stage 07c showed 208 / 225 recurring non-HOME anchors (92.4%) are in 2008–2009.
+
+Stage 07d therefore prioritizes runnable sources with population leverage:
+
+- CLCD exact-year 30 m land cover as the primary physical-context source;
+- historical OSM / ohsome as an optional cross-check at the anchor observation date;
+- BCL POI 2008 remains the highest-value blocked semantic source while access/license/CRS are unresolved.
+
+CLCD runner behavior:
+
+- pinned CLCD v1.0.2 Zenodo record;
+- remote Cloud Optimized GeoTIFF sampling by observation year;
+- point pixel plus 3×3 and 5×5 local modal classes;
+- explicit point/window agreement audit;
+- no conversion from impervious land cover to office/residential/WORK semantics.
+
+ohsome runner behavior:
+
+- v2 extraction API;
+- exact anchor median observation date;
+- optional `OHSOME_API_KEY`; CLCD analysis remains runnable without the key;
+- semantic tags remain multi-label and cross-check-only;
+- missing historical OSM is missing mapping evidence, not proof of real-world absence.
+
+Exact coordinates and user-level context outputs remain private.
+
+## 2026-10-02 — Stage 07d runtime contract fix: reconstruct anchor coordinates
+
+The first measured 07d run exposed a contract mismatch:
+
+- Stage 07c correctly produced 225 dated recurring non-HOME anchors but its private dated-anchor artifact did not retain latitude/longitude;
+- Stage 07d initially assumed those coordinates were present, causing both CLCD sampling and ohsome request construction to fail.
+
+Fix:
+
+- Stage 07d now detects missing coordinates;
+- reloads the frozen Stage-03a stay cache;
+- resolves timezones and rebuilds the same deterministic 200 m location clustering;
+- attaches per-location median latitude/longitude privately by user_id + location_id;
+- validates that all 225 candidate anchors receive coordinates before any external query.
+
+No aggregate result or Stage-07c source-priority conclusion changes.
+
+## 2026-10-02 — Stage 07d free-tier ohsome rate-limit handling
+
+Measured CLCD enrichment completed successfully, but the optional historical-OSM cross-check hit HTTP 429 Too Many Requests on the free-tier ohsome API key.
+
+The previous runner treated this as a fatal remote exception, which also caused a downstream undefined-variable error.
+
+Fix:
+
+- remote Modal function returns structured status instead of serializing httpx exceptions;
+- successful anchor responses are cached;
+- default fresh-request budget = 20 per run;
+- default inter-request pause = 6 s;
+- first 429 stops further fresh API calls;
+- remaining anchors are logged as deferred;
+- partial OSM context and logs are saved;
+- later reruns resume from cache.
+
+CLCD measured output from the failed run remains valid:
+- 224 / 225 anchors had a known point land-cover class;
+- 216 / 225 (96.0%) were impervious;
+- point vs 3x3 agreement = 223 / 225;
+- point vs 5x5 agreement = 222 / 225.
+
+## 2026-10-02 — Stage 07d measured result: CLCD complete, ohsome partial/resumable
+
+The free-tier-safe Stage-07d notebook completed without errors.
+
+Primary CLCD result on 225 anchors / 25 users:
+
+- 224/225 known point classes;
+- 216/225 impervious (96.0%);
+- 223/225 point-vs-3x3 local-mode agreement;
+- 222/225 point-vs-5x5 local-mode agreement.
+
+By year:
+
+- 2008: 70 impervious, 1 water, 1 unknown;
+- 2009: 131 impervious, 4 forest, 1 cropland;
+- 2010: 1 cropland;
+- 2011: 10 impervious;
+- 2012: 5 impervious, 1 water.
+
+Interpretation is deliberately physical only: the recurring non-HOME anchor universe is overwhelmingly on historically built-up/impervious land, with very high local raster stability. No office/residential/WORK/occupation label follows from this.
+
+ohsome free-tier cross-check:
+
+- 35/225 anchors completed;
+- 15 cached + 20 newly fetched;
+- 0 rate-limit hits in the latest run;
+- 190 deferred by request budget;
+- 0 request errors;
+- 0 parse errors;
+- 11 completed anchors had semantic context;
+- 10 had broad work-compatible context;
+- 0 had residential context.
+
+The 35 anchors come from only 3 users, so their semantic-context proportions are not population-representative and must not be generalized.
+
+Decision: close Stage 07d on the complete CLCD primary result. Keep ohsome as resumable opportunistic cross-check. Next semantic-source priority is BCL POI 2008 because Stage 07c showed relevance to 208/225 anchors.
+
+## 2026-10-02 — Stage 07d closed after full 225-anchor ohsome completion
+
+The resumable free-tier strategy eventually completed historical OSM extraction for all 225 recurring non-HOME anchors across all 25 candidate users.
+
+Final ohsome run state:
+
+- 225/225 anchors completed;
+- 25/25 users covered;
+- 217 cached;
+- 8 newly fetched;
+- 0 rate-limit hits;
+- 0 deferred;
+- 0 request errors;
+- 0 parse errors.
+
+Full-universe historical OSM summary:
+
+- semantic context found: 65/225 anchors (28.89%), 16 users;
+- broad work-compatible context: 48/225 anchors (21.33%), 14 users;
+- residential context: 8/225 anchors (3.56%), 2 users.
+
+This supersedes the earlier partial 35-anchor result.
+
+Combined with CLCD:
+
+- 216/225 anchors (96.0%) are impervious;
+- point-vs-3x3 agreement = 223/225;
+- point-vs-5x5 agreement = 222/225.
+
+Interpretation remains conservative: CLCD provides physical context; historical OSM provides mapping/context evidence. Neither proves WORK/OFFICE/HOME or occupation.
+
+Decision: close Stage 07d. Next semantic-source priority is BCL POI 2008 access/license/CRS resolution because it is temporally relevant to 208/225 anchors.
 

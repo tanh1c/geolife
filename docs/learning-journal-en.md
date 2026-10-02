@@ -1143,3 +1143,26 @@ For this dataset:
 - ohsome can cross-check all measured anchors;
 - Gaode 2010 is currently a low-priority niche path.
 
+## 2026-10-02 — Partial API coverage is not population evidence
+
+Stage 07d makes the distinction between technical reliability and statistical support explicit.
+
+CLCD covers almost all 225 anchors, so the physical-context result can be stated at population scale: 96% of anchors are on impervious land and point-vs-local-window agreement is about 99%.
+
+The free-tier ohsome cross-check, however, has completed only 35 anchors from 3 users. Although 11/35 completed anchors have semantic context and 10/35 have broad work-compatible context, those proportions are not representative of the 25-user candidate universe because completion is determined by request order and quota.
+
+Lesson: caching/resume solves reliability engineering, not sampling bias. Every partial external-API result must carry both anchor coverage and user coverage before interpretation.
+
+## 2026-10-02 — Resume/caching can turn a quota-limited API into a full-coverage audit
+
+Stage 07d shows that a free-tier API can still support a full-coverage research audit when execution reliability is separated from interpretation.
+
+The first ohsome result covered only 35/225 anchors and 3 users, so its proportions were not representative. After caching each anchor response, bounding requests per run, stopping cleanly on 429, and resuming across runs, final coverage reached 225/225 anchors and all 25 candidate users.
+
+Full-universe result:
+- 65/225 anchors have historical OSM semantic context;
+- 48/225 have broad work-compatible context;
+- 8/225 have residential context.
+
+Lesson: quota limits do not necessarily imply incomplete coverage when the pipeline is deterministic and resumable. But full API coverage still does not make the source ground truth; early-China historical OSM remains affected by mapping lag and incompleteness.
+
