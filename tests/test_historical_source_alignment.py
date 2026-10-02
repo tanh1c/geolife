@@ -126,3 +126,39 @@ def test_2011_sources_remain_separate_and_blocked():
     assert "bcl_blocks_2011" in plan.index
     assert str(plan.loc["junxi_gaode_2011", "use_status"]).startswith("blocked_")
     assert str(plan.loc["bcl_poi_2011_research_corpus", "use_status"]).startswith("blocked_")
+
+def test_support_qualified_anchor_builder_excludes_home_and_low_support_users():
+    module = _module()
+    locations = pd.DataFrame(
+        [
+            {"user_id": "u1", "location_id": 0, "stay_count": 5},
+            {"user_id": "u1", "location_id": 1, "stay_count": 3},
+            {"user_id": "u1", "location_id": 2, "stay_count": 1},
+            {"user_id": "u2", "location_id": 0, "stay_count": 5},
+            {"user_id": "u2", "location_id": 1, "stay_count": 3},
+        ]
+    )
+    home = pd.DataFrame(
+        [
+            {"user_id": "u1", "location_id": 0, "home_tier": "high", "unique_vote_winner": True},
+            {"user_id": "u2", "location_id": 0, "home_tier": "low", "unique_vote_winner": True},
+        ]
+    )
+    profiles = pd.DataFrame(
+        [
+            {"user_id": "u1", "home_context_supported": True},
+            {"user_id": "u2", "home_context_supported": False},
+        ]
+    )
+
+    anchors = module.build_support_qualified_anchors(
+        locations,
+        home,
+        profiles,
+        min_stay_count=2,
+    )
+
+    assert len(anchors) == 1
+    assert anchors.iloc[0]["user_id"] == "u1"
+    assert int(anchors.iloc[0]["location_id"]) == 1
+
