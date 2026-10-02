@@ -141,7 +141,9 @@ Aggregate:
 - `work_context_distance_buckets.csv`;
 - `category_threshold_summary.csv`;
 - `stable_secondary_within_user_summary.csv`;
-- `profile_axis_context_summary.csv`.
+- `stable_secondary_category_summary.csv`;
+- `profile_axis_context_summary.csv`;
+- `profile_axis_category_summary.csv`.
 
 ## Interpretation boundary
 
@@ -155,3 +157,5 @@ Therefore:
 - no occupation or employment-status inference is allowed.
 
 Stage 07e can strengthen or weaken consistency between mobility geometry and historical mapping evidence. It cannot independently establish semantic workplace ground truth.
+
+Category-specific paired summaries are included so a composite work-compatible result can be decomposed into office/commercial, education, healthcare, industrial, retail/service, transport, civic/institutional, residential, and recreation/tourism context rather than being interpreted as one opaque score.
