@@ -121,3 +121,10 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Replaces mutually-exclusive Stage-07 v1 classes with overlapping axes for site structure, route structure, schedule, mobility complexity, HOME context, and independent secondary-anchor evidence.
 - Emits multi-label representation options (single anchor, anchor set, route/activity region, schedule-agnostic) rather than one occupation/work class.
 - Reports pairwise axis overlap and common evidence signatures before any external semantic enrichment.
+### Stage 07c — historical external-context source audit
+
+- `07c_historical_source_alignment.ipynb`
+- Builds recurring non-HOME anchors for the reliable-HOME subset and attaches first/median/last observation dates.
+- Audits candidate historical sources before use: BCL POI 2008, Gaode 2010, 2011 research/archive leads, Baidu 2012 candidate, annual CLCD, Beijing permits/transactions/blocks, and ohsome historical OSM.
+- Emits per-anchor temporal source plans with exact/proxy alignment and explicit blocking reasons.
+- Downloads no historical POI dataset; blocked sources cannot enter Stage 07d automatically.

@@ -1145,3 +1145,21 @@ Nếu enrich POI cho toàn bộ 72 ngay, ta có nguy cơ đưa HOME-like anchors
 
 Bài học: external semantic enrichment nên bắt đầu từ support-qualified subset có HOME context đáng tin, rồi chỉ enrich các recurring non-HOME anchors. Mobility profile vẫn giữ nguyên cho toàn population.
 
+## 2026-10-02 — Source priority phải theo anchor-year distribution, không theo source hấp dẫn nhất
+
+Trước Stage 07c, Gaode 2010 trông hấp dẫn vì có category taxonomy và paper provenance tốt hơn nhiều source khác.
+
+Nhưng measured anchor dates cho thấy:
+
+- 208/225 anchors (92.4%) nằm ở 2008–2009;
+- chỉ 1 anchor nằm ở 2010.
+
+Bài học: source selection phải được driven bởi temporal support của target population. Một source rất tốt về metadata nhưng chỉ cover 1 anchor không nên được ưu tiên engineering trước source kém hoàn hảo hơn nhưng cover >90% population.
+
+Với data hiện tại:
+
+- CLCD exact-year có leverage toàn bộ 225 anchors;
+- BCL POI 2008 có semantic leverage 208 anchors;
+- ohsome có cross-check leverage toàn bộ measured anchors;
+- Gaode 2010 hiện là low-priority niche path.
+

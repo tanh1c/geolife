@@ -1125,3 +1125,21 @@ Enriching all 72 immediately risks including HOME-like anchors in a semantic WOR
 
 Lesson: external semantic enrichment should first target support-qualified users with reliable HOME context and enrich only recurring non-HOME anchors. The factorized mobility profile can still remain available for the full population.
 
+## 2026-10-02 — Historical-source priority must follow the anchor-year distribution
+
+Before Stage 07c, Gaode 2010 looked attractive because it offered categories and stronger paper-level provenance than several alternatives.
+
+The measured anchor dates change that decision:
+
+- 208/225 anchors (92.4%) fall in 2008–2009;
+- only 1 anchor falls in 2010.
+
+Lesson: source selection must be driven by temporal support for the target population. A richly documented source that covers one anchor should not receive engineering priority over a less complete source that can inform more than 90% of the candidate universe.
+
+For this dataset:
+
+- CLCD exact-year context has leverage on all 225 anchors;
+- BCL POI 2008 has semantic leverage on 208 anchors;
+- ohsome can cross-check all measured anchors;
+- Gaode 2010 is currently a low-priority niche path.
+
