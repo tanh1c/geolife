@@ -1650,3 +1650,36 @@ The 35 anchors come from only 3 users, so their semantic-context proportions are
 
 Decision: close Stage 07d on the complete CLCD primary result. Keep ohsome as resumable opportunistic cross-check. Next semantic-source priority is BCL POI 2008 because Stage 07c showed relevance to 208/225 anchors.
 
+## 2026-10-02 — Stage 07d closed after full 225-anchor ohsome completion
+
+The resumable free-tier strategy eventually completed historical OSM extraction for all 225 recurring non-HOME anchors across all 25 candidate users.
+
+Final ohsome run state:
+
+- 225/225 anchors completed;
+- 25/25 users covered;
+- 217 cached;
+- 8 newly fetched;
+- 0 rate-limit hits;
+- 0 deferred;
+- 0 request errors;
+- 0 parse errors.
+
+Full-universe historical OSM summary:
+
+- semantic context found: 65/225 anchors (28.89%), 16 users;
+- broad work-compatible context: 48/225 anchors (21.33%), 14 users;
+- residential context: 8/225 anchors (3.56%), 2 users.
+
+This supersedes the earlier partial 35-anchor result.
+
+Combined with CLCD:
+
+- 216/225 anchors (96.0%) are impervious;
+- point-vs-3x3 agreement = 223/225;
+- point-vs-5x5 agreement = 222/225.
+
+Interpretation remains conservative: CLCD provides physical context; historical OSM provides mapping/context evidence. Neither proves WORK/OFFICE/HOME or occupation.
+
+Decision: close Stage 07d. Next semantic-source priority is BCL POI 2008 access/license/CRS resolution because it is temporally relevant to 208/225 anchors.
+
