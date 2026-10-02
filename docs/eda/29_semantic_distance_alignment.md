@@ -166,3 +166,14 @@ Stage 07d can be completed by rerunning only the OSM fetch cell. In that workflo
 
 Stage 07e therefore recomputes each deterministic Stage-07d request body and cache key from the anchor table and validates the corresponding raw Parquet file directly. The request log is audit metadata only and is never used as the coverage source of truth.
 
+## Correctness correction: Stage-05b and Stage-07c location ids must share one namespace
+
+The first 07e run exposed a namespace mismatch:
+
+- Stage 05b dominant secondary ids came from production semantic locations;
+- old Stage 07c anchors came from behavior-cluster locations.
+
+The two pipelines both used complete-link 200 m but assign ids differently and do not share the same preprocessing universe. Integer `location_id` equality was therefore invalid.
+
+Stage 07e now requires the explicit production namespace marker and rejects old artifacts. The first measured 07e tables are superseded pending corrected 07c -> 07d -> 07e rerun.
+
