@@ -47,6 +47,7 @@ jobs:
               'notebooks/06c_change_detection_representation_feasibility.ipynb',
               'notebooks/06d_support_indexed_window_feasibility.ipynb',
               'notebooks/07_work_regime_archetypes.ipynb',
+              'notebooks/07b_factorized_work_profiles.ipynb',
           ]:
               json.load(open(path, encoding='utf-8'))
               print(path, 'json ok')
