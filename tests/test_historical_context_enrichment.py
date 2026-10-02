@@ -335,6 +335,7 @@ def test_stage07d_notebook_uses_production_location_coordinates():
         if cell.get("cell_type") == "code"
     )
 
+    assert "BRANCH='eda/07e-semantic-distance-alignment'" in code
     assert "build_semantic_locations(stays,config=cfg)" in code
     assert "attach_anchor_coordinates_from_locations(anchors,locations)" in code
     assert "production_complete_link_200m_beijing_policy_v1" in code
