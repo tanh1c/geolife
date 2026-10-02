@@ -1391,4 +1391,29 @@ The 10-day settings also fail population coverage.
 Most importantly, the final decision table reports zero passing features of any kind in all six configurations and zero passing primary features. stage07_ready is false everywhere.
 
 Decision: stop broad within-user behavioral change detection on GeoLife. The project has evidence for routines and some stable coarse mobility features, but not enough jointly stable, null-calibrated, low-uncertainty longitudinal signal to justify a general Stage-07 detector under the predeclared protocol. Do not add more support sizes or relax gates post hoc.
+## 2026-10-02 — Stage 07 reframed around work-regime representations
 
+After Stage 06d closed broad within-user change detection, the project returns to the mentor's work/job hint without attempting unsupported occupation inference.
+
+Stage 07 composes already-audited evidence into descriptive work-regime hypotheses:
+
+- shifted_fixed_site_like;
+- fixed_site_like;
+- route_centric_mobile_like;
+- multi_site_recurring;
+- irregular;
+- insufficient.
+
+The new output is not a job title. It recommends how WORK should be represented for that mobility history:
+
+- single recurring anchor;
+- schedule-agnostic single anchor;
+- recurring anchor set;
+- route/activity region;
+- abstain.
+
+The taxonomy reuses Stage-03a anchor/mobility states, Stage-05b adaptive secondary-anchor patterns, optional Stage-05c independent evidence, and Stage-06 route recurrence. No raw GeoLife rescan is required.
+
+Semantic boundary: fixed_site_like is not OFFICE, route_centric_mobile_like is not a driver/sales/courier label, and multi_site_recurring is not proof of multiple offices.
+
+If the measured taxonomy has useful coverage and coherent evidence composition, the next independent axis is external coarse POI / land-use context.
