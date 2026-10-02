@@ -1496,4 +1496,26 @@ No stable-secondary user is truly single-anchor-only under the broader recurring
 Decision: accept factorization as the mobility-side representation and stop trying to create one work-regime class.
 
 Next semantic step should be external POI / land-use enrichment, but only on a support-qualified subset. Start with the 25 HIGH/MEDIUM HOME-supported users and candidate non-HOME recurring anchors so HOME exclusion is explicit. Keep the external context separate from the Stage-07b profile.
+## 2026-10-02 — Stage 07c reframed as historical-source audit + temporal alignment
 
+Current-OSM PR #19 was closed without merge because GeoLife observations are from 2007–2012 and current POI context would create temporal leakage if treated as historical semantic evidence.
+
+New Stage 07c is gate-first. It does not fetch historical POI data. It:
+
+- rebuilds the support-qualified recurring non-HOME anchor subset;
+- computes first/median/last observation dates per anchor;
+- assigns temporally appropriate source candidates;
+- records exact vs proxy alignment and temporal offsets;
+- blocks semantic sources whose provenance/access/license/CRS are unresolved.
+
+Verified source roles:
+
+- BCL POI 2008: scraped in 2008, mainland-China snapshot, names + coordinates, no category field; exact for 2008 and explicit ±1-year proxy only for 2007/2009; file license/CRS still gated;
+- Gaode 2010: peer-reviewed paper reports self-built crawler and 1,610,384 2010 POIs, with Mars-coordinate to WGS84 conversion; reusable corpus access/license still gated;
+- CLCD: annual 30 m historical land cover available for every GeoLife year 2007–2012; physical context only;
+- Beijing planning permits / land transactions: historical administrative cross-checks, not proof of facility operation;
+- BCL blocks 2011: morphology prior, not semantic ground truth;
+- ohsome: exact OSM database snapshots from 2007-10-08 onward, used only as a cross-check because early mapping can be incomplete;
+- Gaode 2011 / Baidu 2012: remain blocked until provenance/access/license/CRS are verified.
+
+Stage 07d will be source-modular and must refuse blocked sources unless their gate metadata is explicitly updated with evidence.
