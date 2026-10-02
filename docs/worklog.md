@@ -1705,3 +1705,18 @@ Implemented scope:
 
 No measured result is frozen yet. The next step is to run the 07e notebook on the existing Modal Volume and review aggregate outputs before any PR is opened.
 \n
+
+## 2026-10-02 — Stage 07e cache-validation contract fix
+
+First Modal execution exposed a persistence mismatch: the raw ohsome cache had been resumed across runs, but the saved Stage-07d request-log pickle was from an earlier partial run. The original 07e gate incorrectly treated the log as coverage truth and reported 170 missing anchors.
+
+Fix:
+
+- recompute the exact Stage-07d request body for every anchor;
+- derive the deterministic cache key directly;
+- validate the raw Parquet file on disk;
+- retain request-log status only as optional audit metadata;
+- add regression coverage for complete raw cache + stale partial log.
+
+This preserves the intended requirement: Stage 07e needs complete raw historical OSM cache, not a freshly persisted request log.
+
