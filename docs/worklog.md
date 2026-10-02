@@ -1545,4 +1545,30 @@ This materially changes external-source priority:
 - 2011 and 2012 candidates affect only 16 anchors total.
 
 Decision: Stage 07d MVP should implement CLCD + ohsome first, while BCL POI 2008 access/license/CRS is resolved. Do not prioritize Gaode/Baidu ingestion yet.
+## 2026-10-02 — Stage 07d historical-context enrichment scaffolded
 
+Measured Stage 07c showed 208 / 225 recurring non-HOME anchors (92.4%) are in 2008–2009.
+
+Stage 07d therefore prioritizes runnable sources with population leverage:
+
+- CLCD exact-year 30 m land cover as the primary physical-context source;
+- historical OSM / ohsome as an optional cross-check at the anchor observation date;
+- BCL POI 2008 remains the highest-value blocked semantic source while access/license/CRS are unresolved.
+
+CLCD runner behavior:
+
+- pinned CLCD v1.0.2 Zenodo record;
+- remote Cloud Optimized GeoTIFF sampling by observation year;
+- point pixel plus 3×3 and 5×5 local modal classes;
+- explicit point/window agreement audit;
+- no conversion from impervious land cover to office/residential/WORK semantics.
+
+ohsome runner behavior:
+
+- v2 extraction API;
+- exact anchor median observation date;
+- optional `OHSOME_API_KEY`; CLCD analysis remains runnable without the key;
+- semantic tags remain multi-label and cross-check-only;
+- missing historical OSM is missing mapping evidence, not proof of real-world absence.
+
+Exact coordinates and user-level context outputs remain private.
