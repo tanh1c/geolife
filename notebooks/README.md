@@ -121,3 +121,10 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Replaces mutually-exclusive Stage-07 v1 classes with overlapping axes for site structure, route structure, schedule, mobility complexity, HOME context, and independent secondary-anchor evidence.
 - Emits multi-label representation options (single anchor, anchor set, route/activity region, schedule-agnostic) rather than one occupation/work class.
 - Reports pairwise axis overlap and common evidence signatures before any external semantic enrichment.
+### Stage 07c — external POI / land-use enrichment
+
+- `07c_external_poi_landuse_enrichment.ipynb`
+- Starts from reliable-HOME users, excludes HOME, and enriches recurring non-HOME anchors with coarse OpenStreetMap context.
+- Queries Overpass in small cached batches, aggregates at 100 m primary / 250 m sensitivity, and keeps exact coordinates + raw OSM responses private.
+- Reports semantic coverage, category prevalence, stable-secondary vs same-user peers, context signatures, and radius sensitivity.
+- External context remains independent from Stage-07b mobility axes; no job title or OFFICE semantics are inferred.
