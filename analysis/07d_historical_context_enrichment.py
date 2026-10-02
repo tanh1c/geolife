@@ -579,16 +579,32 @@ def fetch_ohsome_context_with_fetcher(
     cache_dir: Path,
     radius_m: float = 100.0,
     pause_s: float = 0.0,
+    max_new_requests_per_run: int | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Fetch historical OSM context using an injected bytes fetcher.
+    """Fetch historical OSM context using an injected fetcher.
 
-    The fetcher accepts one ohsome request body and returns Parquet bytes.
-    This allows Modal Secret injection to stay inside a remote function so the
-    API key never needs to enter the notebook process.
+    The fetcher may return raw Parquet bytes or a structured response dict:
+      {
+        "ok": bool,
+        "status_code": int,
+        "content": bytes | None,
+        "retry_after": str | None,
+        "rate_limit_reset": str | None,
+        "error": str | None,
+      }
+
+    Free-tier safety:
+    - every successful response is cached per anchor request;
+    - max_new_requests_per_run bounds fresh API calls;
+    - the first HTTP 429 stops additional fresh calls for this run;
+    - cached anchors are still parsed;
+    - partial context + request log are returned instead of failing the stage.
     """
     cache_dir.mkdir(parents=True, exist_ok=True)
     rows = []
     logs = []
+    new_requests = 0
+    rate_limited = False
 
     for anchor in anchors.to_dict(orient="records"):
         body = build_ohsome_request(anchor, radius_m=radius_m)
@@ -598,16 +614,126 @@ def fetch_ohsome_context_with_fetcher(
 
         if cached:
             content = path.read_bytes()
+            status = "cached"
+            status_code = 200
+            retry_after = None
+            rate_limit_reset = None
+            error = None
+        elif rate_limited:
+            logs.append(
+                {
+                    "user_id": str(anchor["user_id"]),
+                    "location_id": int(anchor["location_id"]),
+                    "cache_key": digest,
+                    "cached": False,
+                    "status": "deferred_rate_limited",
+                    "status_code": 429,
+                    "retry_after": None,
+                    "rate_limit_reset": None,
+                    "feature_count": pd.NA,
+                    "error": None,
+                }
+            )
+            continue
+        elif (
+            max_new_requests_per_run is not None
+            and new_requests >= int(max_new_requests_per_run)
+        ):
+            logs.append(
+                {
+                    "user_id": str(anchor["user_id"]),
+                    "location_id": int(anchor["location_id"]),
+                    "cache_key": digest,
+                    "cached": False,
+                    "status": "deferred_request_budget",
+                    "status_code": pd.NA,
+                    "retry_after": None,
+                    "rate_limit_reset": None,
+                    "feature_count": pd.NA,
+                    "error": None,
+                }
+            )
+            continue
         else:
-            content = fetcher(body)
-            if not isinstance(content, (bytes, bytearray)):
-                raise TypeError("ohsome fetcher must return bytes")
-            content = bytes(content)
+            result = fetcher(body)
+            new_requests += 1
+
+            if isinstance(result, (bytes, bytearray)):
+                content = bytes(result)
+                status = "fetched"
+                status_code = 200
+                retry_after = None
+                rate_limit_reset = None
+                error = None
+            elif isinstance(result, dict):
+                status_code = int(result.get("status_code", 0) or 0)
+                retry_after = result.get("retry_after")
+                rate_limit_reset = result.get("rate_limit_reset")
+                error = result.get("error")
+                if status_code == 429:
+                    rate_limited = True
+                    logs.append(
+                        {
+                            "user_id": str(anchor["user_id"]),
+                            "location_id": int(anchor["location_id"]),
+                            "cache_key": digest,
+                            "cached": False,
+                            "status": "rate_limited",
+                            "status_code": 429,
+                            "retry_after": retry_after,
+                            "rate_limit_reset": rate_limit_reset,
+                            "feature_count": pd.NA,
+                            "error": error,
+                        }
+                    )
+                    continue
+                if not bool(result.get("ok", False)):
+                    logs.append(
+                        {
+                            "user_id": str(anchor["user_id"]),
+                            "location_id": int(anchor["location_id"]),
+                            "cache_key": digest,
+                            "cached": False,
+                            "status": "request_error",
+                            "status_code": status_code,
+                            "retry_after": retry_after,
+                            "rate_limit_reset": rate_limit_reset,
+                            "feature_count": pd.NA,
+                            "error": error,
+                        }
+                    )
+                    continue
+                content = result.get("content")
+                if not isinstance(content, (bytes, bytearray)):
+                    raise TypeError("successful ohsome response must contain bytes")
+                content = bytes(content)
+                status = "fetched"
+            else:
+                raise TypeError("ohsome fetcher must return bytes or a response dict")
+
             path.write_bytes(content)
             if pause_s > 0:
                 time.sleep(float(pause_s))
 
-        row, feature_count = _summarize_ohsome_anchor(anchor, content)
+        try:
+            row, feature_count = _summarize_ohsome_anchor(anchor, content)
+        except Exception as exc:
+            logs.append(
+                {
+                    "user_id": str(anchor["user_id"]),
+                    "location_id": int(anchor["location_id"]),
+                    "cache_key": digest,
+                    "cached": bool(cached),
+                    "status": "parse_error",
+                    "status_code": status_code,
+                    "retry_after": retry_after,
+                    "rate_limit_reset": rate_limit_reset,
+                    "feature_count": pd.NA,
+                    "error": str(exc),
+                }
+            )
+            continue
+
         rows.append(row)
         logs.append(
             {
@@ -615,12 +741,50 @@ def fetch_ohsome_context_with_fetcher(
                 "location_id": int(anchor["location_id"]),
                 "cache_key": digest,
                 "cached": bool(cached),
+                "status": status,
+                "status_code": status_code,
+                "retry_after": retry_after,
+                "rate_limit_reset": rate_limit_reset,
                 "feature_count": int(feature_count),
+                "error": error,
             }
         )
 
     return pd.DataFrame(rows), pd.DataFrame(logs)
 
+
+def summarize_ohsome_run(
+    anchors: pd.DataFrame,
+    context: pd.DataFrame,
+    request_log: pd.DataFrame,
+) -> pd.DataFrame:
+    total = int(len(anchors))
+    completed = int(len(context))
+    status_counts = (
+        request_log["status"].value_counts(dropna=False).to_dict()
+        if not request_log.empty and "status" in request_log.columns
+        else {}
+    )
+    return pd.DataFrame(
+        [
+            {
+                "anchor_target": total,
+                "anchor_completed": completed,
+                "completion_share": float(completed / total) if total else np.nan,
+                "cached": int(status_counts.get("cached", 0)),
+                "fetched_this_run": int(status_counts.get("fetched", 0)),
+                "rate_limited": int(status_counts.get("rate_limited", 0)),
+                "deferred_rate_limited": int(
+                    status_counts.get("deferred_rate_limited", 0)
+                ),
+                "deferred_request_budget": int(
+                    status_counts.get("deferred_request_budget", 0)
+                ),
+                "request_error": int(status_counts.get("request_error", 0)),
+                "parse_error": int(status_counts.get("parse_error", 0)),
+            }
+        ]
+    )
 
 def fetch_ohsome_context(
     anchors: pd.DataFrame,
