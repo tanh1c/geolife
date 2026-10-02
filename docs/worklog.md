@@ -1613,3 +1613,40 @@ CLCD measured output from the failed run remains valid:
 - point vs 3x3 agreement = 223 / 225;
 - point vs 5x5 agreement = 222 / 225.
 
+## 2026-10-02 — Stage 07d measured result: CLCD complete, ohsome partial/resumable
+
+The free-tier-safe Stage-07d notebook completed without errors.
+
+Primary CLCD result on 225 anchors / 25 users:
+
+- 224/225 known point classes;
+- 216/225 impervious (96.0%);
+- 223/225 point-vs-3x3 local-mode agreement;
+- 222/225 point-vs-5x5 local-mode agreement.
+
+By year:
+
+- 2008: 70 impervious, 1 water, 1 unknown;
+- 2009: 131 impervious, 4 forest, 1 cropland;
+- 2010: 1 cropland;
+- 2011: 10 impervious;
+- 2012: 5 impervious, 1 water.
+
+Interpretation is deliberately physical only: the recurring non-HOME anchor universe is overwhelmingly on historically built-up/impervious land, with very high local raster stability. No office/residential/WORK/occupation label follows from this.
+
+ohsome free-tier cross-check:
+
+- 35/225 anchors completed;
+- 15 cached + 20 newly fetched;
+- 0 rate-limit hits in the latest run;
+- 190 deferred by request budget;
+- 0 request errors;
+- 0 parse errors;
+- 11 completed anchors had semantic context;
+- 10 had broad work-compatible context;
+- 0 had residential context.
+
+The 35 anchors come from only 3 users, so their semantic-context proportions are not population-representative and must not be generalized.
+
+Decision: close Stage 07d on the complete CLCD primary result. Keep ohsome as resumable opportunistic cross-check. Next semantic-source priority is BCL POI 2008 because Stage 07c showed relevance to 208/225 anchors.
+
