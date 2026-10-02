@@ -43,3 +43,24 @@ CLCD = exact-year physical context.
 ohsome = historical mapping cross-check.
 
 Neither source creates occupation or OFFICE labels.
+
+## Free-tier ohsome / 429 handling
+
+The current key is free-tier and measured execution hit HTTP 429.
+
+The runner is now resumable:
+
+- every successful anchor response is cached under the Stage-07d cache;
+- default fresh-request budget is 20 per run;
+- default inter-request pause is 6 seconds;
+- first 429 ends fresh requests for that run;
+- partial context and request logs are still saved;
+- rerunning later reuses cached anchors and continues with uncached ones.
+
+Optional environment overrides:
+
+- OHSOME_MAX_NEW_REQUESTS_PER_RUN
+- OHSOME_REQUEST_PAUSE_S
+
+A partial ohsome run is valid cross-check evidence only for the completed anchors. Do not report partial coverage as 225-anchor OSM coverage.
+
