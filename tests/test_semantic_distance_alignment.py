@@ -1,0 +1,316 @@
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+import sys
+
+import numpy as np
+import pandas as pd
+
+
+MODULE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "analysis"
+    / "07e_semantic_distance_alignment.py"
+)
+
+
+def _module():
+    spec = spec_from_file_location("stage07e", MODULE_PATH)
+    assert spec and spec.loader
+    module = module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_geometry_distance_m_uses_wkb_geometry():
+    module = _module()
+    from shapely.geometry import Point
+
+    lat = 39.9
+    lon = 116.4
+    lon_delta = 50.0 / (111_320.0 * np.cos(np.radians(lat)))
+    geometry = Point(lon + lon_delta, lat)
+
+    distance, method = module.geometry_distance_m(
+        geometry.wkb,
+        anchor_lat=lat,
+        anchor_lon=lon,
+    )
+
+    assert method == "geometry"
+    assert 49.0 <= distance <= 51.0
+
+
+def test_geometry_distance_m_falls_back_to_bbox():
+    module = _module()
+
+    distance, method = module.geometry_distance_m(
+        None,
+        anchor_lat=39.9,
+        anchor_lon=116.4,
+        bbox={
+            "xmin": 116.4,
+            "xmax": 116.401,
+            "ymin": 39.9,
+            "ymax": 39.901,
+        },
+    )
+
+    assert method == "bbox_fallback"
+    assert distance == 0.0
+
+
+def test_anchor_metrics_use_exact_threshold_and_censor_at_100m():
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            {"user_id": "u1", "location_id": 1},
+            {"user_id": "u1", "location_id": 2},
+            {"user_id": "u1", "location_id": 3},
+        ]
+    )
+    features = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "category": "office_commercial",
+                "distance_m": 20.0,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "category": "industrial",
+                "distance_m": 110.0,
+            },
+        ]
+    )
+
+    result = module.build_anchor_semantic_metrics(anchors, features)
+    result = result.set_index("location_id")
+
+    assert bool(result.loc[1, "work_compatible_within_25m"])
+    assert result.loc[1, "work_distance_bucket"] == "0_25"
+
+    assert not bool(result.loc[2, "work_compatible_within_100m"])
+    assert result.loc[2, "work_distance_bucket"] == "none_within_100"
+    assert result.loc[2, "work_compatible_censored_distance_100m"] == 100.0
+
+    assert result.loc[3, "work_distance_bucket"] == "none_within_100"
+    assert result.loc[3, "work_compatible_censored_distance_100m"] == 100.0
+
+
+def test_align_mobility_roles_marks_exact_dominant_location():
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            {"user_id": "u1", "location_id": 3},
+            {"user_id": "u1", "location_id": 7},
+        ]
+    )
+    work = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "window_pattern": "stable_secondary_anchor",
+                "dominant_location_id": 7,
+                "dominant_window_share": 0.8,
+            }
+        ]
+    )
+    profiles = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "site_stable_secondary": True,
+                "route_repeated": True,
+            }
+        ]
+    )
+
+    result = module.align_mobility_roles(anchors, work, profiles)
+
+    assert result.loc[
+        result["location_id"].eq(7), "stable_secondary_anchor"
+    ].item()
+    assert result.loc[
+        result["location_id"].eq(3), "stable_secondary_peer_anchor"
+    ].item()
+
+
+def test_stable_secondary_comparison_is_within_user():
+    module = _module()
+    aligned = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "stable_secondary_user": True,
+                "stable_secondary_anchor": True,
+                "stable_secondary_peer_anchor": False,
+                "work_compatible_censored_distance_100m": 10.0,
+                "work_compatible_within_25m": True,
+                "work_compatible_within_50m": True,
+                "work_compatible_within_100m": True,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "stable_secondary_user": True,
+                "stable_secondary_anchor": False,
+                "stable_secondary_peer_anchor": True,
+                "work_compatible_censored_distance_100m": 100.0,
+                "work_compatible_within_25m": False,
+                "work_compatible_within_50m": False,
+                "work_compatible_within_100m": False,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 3,
+                "stable_secondary_user": True,
+                "stable_secondary_anchor": False,
+                "stable_secondary_peer_anchor": True,
+                "work_compatible_censored_distance_100m": 60.0,
+                "work_compatible_within_25m": False,
+                "work_compatible_within_50m": False,
+                "work_compatible_within_100m": True,
+            },
+        ]
+    )
+
+    result = module.build_stable_secondary_user_comparisons(aligned)
+
+    assert len(result) == 1
+    row = result.iloc[0]
+    assert row["peer_anchor_count"] == 2
+    assert row["candidate_minus_peer_share_100m"] == 0.5
+    assert bool(row["candidate_unique_closest_work_context"])
+
+
+def test_profile_axis_summary_is_user_level_not_anchor_weighted():
+    module = _module()
+    aligned = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "work_compatible_within_100m": True,
+                "route_repeated": True,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "work_compatible_within_100m": False,
+                "route_repeated": True,
+            },
+            {
+                "user_id": "u2",
+                "location_id": 1,
+                "work_compatible_within_100m": False,
+                "route_repeated": True,
+            },
+        ]
+    )
+
+    result = module.summarize_profile_axis_context(aligned)
+    route = result.loc[result["axis"].eq("route_repeated")].iloc[0]
+
+    assert route["users"] == 2
+    assert route["users_any_work_context"] == 1
+    assert route["share_users_any_work_context"] == 0.5
+
+
+def test_validate_full_cache_rejects_partial_coverage(tmp_path):
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            {"user_id": "u1", "location_id": 1},
+            {"user_id": "u1", "location_id": 2},
+        ]
+    )
+    request_log = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "cache_key": "abc",
+                "status": "cached",
+            }
+        ]
+    )
+    (tmp_path / "abc.parquet").write_bytes(b"x")
+
+    try:
+        module.validate_full_ohsome_cache(anchors, request_log, tmp_path)
+    except ValueError as exc:
+        assert "incomplete" in str(exc)
+    else:
+        raise AssertionError("partial cache should be rejected")
+
+
+def test_extract_anchor_feature_distances_from_parquet():
+    module = _module()
+    from io import BytesIO
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from shapely.geometry import Point
+
+    lat = 39.9
+    lon = 116.4
+    lon_delta = 30.0 / (111_320.0 * np.cos(np.radians(lat)))
+    geometry = Point(lon + lon_delta, lat)
+
+    table = pa.table(
+        {
+            "osm_type": ["node"],
+            "osm_id": [123],
+            "tags": pa.array(
+                [[("building", "office")]],
+                type=pa.map_(pa.string(), pa.string()),
+            ),
+            "bbox": pa.array(
+                [
+                    {
+                        "xmin": lon + lon_delta,
+                        "xmax": lon + lon_delta,
+                        "ymin": lat,
+                        "ymax": lat,
+                    }
+                ],
+                type=pa.struct(
+                    [
+                        ("xmin", pa.float64()),
+                        ("xmax", pa.float64()),
+                        ("ymin", pa.float64()),
+                        ("ymax", pa.float64()),
+                    ]
+                ),
+            ),
+            "geom_type": ["Point"],
+            "geom": [geometry.wkb],
+            "clipped": [False],
+        }
+    )
+    buffer = BytesIO()
+    pq.write_table(table, buffer)
+
+    rows = module.extract_anchor_feature_distances(
+        {
+            "user_id": "u1",
+            "location_id": 1,
+            "latitude": lat,
+            "longitude": lon,
+        },
+        buffer.getvalue(),
+    )
+
+    assert len(rows) == 1
+    assert rows.iloc[0]["category"] == "office_commercial"
+    assert bool(rows.iloc[0]["work_compatible_category"])
+    assert 29.0 <= rows.iloc[0]["distance_m"] <= 31.0
+
+
+def test_synthetic_self_check():
+    module = _module()
+    assert module.synthetic_self_check()["status"] == "ok"
