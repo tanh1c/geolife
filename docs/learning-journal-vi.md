@@ -1173,3 +1173,16 @@ Ngược lại, ohsome free-tier mới hoàn thành 35 anchors và chỉ cover 3
 
 Bài học: cache/resume giải quyết reliability engineering, nhưng không tự giải quyết sampling bias. Partial API output phải luôn mang coverage denominator và user coverage trước khi diễn giải.
 
+## 2026-10-02 — Resume/caching biến quota-limited API thành full-coverage audit
+
+07d cho thấy một API free-tier vẫn có thể dùng cho full-coverage research nếu execution contract tách reliability khỏi interpretation.
+
+Ban đầu ohsome chỉ cover 35/225 anchors và 3 users nên tỷ lệ semantic context không đại diện. Sau khi cache từng anchor, giới hạn request/run, dừng sạch khi 429 và resume qua nhiều lượt, coverage cuối cùng đạt 225/225 anchors và 25/25 users.
+
+Kết quả full-universe:
+- 65/225 có historical OSM semantic context;
+- 48/225 có broad work-compatible context;
+- 8/225 có residential context.
+
+Bài học: quota không bắt buộc phải làm giảm coverage nếu pipeline deterministic + resumable. Nhưng full API coverage vẫn không biến source thành ground truth; historical OSM ở early China còn mapping lag/incompleteness.
+
