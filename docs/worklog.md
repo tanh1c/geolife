@@ -1308,3 +1308,38 @@ Strict multimodality also remains narrow:
 - sensitivity across relaxed settings still involved at most 2 users.
 
 Decision: do not proceed to broad Stage-07 change detection on exact OD identity. The next step, if pursued, should first test whether a coarser/support-normalized representation yields interpretable temporal continuity and enough eligible windows. Exact OD identity is currently sampling-limited.
+
+## 2026-10-01 — Measured Stage 06c change-detection representation feasibility
+
+The Stage-06c Modal run completed on the private Stage-06 / Stage-03a caches with no raw GeoLife rescan.
+
+Coverage by non-overlapping calendar window:
+
+- 28d: 43 eligible windows, 24 users with at least one eligible window, 11 users with an adjacent eligible pair, 16 adjacent pairs; median 8 usable days/window;
+- 42d: 48 eligible windows, 31 users with at least one eligible window, 9 users with an adjacent eligible pair, 15 adjacent pairs; median 8 usable days/window;
+- 56d: 48 eligible windows, 35 users with at least one eligible window, 7 users with an adjacent eligible pair, 11 adjacent pairs; median 9 usable days/window.
+
+Increasing the calendar span from 28 to 56 days therefore does not materially increase usable observations, while the number of adjacent comparable users falls.
+
+Exact-OD identity remains unsuitable as a change-detection backbone:
+
+- median chronological JSD: 0.942 / 1.000 / 1.000 for 28d / 42d / 56d;
+- median random-partition JSD: 0.876 / 0.857 / 0.894;
+- chronological JSD above random p95: 0.0% / 0.0% / 9.1%.
+
+Promising coarse features exist. In particular:
+
+- 42d cleaned distance per usable day: Spearman 0.729, random-p95 exceedance 6.7%, bootstrap-width / observed-IQR 0.814;
+- 42d active-location count per usable day: Spearman 0.540, random-p95 exceedance 0%, bootstrap-width / observed-IQR 0.866.
+
+A 28d 00–06 departure share also passes the non-coverage gates, but its zero median difference / zero bootstrap-width pattern makes it a likely sparse or degenerate feature rather than a strong behavioral axis.
+
+All 45 feature × window combinations fail the provisional Stage-07 readiness gate because every window size has fewer than the predeclared 20 comparable adjacent pairs. The gate is not lowered post hoc.
+
+Decision:
+
+- do not implement Stage 07 yet;
+- keep 42d movement magnitude and active-location density as promising features;
+- stop extending fixed calendar windows because 28→56d adds little usable support;
+- next evaluate support-indexed windows (6 / 8 / 10 usable days) with calendar-span caps (56 / 84 days sensitivity), using the same coverage, test–retest, random-null and bootstrap protocol.
+

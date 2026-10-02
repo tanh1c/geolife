@@ -941,3 +941,49 @@ However, the current motif comparator permits a one-location sequence such as `L
 The zero overlap therefore should not be interpreted as evidence that the two representations discover fully disjoint mobility populations.
 
 Lesson: when comparators use different units, eligibility should match both observation support and behavior type. A mobility-motif comparator should require at least one transition.
+
+## 2026-10-01 — Longer calendar windows do not automatically create longitudinal support
+
+Stage 06c tested fixed 28 / 42 / 56-day calendar windows with at least six usable days.
+
+Median usable support among eligible windows changed only 8 → 8 → 9 days, while users with an adjacent eligible pair fell 11 → 9 → 7.
+
+Lesson:
+
+```text
+longer calendar span
+!=
+denser observation support
+```
+
+GeoLife sampling is temporally irregular. If a wider window mostly stretches elapsed calendar time without adding many usable observations, a detector loses comparable pairs without gaining much statistical support.
+
+Therefore the next step should not be another 70 / 84-day fixed-calendar sweep. Use support-indexed windows such as 6 / 8 / 10 usable days and control elapsed time with a calendar-span cap.
+
+## 2026-10-01 — Coarsening improves representation stability but does not solve the coverage bottleneck
+
+Exact OD remains highly unstable in Stage 06c: median chronological JSD is close to one and support-matched random-partition JSD is also close to one. This reproduces the Stage-06b conclusion that identity-sensitive representations are dominated by sparse sampling.
+
+Some coarse features are materially better. At 42 days:
+
+- cleaned distance / usable day: Spearman ~0.729, chronological > random p95 for 6.7% of pairs, bootstrap-width / observed-IQR ~0.814;
+- active locations / usable day: Spearman ~0.540, random-p95 exceedance 0%, bootstrap ratio ~0.866.
+
+Yet all 45 feature × window combinations fail readiness because no window size reaches the predeclared 20 adjacent comparable pairs.
+
+Lesson: representation quality and population coverage are separate gates. Coarsening can improve feature stability without creating longitudinal observations.
+
+## 2026-10-01 — Do not lower a readiness gate after seeing the result
+
+Three combinations pass every non-coverage gate:
+
+- 28d time_00_06_share;
+- 42d active_location_count_per_usable_day;
+- 42d cleaned_distance_km_per_usable_day.
+
+But the maximum number of comparable adjacent pairs is only 16, below the predeclared gate of 20.
+
+Lesson: lowering the threshold from 20 to 15/16 after observing the result would convert a feasibility audit into post-hoc tuning.
+
+The correct decision is to keep Stage 07 blocked and change the window construction, not the acceptance criterion.
+
