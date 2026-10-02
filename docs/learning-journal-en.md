@@ -987,3 +987,64 @@ Lesson: lowering the threshold from 20 to 15/16 after observing the result would
 
 The correct decision is to keep Stage 07 blocked and change the window construction, not the acceptance criterion.
 
+## 2026-10-02 — Support-indexed windows fix coverage but do not create a sufficient change signal
+
+Stage 06c could still be challenged on the grounds that fixed calendar windows discarded too many comparable pairs. Stage 06d tests that directly with fixed 6 / 8 / 10 usable-day blocks.
+
+The 6-day and 8-day settings clear the coverage gates:
+
+- 6d/56: 49 pairs, 18 users;
+- 6d/84: 58 pairs, 21 users;
+- 8d/56: 26 pairs, 11 users;
+- 8d/84: 29 pairs, 11 users.
+
+So the Stage-06c coverage bottleneck is genuinely repaired.
+
+Yet no configuration contains a feature that passes every gate. Once coverage is adequate, the representation still lacks a sufficient combination of rank stability, null calibration, and bootstrap precision.
+
+Lesson:
+
+```text
+fixing coverage
+!=
+creating longitudinal signal
+```
+
+A good feasibility audit must separate these two questions. Stage 06d supports the stronger conclusion that broad change detection is limited by the available longitudinal signal/data, not merely by calendar-window construction.
+
+## 2026-10-02 — Cleaned distance is the nearest pass, but a near-pass is still not a pass
+
+Cleaned distance / usable day shows useful rank stability:
+
+- 6d/56: Spearman 0.712;
+- 6d/84: 0.697;
+- 8d/56: 0.696;
+- 8d/84: 0.737.
+
+But every covered setting misses at least one predeclared gate:
+
+- 6d/56 bootstrap-width / observed-IQR = 1.030, above the 1.0 gate;
+- 6d/84 null exceedance = 10.34%, above 10%;
+- 8d/56 = 11.54%;
+- 8d/84 = 10.34%.
+
+These misses are close to the boundary, which is precisely why the threshold should not be rounded or relaxed after seeing the result.
+
+Lesson: near-pass is not pass. A predeclared boundary only has meaning if it is preserved when the observed result lands just beyond it.
+
+## 2026-10-02 — A predeclared stop rule turns a negative result into a conclusion, not another tuning prompt
+
+The final Stage-06d decision table reports for all six support/cap settings:
+
+```text
+candidate_features = 0
+candidate_primary_features = 0
+stage07_ready = False
+```
+
+The failure is not limited to the two primary features; no feature in the full Stage-06c family passes all gates.
+
+Therefore broad within-user Stage 07 stops here.
+
+Lesson: a research pipeline needs an explicit point at which not building another model is the correct outcome. Once representation and coverage have both been repaired and null-calibrated longitudinal evidence still fails, adding more window sizes would turn feasibility analysis into threshold search.
+

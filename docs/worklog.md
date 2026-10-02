@@ -1343,3 +1343,52 @@ Decision:
 - stop extending fixed calendar windows because 28→56d adds little usable support;
 - next evaluate support-indexed windows (6 / 8 / 10 usable days) with calendar-span caps (56 / 84 days sensitivity), using the same coverage, test–retest, random-null and bootstrap protocol.
 
+## 2026-10-02 — Stage 06d support-indexed window feasibility scaffolded
+
+Measured Stage 06c showed that 28 / 42 / 56-day fixed calendar windows contained only median 8 / 8 / 9 usable days while adjacent comparable users fell as the span increased.
+
+Stage 06d therefore changes only the support unit:
+
+- chronological non-overlapping blocks of 6 / 8 / 10 usable days;
+- 56 / 84-day maximum calendar-span sensitivity;
+- no bridging across span-rejected blocks;
+- same Stage-06c coarse feature family, random balanced-partition null, and day bootstrap;
+- predeclared readiness still requires >=20 comparable adjacent pairs, Spearman >=0.50, random-p95 exceedance <=10%, and bootstrap-width / observed-IQR <=1.0;
+- adds >=10 unique users so many pairs from a few long-history users cannot masquerade as population coverage.
+
+Primary features are frozen from measured 06c before this run: cleaned distance / usable day and active-location count / usable day.
+
+Stop rule: proceed to Stage 07 only if at least one primary feature passes every gate. If all 6 support/cap configurations fail, close broad within-user change detection on GeoLife as longitudinal-data-limited rather than continue tuning windows.
+
+## 2026-10-02 — Measured Stage 06d support-indexed feasibility closes broad Stage 07
+
+The Stage-06d Modal run completed on the frozen Stage-06 / Stage-03a private caches.
+
+Support-indexed windows solved the Stage-06c coverage bottleneck for smaller block sizes:
+
+- 6 usable days, 56-day cap: 49 adjacent pairs / 18 users;
+- 6 usable days, 84-day cap: 58 pairs / 21 users;
+- 8 usable days, 56-day cap: 26 pairs / 11 users;
+- 8 usable days, 84-day cap: 29 pairs / 11 users;
+- 10 usable days, 56-day cap: 15 pairs / 8 users;
+- 10 usable days, 84-day cap: 18 pairs / 8 users.
+
+Thus 6-day and 8-day support windows exceed the predeclared >=20-pair and >=10-user coverage gates. The failure is no longer explainable only by insufficient pair count.
+
+Exact OD remains sampling-dominated. Median chronological JSD is 0.724–1.000 across the six settings, while median random-partition JSD is 0.728–0.899. Chronological JSD exceeds the random p95 in only 0–6.7% of pairs.
+
+Primary-feature result:
+
+- active-location count / usable day fails rank stability in every configuration (Spearman from -0.026 to 0.434);
+- cleaned distance / usable day has useful rank stability for 6-day and 8-day blocks (Spearman ~0.697–0.737) but misses another predeclared gate in every covered configuration:
+  - 6d / 56d: bootstrap-width / observed-IQR = 1.030 (>1.0);
+  - 6d / 84d: chronological > random p95 = 10.34% (>10%);
+  - 8d / 56d: chronological > random p95 = 11.54%;
+  - 8d / 84d: chronological > random p95 = 10.34%.
+
+The 10-day settings also fail population coverage.
+
+Most importantly, the final decision table reports zero passing features of any kind in all six configurations and zero passing primary features. stage07_ready is false everywhere.
+
+Decision: stop broad within-user behavioral change detection on GeoLife. The project has evidence for routines and some stable coarse mobility features, but not enough jointly stable, null-calibrated, low-uncertainty longitudinal signal to justify a general Stage-07 detector under the predeclared protocol. Do not add more support sizes or relax gates post hoc.
+

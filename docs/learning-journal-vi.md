@@ -997,3 +997,64 @@ Bài học: không nên hạ gate từ 20 xuống 15/16 chỉ vì kết quả hi
 
 Decision đúng là giữ Stage 07 blocked và thay đổi window construction, không thay đổi acceptance criterion sau khi xem output.
 
+## 2026-10-02 — Support-indexed windows sửa được coverage nhưng không tạo ra change signal đủ mạnh
+
+Stage 06c có thể bị nghi ngờ rằng fixed calendar windows làm mất quá nhiều pair. Stage 06d kiểm tra trực tiếp giả thuyết đó bằng block cố định 6 / 8 / 10 usable days.
+
+Kết quả 6-day và 8-day blocks đạt coverage gate:
+
+- 6d/56: 49 pairs, 18 users;
+- 6d/84: 58 pairs, 21 users;
+- 8d/56: 26 pairs, 11 users;
+- 8d/84: 29 pairs, 11 users.
+
+Vì vậy bottleneck của 06c thực sự đã được sửa.
+
+Nhưng sau khi coverage đủ, không configuration nào có feature pass toàn bộ gate. Điều này quan trọng hơn một failure vì thiếu sample: representation hiện có không cho đủ combination của rank stability, null calibration và bootstrap precision.
+
+Bài học:
+
+```text
+fixing coverage
+!=
+creating longitudinal signal
+```
+
+Một feasibility study tốt phải tách hai câu hỏi này ra. 06d cho phép kết luận mạnh hơn rằng broad change detection đang bị giới hạn bởi signal/data quality, không chỉ bởi window construction.
+
+## 2026-10-02 — Cleaned distance là feature gần pass nhất nhưng không được làm tròn threshold
+
+Cleaned distance / usable day có Spearman tốt:
+
+- 6d/56: 0.712;
+- 6d/84: 0.697;
+- 8d/56: 0.696;
+- 8d/84: 0.737.
+
+Nhưng mỗi setting đều miss ít nhất một gate đã khai báo trước:
+
+- 6d/56 bootstrap ratio = 1.030, cao hơn gate 1.0;
+- 6d/84 null exceedance = 10.34%, cao hơn 10%;
+- 8d/56 = 11.54%;
+- 8d/84 = 10.34%.
+
+Các miss rất sát threshold, nhưng chính vì sát nên càng không nên làm tròn hoặc nới gate sau khi xem kết quả.
+
+Bài học: near-pass không phải pass. Predeclared boundary chỉ có ý nghĩa nếu vẫn giữ nguyên khi result nằm ngay bên kia boundary.
+
+## 2026-10-02 — Khi stop rule đã được predeclare, negative result là kết quả cuối chứ không phải lời mời tune tiếp
+
+Final 06d decision table cho cả sáu support/cap configurations:
+
+```text
+candidate_features = 0
+candidate_primary_features = 0
+stage07_ready = False
+```
+
+Không chỉ primary feature fail; không feature nào trong full Stage-06c family pass tất cả gates.
+
+Vì vậy đúng theo stop rule, broad within-user Stage 07 phải dừng.
+
+Bài học: một research pipeline cần biết khi nào không nên xây model tiếp. Nếu sau khi sửa representation và coverage mà null-calibrated longitudinal signal vẫn không đủ, tiếp tục thử thêm window sizes sẽ biến audit thành threshold search.
+
