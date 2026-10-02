@@ -115,3 +115,15 @@ Stage 07d is closed.
 
 Next recommended stage: resolve BCL POI 2008 exact file access, reuse rights, and CRS, then evaluate whether a high-precision historical semantic join is feasible for the 208 anchors temporally covered by that source.
 
+## Corrected location namespace requirement
+
+Do not run Stage 07d from an old Stage-07c artifact lacking:
+
+```text
+location_namespace = production_complete_link_200m_beijing_policy_v1
+```
+
+HOME consensus and Stage-05b dominant secondary ids live in the production semantic-location namespace. Stage 07d now reconstructs coordinates from the same production location table.
+
+If the namespace marker is absent or different, rerun corrected Stage 07c first.
+
