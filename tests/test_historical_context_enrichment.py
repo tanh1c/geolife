@@ -95,3 +95,51 @@ def test_clcd_url_is_pinned_to_cog_record():
     url = module.clcd_cog_url(2009)
     assert str(module.CLCD_RECORD_ID) in url
     assert "CLCD_v01_2009.tif" in url
+
+def test_secret_isolated_fetcher_path_accepts_bytes_and_caches(tmp_path):
+    module = _module()
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from io import BytesIO
+
+    table = pa.table({
+        "tags": pa.array([{"building": "office"}], type=pa.map_(pa.string(), pa.string())),
+    })
+    buffer = BytesIO()
+    pq.write_table(table, buffer)
+    payload = buffer.getvalue()
+
+    anchors = pd.DataFrame([{
+        "user_id": "u1",
+        "location_id": 1,
+        "latitude": 39.9,
+        "longitude": 116.4,
+        "median_observation_date": "2009-06-15",
+    }])
+
+    calls = {"n": 0}
+
+    def fetcher(body):
+        calls["n"] += 1
+        assert body["time"] == "2009-06-15T00:00:00Z"
+        return payload
+
+    context, log = module.fetch_ohsome_context_with_fetcher(
+        anchors,
+        fetcher=fetcher,
+        cache_dir=tmp_path,
+        radius_m=100,
+    )
+    assert calls["n"] == 1
+    assert bool(context.iloc[0]["osm_office_commercial_present"])
+    assert not bool(log.iloc[0]["cached"])
+
+    context2, log2 = module.fetch_ohsome_context_with_fetcher(
+        anchors,
+        fetcher=fetcher,
+        cache_dir=tmp_path,
+        radius_m=100,
+    )
+    assert calls["n"] == 1
+    assert bool(log2.iloc[0]["cached"])
+
