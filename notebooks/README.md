@@ -108,4 +108,10 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Applies 56 / 84-day calendar-span caps so equal support does not silently allow arbitrarily long elapsed-time windows.
 - Keeps the Stage-06c null calibration and bootstrap gates, and adds a >=10 unique-user coverage guard.
 - Stage 07 proceeds only if at least one predeclared primary feature passes every readiness gate.
+### Stage 07 — work-regime / occupational-mobility archetypes
 
+- 07_work_regime_archetypes.ipynb
+- Composes audited Stage-03a anchor/mobility states, Stage-05b adaptive secondary-anchor patterns, optional Stage-05c independent evidence, and Stage-06 routine summaries.
+- Produces descriptive regimes: shifted fixed-site-like, fixed-site-like, route-centric/mobile-like, multi-site recurring, irregular, insufficient.
+- Recommends a WORK representation (single anchor, anchor set, route/activity region, or abstain) without inferring occupation or semantic workplace truth.
+- If measured archetypes are coherent, the next independent step is external POI / land-use enrichment.

@@ -1058,3 +1058,58 @@ Vì vậy đúng theo stop rule, broad within-user Stage 07 phải dừng.
 
 Bài học: một research pipeline cần biết khi nào không nên xây model tiếp. Nếu sau khi sửa representation và coverage mà null-calibrated longitudinal signal vẫn không đủ, tiếp tục thử thêm window sizes sẽ biến audit thành threshold search.
 
+## 2026-10-02 — Work regime nên là profile nhiều trục, không phải một class duy nhất
+
+Stage 07 v1 thử ép evidence từ 03a / 05b / 05c / 06 thành một taxonomy mutually-exclusive.
+
+Kết quả có signal thật: route-centric group có route complexity cao, multi-site group có repeated-route support, fixed-site group có stable secondary anchor và HOME context.
+
+Nhưng overlap làm lộ vấn đề thiết kế:
+
+- 7/7 fixed_site_like vẫn là multi_anchor_state;
+- 2/8 route_centric_mobile_like vẫn có stable_single_secondary;
+- shifted evidence xuất hiện bên trong multi-site / route-centric thay vì tạo class riêng.
+
+Bài học:
+
+```text
+site topology
+route topology
+schedule timing
+mobility complexity
+```
+
+là các dimension có thể đồng thời đúng cho một user.
+
+Do đó occupational mobility hợp lý hơn dưới dạng factorized profile, ví dụ:
+
+```text
+site: dominant secondary + multiple recurring anchors
+route: recurrent / complex
+schedule: shifted
+mobile complexity: yes
+HOME context: supported
+```
+
+thay vì ép user vào đúng một nhãn fixed-site hoặc route-centric.
+
+## 2026-10-02 — Coverage của WORK representation vẫn phải được báo cáo như abstention problem
+
+Stage 07 v1 chỉ cho 24/182 user một representation không-abstain:
+
+- 7 single-anchor candidate;
+- 9 work-anchor set;
+- 8 route/activity-region.
+
+158/182 user còn lại là irregular hoặc insufficient.
+
+Bài học: taxonomy đẹp nhưng chỉ cover một phần nhỏ population thì không được mô tả như universal job/work model. Abstention rate là một result chính, không phải phần phụ.
+
+## 2026-10-02 — Independent evidence yếu không được biến mất sau khi integration
+
+Fixed-site-like có 5/7 user với Stage-05c evidence, nhưng median top-1 independent evidence axes chỉ là 1.0.
+
+Stage 05c trước đó đã kết luận persistence của secondary anchor không đủ để promote thành OFFICE.
+
+Bài học: integration stage không được làm yếu đi negative evidence từ upstream. Stable anchor có thể quyết định representation geometry, nhưng không tự tạo semantic WORK truth.
+
