@@ -1720,3 +1720,28 @@ Fix:
 
 This preserves the intended requirement: Stage 07e needs complete raw historical OSM cache, not a freshly persisted request log.
 
+## 2026-10-02 — Location-namespace correctness issue invalidates prior 07c/07d/07e measured anchor interpretation
+
+Stage 07e exposed that Stage 05b and Stage 07c were not using the same location-id namespace.
+
+- Stage 05b used production `build_semantic_locations(... complete_link, 200m)`, whose location ids are assigned by first observation after the Beijing region policy.
+- Stage 07c/07d used `cluster_behavior_locations(..., 200m)`, whose location ids are relabeled by dwell/support and are built from a different stay universe.
+
+Therefore integer equality of `location_id` across these stages was not a valid join key.
+
+Consequences:
+
+- the old 225-anchor Stage-07c universe may have excluded the wrong location when removing HOME;
+- the old Stage-07d CLCD / OSM summaries remain technically valid for those 225 coordinates, but those coordinates are not guaranteed to be the intended production-aligned recurring non-HOME universe;
+- the first Stage-07e result (62 semantic <=100m, 46 work-compatible <=100m, 8/9 exact stable-secondary anchors) is superseded and must not be interpreted further.
+
+Corrective patch:
+
+- Stage 07c now rebuilds locations using production `build_semantic_locations` with complete-link 200 m;
+- validates that all supported HOME ids and Stage-05b dominant secondary ids exist in that namespace;
+- persists `location_namespace=production_complete_link_200m_beijing_policy_v1`;
+- Stage 07d attaches coordinates from the production location table;
+- Stage 07e rejects any artifact missing the expected namespace.
+
+Required rerun order: corrected 07c -> corrected 07d (resume cache; fetch only missing request hashes) -> corrected 07e.
+
