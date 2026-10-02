@@ -1417,3 +1417,31 @@ The taxonomy reuses Stage-03a anchor/mobility states, Stage-05b adaptive seconda
 Semantic boundary: fixed_site_like is not OFFICE, route_centric_mobile_like is not a driver/sales/courier label, and multi_site_recurring is not proof of multiple offices.
 
 If the measured taxonomy has useful coverage and coherent evidence composition, the next independent axis is external coarse POI / land-use context.
+
+## 2026-10-02 — Measured Stage 07 v1 reveals non-orthogonal work-regime evidence
+
+The Stage-07 work-regime notebook executed successfully over 182 behavior users.
+
+Distribution:
+
+- 110 insufficient;
+- 48 irregular;
+- 9 multi-site recurring;
+- 8 route-centric/mobile-like;
+- 7 fixed-site-like;
+- 0 shifted fixed-site-like.
+
+Only 24 / 182 users (13.2%) receive a non-abstaining WORK representation; 158 / 182 (86.8%) remain abstaining or insufficient.
+
+The integration produced useful route-complexity separation: route-centric users have repeated-route evidence for 8/8 and median 24.5 distinct edges, while multi-site users have repeated-route evidence for 9/9 and median 11 distinct edges.
+
+But the categorical taxonomy is not cleanly separable:
+
+- 7/7 fixed-site-like users are also multi-anchor-state users;
+- 2/8 route-centric users also have stable-single-secondary evidence;
+- shifted-schedule evidence appears inside route/multi-site groups instead of forming a separate class.
+
+Decision: do not freeze or semantically interpret the v1 mutually-exclusive archetypes. The mentor/job direction remains viable, but it should be expressed as a factorized occupational-mobility profile rather than one class.
+
+Next stage: 07b factorization of site structure, route structure, timing regime, mobility complexity, HOME support and independent secondary-anchor evidence. External POI / land-use context comes after that as an independent semantic layer.
+
