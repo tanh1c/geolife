@@ -1519,3 +1519,30 @@ Verified source roles:
 - Gaode 2011 / Baidu 2012: remain blocked until provenance/access/license/CRS are verified.
 
 Stage 07d will be source-modular and must refuse blocked sources unless their gate metadata is explicitly updated with evidence.
+
+## 2026-10-02 — Measured Stage 07c makes 2008–2009 the dominant historical-context problem
+
+Stage 07c ran successfully after fixing the fresh-runtime src-layout setup.
+
+The support-qualified universe contains 25 users and 225 recurring non-HOME anchors.
+
+Median observation-year distribution:
+
+- 2008: 72 anchors / 12 users;
+- 2009: 136 anchors / 11 users;
+- 2010: 1 anchor / 1 user;
+- 2011: 10 anchors / 4 users;
+- 2012: 6 anchors / 2 users.
+
+Thus 208 / 225 anchors (92.4%) are concentrated in 2008–2009.
+
+This materially changes external-source priority:
+
+- CLCD can provide exact-year physical context for all 225 anchors;
+- ohsome can provide historical OSM cross-checks for all 225 measured anchors;
+- BCL POI 2008 is the highest-leverage semantic source candidate, relevant to 208 anchors / 19 users;
+- Gaode 2010 would affect only 1 anchor / 1 user;
+- 2011 and 2012 candidates affect only 16 anchors total.
+
+Decision: Stage 07d MVP should implement CLCD + ohsome first, while BCL POI 2008 access/license/CRS is resolved. Do not prioritize Gaode/Baidu ingestion yet.
+
