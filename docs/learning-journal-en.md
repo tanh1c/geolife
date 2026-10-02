@@ -1143,3 +1143,13 @@ For this dataset:
 - ohsome can cross-check all measured anchors;
 - Gaode 2010 is currently a low-priority niche path.
 
+## 2026-10-02 — Partial API coverage is not population evidence
+
+Stage 07d makes the distinction between technical reliability and statistical support explicit.
+
+CLCD covers almost all 225 anchors, so the physical-context result can be stated at population scale: 96% of anchors are on impervious land and point-vs-local-window agreement is about 99%.
+
+The free-tier ohsome cross-check, however, has completed only 35 anchors from 3 users. Although 11/35 completed anchors have semantic context and 10/35 have broad work-compatible context, those proportions are not representative of the 25-user candidate universe because completion is determined by request order and quota.
+
+Lesson: caching/resume solves reliability engineering, not sampling bias. Every partial external-API result must carry both anchor coverage and user coverage before interpretation.
+
