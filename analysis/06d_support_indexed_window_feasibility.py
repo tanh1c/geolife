@@ -7,6 +7,7 @@ treats elapsed calendar span as an eligibility constraint.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -252,10 +253,10 @@ def build_adjacent_pairs(
                 records, str(user_id), int(support_days), index + 1
             )
 
-            left_edges = BASE.Counter(
+            left_edges = Counter(
                 edge for values in left_days["edges"] for edge in values
             )
-            right_edges = BASE.Counter(
+            right_edges = Counter(
                 edge for values in right_days["edges"] for edge in values
             )
 
@@ -360,10 +361,10 @@ def random_partition_calibration(
                 if np.isfinite(value):
                     nulls[feature].append(value)
 
-            left_edges = BASE.Counter(
+            left_edges = Counter(
                 edge for values in random_left["edges"] for edge in values
             )
-            right_edges = BASE.Counter(
+            right_edges = Counter(
                 edge for values in random_right["edges"] for edge in values
             )
             jsd = BASE._jsd(left_edges, right_edges)
