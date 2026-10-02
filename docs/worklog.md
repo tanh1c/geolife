@@ -1590,3 +1590,26 @@ Fix:
 
 No aggregate result or Stage-07c source-priority conclusion changes.
 
+## 2026-10-02 — Stage 07d free-tier ohsome rate-limit handling
+
+Measured CLCD enrichment completed successfully, but the optional historical-OSM cross-check hit HTTP 429 Too Many Requests on the free-tier ohsome API key.
+
+The previous runner treated this as a fatal remote exception, which also caused a downstream undefined-variable error.
+
+Fix:
+
+- remote Modal function returns structured status instead of serializing httpx exceptions;
+- successful anchor responses are cached;
+- default fresh-request budget = 20 per run;
+- default inter-request pause = 6 s;
+- first 429 stops further fresh API calls;
+- remaining anchors are logged as deferred;
+- partial OSM context and logs are saved;
+- later reruns resume from cache.
+
+CLCD measured output from the failed run remains valid:
+- 224 / 225 anchors had a known point land-cover class;
+- 216 / 225 (96.0%) were impervious;
+- point vs 3x3 agreement = 223 / 225;
+- point vs 5x5 agreement = 222 / 225.
+
