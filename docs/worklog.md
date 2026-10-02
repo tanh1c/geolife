@@ -1444,4 +1444,56 @@ But the categorical taxonomy is not cleanly separable:
 Decision: do not freeze or semantically interpret the v1 mutually-exclusive archetypes. The mentor/job direction remains viable, but it should be expressed as a factorized occupational-mobility profile rather than one class.
 
 Next stage: 07b factorization of site structure, route structure, timing regime, mobility complexity, HOME support and independent secondary-anchor evidence. External POI / land-use context comes after that as an independent semantic layer.
+## 2026-10-02 — Stage 07b factorized work-regime profiles scaffolded
+
+Measured Stage 07 v1 showed that stable-secondary, multi-anchor, repeated-route, shifted-schedule and mobile-complexity evidence overlap within the same users.
+
+Stage 07b therefore removes the mutually-exclusive work_regime label and keeps separate axes for:
+
+- site / anchor structure;
+- route / OD structure;
+- schedule timing;
+- mobility complexity;
+- HOME context;
+- independent Stage-05c evidence.
+
+Representation output is now multi-label rather than categorical:
+
+- candidate_single_anchor_geometry;
+- candidate_anchor_set_geometry;
+- candidate_route_region_geometry;
+- schedule_agnostic_needed.
+
+A user may legitimately receive multiple representation options simultaneously.
+
+Aggregate review focuses on upstream support coverage, axis prevalence, pairwise overlap, common evidence signatures and representation signatures.
+
+No occupation, employment-status, true WORK, OFFICE, or POI semantic claim is created. External POI / land-use enrichment remains a later independent semantic layer.
+
+## 2026-10-02 — Measured Stage 07b validates factorized work profiles
+
+Stage 07b executed successfully on the frozen Stage-03a / 05b / optional 05c / 06 artifacts.
+
+The result confirms that the Stage-07 v1 conflicts were genuine overlaps:
+
+- 9/9 stable-secondary users are also multiple-recurring users;
+- 7/9 stable-secondary users have repeated-route evidence;
+- 22/23 repeated-route users are multiple-recurring;
+- 23/23 mobile-complexity users are multiple-recurring;
+- both shifted-schedule users also have repeated-route evidence.
+
+Representation output is correspondingly multi-label:
+
+- 110 abstain;
+- 48 anchor-set only;
+- 13 anchor-set + route-region;
+- 7 single-anchor + anchor-set + route-region;
+- 2 single-anchor + anchor-set;
+- 2 anchor-set + route-region + schedule-agnostic.
+
+No stable-secondary user is truly single-anchor-only under the broader recurring-location representation.
+
+Decision: accept factorization as the mobility-side representation and stop trying to create one work-regime class.
+
+Next semantic step should be external POI / land-use enrichment, but only on a support-qualified subset. Start with the 25 HIGH/MEDIUM HOME-supported users and candidate non-HOME recurring anchors so HOME exclusion is explicit. Keep the external context separate from the Stage-07b profile.
 

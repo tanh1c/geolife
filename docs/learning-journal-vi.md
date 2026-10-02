@@ -1113,3 +1113,35 @@ Stage 05c trước đó đã kết luận persistence của secondary anchor kh�
 
 Bài học: integration stage không được làm yếu đi negative evidence từ upstream. Stable anchor có thể quyết định representation geometry, nhưng không tự tạo semantic WORK truth.
 
+## 2026-10-02 — Factorization biến overlap từ “classification bug” thành kết quả
+
+Stage 07 v1 coi overlap giữa fixed-site, multi-site và route-centric như vấn đề taxonomy.
+
+Stage 07b giữ các axis riêng và cho thấy overlap rất có cấu trúc:
+
+- 9/9 stable-secondary cũng multiple-recurring;
+- 7/9 stable-secondary cũng repeated-route;
+- 22/23 repeated-route cũng multiple-recurring;
+- 23/23 mobile-complexity cũng multiple-recurring;
+- 2/2 shifted-schedule cũng repeated-route.
+
+Bài học: khi các evidence state cùng đúng một cách có hệ thống, không nên cố ép chúng thành mutually-exclusive class. Overlap tự nó là behavioral information.
+
+## 2026-10-02 — Stable secondary không có nghĩa là user chỉ có một work-like place
+
+Representation signature cho thấy:
+
+- 7 user có single-anchor + anchor-set + route-region;
+- 2 user có single-anchor + anchor-set;
+- không có user nào single-anchor-only.
+
+Bài học: một dominant secondary anchor có thể tồn tại bên trong một hệ nhiều recurring anchors. Vì vậy single-anchor geometry là một candidate view, không phải mô tả đầy đủ toàn bộ mobility structure.
+
+## 2026-10-02 — External semantics nên bắt đầu từ subset có HOME context
+
+07b có 72 multiple-recurring users nhưng chỉ 25 user có HIGH/MEDIUM HOME context.
+
+Nếu enrich POI cho toàn bộ 72 ngay, ta có nguy cơ đưa HOME-like anchors vào semantic WORK audit mà không loại được HOME độc lập.
+
+Bài học: external semantic enrichment nên bắt đầu từ support-qualified subset có HOME context đáng tin, rồi chỉ enrich các recurring non-HOME anchors. Mobility profile vẫn giữ nguyên cho toàn population.
+
