@@ -568,6 +568,81 @@ def _supported_home_rows(home_evidence: pd.DataFrame) -> pd.DataFrame:
     return home[keep].rename(columns={"location_id": "home_location_id"})
 
 
+PRODUCTION_LOCATION_NAMESPACE = "production_complete_link_200m_beijing_policy_v1"
+
+
+def validate_location_namespace(
+    locations: pd.DataFrame,
+    home_evidence: pd.DataFrame,
+    work_patterns: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Validate that upstream HOME / adaptive-anchor ids exist in locations.
+
+    Stage 05/05b location ids come from production build_semantic_locations.
+    Stage 07c must therefore consume the same location namespace before any
+    anchor filtering or external-context work.
+    """
+    loc = _as_user_id(locations)
+    required = {"user_id", "location_id"}
+    missing = required.difference(loc.columns)
+    if missing:
+        raise ValueError(f"locations missing required columns: {sorted(missing)}")
+    loc = loc.copy()
+    loc["location_id"] = pd.to_numeric(
+        loc["location_id"], errors="raise"
+    ).astype(int)
+    keys = set(zip(loc["user_id"], loc["location_id"]))
+
+    home = _supported_home_rows(home_evidence)
+    home_pairs = list(
+        zip(
+            home["user_id"].astype(str),
+            pd.to_numeric(home["home_location_id"], errors="raise").astype(int),
+        )
+    )
+    missing_home = [pair for pair in home_pairs if pair not in keys]
+    if missing_home:
+        raise ValueError(
+            "location namespace mismatch: supported HOME ids missing from "
+            f"locations; count={len(missing_home)}, sample={missing_home[:5]}"
+        )
+
+    work_checked = 0
+    work_missing: list[tuple[str, int]] = []
+    if work_patterns is not None and not work_patterns.empty:
+        work = _as_user_id(work_patterns)
+        if "dominant_location_id" in work.columns:
+            dominant = work.loc[work["dominant_location_id"].notna()].copy()
+            dominant["dominant_location_id"] = pd.to_numeric(
+                dominant["dominant_location_id"], errors="raise"
+            ).astype(int)
+            work_pairs = list(
+                zip(dominant["user_id"], dominant["dominant_location_id"])
+            )
+            work_checked = len(work_pairs)
+            work_missing = [pair for pair in work_pairs if pair not in keys]
+            if work_missing:
+                raise ValueError(
+                    "location namespace mismatch: Stage-05b dominant ids "
+                    "missing from locations; "
+                    f"count={len(work_missing)}, sample={work_missing[:5]}"
+                )
+
+    return pd.DataFrame(
+        [
+            {
+                "location_namespace": PRODUCTION_LOCATION_NAMESPACE,
+                "location_users": int(loc["user_id"].nunique()),
+                "locations": int(len(loc)),
+                "supported_home_ids_checked": int(len(home_pairs)),
+                "supported_home_ids_missing": int(len(missing_home)),
+                "dominant_work_ids_checked": int(work_checked),
+                "dominant_work_ids_missing": int(len(work_missing)),
+            }
+        ]
+    )
+
+
 def build_support_qualified_anchors(
     locations: pd.DataFrame,
     home_evidence: pd.DataFrame,
