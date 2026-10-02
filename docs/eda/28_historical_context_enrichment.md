@@ -190,3 +190,45 @@ Decision:
 - Full ohsome completion is not a gate for downstream work.
 - Semantic enrichment priority remains BCL POI 2008 because it is temporally relevant to 208 / 225 anchors.
 
+## Final measured result — full ohsome completion
+
+A later free-tier-resumable run completed the historical OSM cross-check for the full Stage-07d anchor universe.
+
+Coverage:
+
+- anchor target: 225;
+- anchor completed: 225;
+- completion share: 100%;
+- users covered: 25 / 25;
+- cached before final run: 217;
+- newly fetched in final run: 8;
+- rate-limit hits in final run: 0;
+- deferred anchors: 0;
+- request errors: 0;
+- parse errors: 0.
+
+Full-universe ohsome context:
+
+- semantic historical OSM context found: 65 / 225 anchors (28.89%), 16 users;
+- broad work-compatible context: 48 / 225 anchors (21.33%), 14 users;
+- residential context: 8 / 225 anchors (3.56%), 2 users.
+
+Because coverage is now complete for the 225-anchor candidate universe, these proportions are descriptive of the Stage-07d candidate set rather than a quota-driven partial sample.
+
+However, they remain historical-OSM mapping evidence, not ground-truth facility semantics. Early-China OSM incompleteness and mapping lag still mean:
+
+- missing semantic context does not imply real-world absence;
+- work-compatible tags do not prove that an anchor is WORK/OFFICE;
+- residential tags do not prove HOME;
+- no occupation or employment label is inferred.
+
+Combined Stage-07d result:
+
+- CLCD establishes that 216 / 225 anchors (96.0%) lie on impervious land with very high local spatial stability;
+- historical OSM adds semantic-context evidence for 65 / 225 anchors;
+- 48 / 225 anchors have at least one broad work-compatible historical OSM category.
+
+Decision:
+
+Stage 07d is complete. Do not spend more engineering effort on ohsome coverage for this candidate universe. The next highest-value semantic source remains BCL POI 2008 because Stage 07c showed temporal relevance to 208 / 225 anchors.
+
