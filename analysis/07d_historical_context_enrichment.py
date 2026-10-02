@@ -479,24 +479,52 @@ def _ohsome_cache_key(request_body: dict) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
 
 
-def fetch_ohsome_context(
+def _summarize_ohsome_anchor(
+    anchor: dict,
+    content: bytes,
+) -> tuple[dict[str, object], int]:
+    features = parse_ohsome_parquet(content)
+    active_categories = sorted(
+        {
+            category
+            for values in features["categories"]
+            for category in values
+        }
+    )
+    category_set = set(active_categories)
+    row: dict[str, object] = {
+        "user_id": str(anchor["user_id"]),
+        "location_id": int(anchor["location_id"]),
+        "osm_snapshot_date": str(anchor["median_observation_date"]),
+        "osm_feature_count": int(len(features)),
+        "osm_context_signature": (
+            "+".join(active_categories) if active_categories else "unknown"
+        ),
+        "osm_semantic_category_count": int(len(active_categories)),
+        "osm_work_compatible_context": bool(
+            category_set.intersection(WORK_COMPATIBLE_CATEGORIES)
+        ),
+        "osm_residential_context": "residential" in category_set,
+    }
+    for category in CONTEXT_CATEGORIES:
+        row[f"osm_{category}_present"] = category in category_set
+    return row, int(len(features))
+
+
+def fetch_ohsome_context_with_fetcher(
     anchors: pd.DataFrame,
     *,
-    api_key: str,
+    fetcher,
     cache_dir: Path,
-    api_url: str = OHSOME_API_DEFAULT,
     radius_m: float = 100.0,
-    pause_s: float = 0.25,
-    timeout_s: float = 240.0,
+    pause_s: float = 0.0,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Fetch one cached historical OSM semantic extract per anchor.
+    """Fetch historical OSM context using an injected bytes fetcher.
 
-    This is intentionally optional and cross-check-only.
+    The fetcher accepts one ohsome request body and returns Parquet bytes.
+    This allows Modal Secret injection to stay inside a remote function so the
+    API key never needs to enter the notebook process.
     """
-    if not api_key:
-        raise ValueError("ohsome API key is required")
-    import httpx
-
     cache_dir.mkdir(parents=True, exist_ok=True)
     rows = []
     logs = []
@@ -510,43 +538,15 @@ def fetch_ohsome_context(
         if cached:
             content = path.read_bytes()
         else:
-            response = httpx.post(
-                api_url.rstrip("/") + "/extraction/features.parquet",
-                json=body,
-                headers={"authorization": api_key},
-                timeout=timeout_s,
-            )
-            response.raise_for_status()
-            content = response.content
+            content = fetcher(body)
+            if not isinstance(content, (bytes, bytearray)):
+                raise TypeError("ohsome fetcher must return bytes")
+            content = bytes(content)
             path.write_bytes(content)
             if pause_s > 0:
                 time.sleep(float(pause_s))
 
-        features = parse_ohsome_parquet(content)
-        active_categories = sorted(
-            {
-                category
-                for values in features["categories"]
-                for category in values
-            }
-        )
-        category_set = set(active_categories)
-        row = {
-            "user_id": str(anchor["user_id"]),
-            "location_id": int(anchor["location_id"]),
-            "osm_snapshot_date": str(anchor["median_observation_date"]),
-            "osm_feature_count": int(len(features)),
-            "osm_context_signature": (
-                "+".join(active_categories) if active_categories else "unknown"
-            ),
-            "osm_semantic_category_count": int(len(active_categories)),
-            "osm_work_compatible_context": bool(
-                category_set.intersection(WORK_COMPATIBLE_CATEGORIES)
-            ),
-            "osm_residential_context": "residential" in category_set,
-        }
-        for category in CONTEXT_CATEGORIES:
-            row[f"osm_{category}_present"] = category in category_set
+        row, feature_count = _summarize_ohsome_anchor(anchor, content)
         rows.append(row)
         logs.append(
             {
@@ -554,11 +554,47 @@ def fetch_ohsome_context(
                 "location_id": int(anchor["location_id"]),
                 "cache_key": digest,
                 "cached": bool(cached),
-                "feature_count": int(len(features)),
+                "feature_count": int(feature_count),
             }
         )
 
     return pd.DataFrame(rows), pd.DataFrame(logs)
+
+
+def fetch_ohsome_context(
+    anchors: pd.DataFrame,
+    *,
+    api_key: str,
+    cache_dir: Path,
+    api_url: str = OHSOME_API_DEFAULT,
+    radius_m: float = 100.0,
+    pause_s: float = 0.25,
+    timeout_s: float = 240.0,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Direct-key convenience wrapper for non-Modal runtimes."""
+    if not api_key:
+        raise ValueError("ohsome API key is required")
+    import httpx
+
+    endpoint = api_url.rstrip("/") + "/extraction/features.parquet"
+
+    def fetcher(body: dict) -> bytes:
+        response = httpx.post(
+            endpoint,
+            json=body,
+            headers={"authorization": api_key},
+            timeout=timeout_s,
+        )
+        response.raise_for_status()
+        return response.content
+
+    return fetch_ohsome_context_with_fetcher(
+        anchors,
+        fetcher=fetcher,
+        cache_dir=cache_dir,
+        radius_m=radius_m,
+        pause_s=pause_s,
+    )
 
 
 def summarize_ohsome(context: pd.DataFrame) -> pd.DataFrame:
