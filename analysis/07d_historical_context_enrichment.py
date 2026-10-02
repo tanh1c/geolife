@@ -105,7 +105,7 @@ def clcd_cog_url(year: int) -> str:
     year = int(year)
     if year < 1985 or year > 2022:
         raise ValueError("year outside the pinned CLCD v1.0.2 record range")
-    return f"{CLCD_COG_BASE}/CLCD_v01_{year}.tif?download=1"
+    return f"{CLCD_COG_BASE}/CLCD_v01_{year}_albert.tif?download=1"
 
 
 def clcd_label(code: object) -> str:
