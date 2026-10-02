@@ -162,3 +162,61 @@ def test_support_qualified_anchor_builder_excludes_home_and_low_support_users():
     assert anchors.iloc[0]["user_id"] == "u1"
     assert int(anchors.iloc[0]["location_id"]) == 1
 
+def test_location_namespace_validation_accepts_matching_home_and_work_ids():
+    module = _module()
+    locations = pd.DataFrame(
+        [
+            {"user_id": "u1", "location_id": 0, "stay_count": 5},
+            {"user_id": "u1", "location_id": 1, "stay_count": 3},
+        ]
+    )
+    home = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 0,
+                "home_tier": "high",
+                "unique_vote_winner": True,
+            }
+        ]
+    )
+    work = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "dominant_location_id": 1,
+                "window_pattern": "stable_secondary_anchor",
+            }
+        ]
+    )
+
+    result = module.validate_location_namespace(locations, home, work).iloc[0]
+
+    assert result["location_namespace"] == module.PRODUCTION_LOCATION_NAMESPACE
+    assert int(result["supported_home_ids_missing"]) == 0
+    assert int(result["dominant_work_ids_missing"]) == 0
+
+
+def test_location_namespace_validation_rejects_mismatched_ids():
+    module = _module()
+    locations = pd.DataFrame(
+        [{"user_id": "u1", "location_id": 7, "stay_count": 5}]
+    )
+    home = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 0,
+                "home_tier": "high",
+                "unique_vote_winner": True,
+            }
+        ]
+    )
+
+    try:
+        module.validate_location_namespace(locations, home)
+    except ValueError as exc:
+        assert "namespace mismatch" in str(exc)
+    else:
+        raise AssertionError("mismatched HOME location ids must fail")
+
