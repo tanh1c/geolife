@@ -135,3 +135,13 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Optional cross-check: historical OSM via ohsome at the anchor median observation date; requires `OHSOME_API_KEY`.
 - BCL POI 2008 remains blocked until exact file access/license/CRS are verified.
 - No occupation, WORK, or OFFICE semantics are inferred.
+
+### Stage 07e — offline semantic distance + mobility alignment
+
+- `07e_semantic_distance_alignment.ipynb`
+- Reuses the completed Stage-07d historical OSM Parquet cache; makes no API calls.
+- Computes exact local anchor-to-feature distances from WKB geometry and summarizes mapped context within 25 / 50 / 100 m.
+- Compares the exact Stage-05b stable-secondary `dominant_location_id` against same-user recurring non-HOME peer anchors.
+- Joins Stage-07b factorized mobility axes descriptively.
+- No WORK/OFFICE/HOME or occupation semantics are emitted.
+
