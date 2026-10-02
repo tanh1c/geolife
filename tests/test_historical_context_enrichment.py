@@ -94,7 +94,7 @@ def test_clcd_url_is_pinned_to_cog_record():
     module = _module()
     url = module.clcd_cog_url(2009)
     assert str(module.CLCD_RECORD_ID) in url
-    assert "CLCD_v01_2009.tif" in url
+    assert "CLCD_v01_2009_albert.tif" in url
 
 def test_secret_isolated_fetcher_path_accepts_bytes_and_caches(tmp_path):
     module = _module()
