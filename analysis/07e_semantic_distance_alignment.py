@@ -85,48 +85,84 @@ def _normalise_anchor_keys(frame: pd.DataFrame) -> pd.DataFrame:
 
 def validate_full_ohsome_cache(
     anchors: pd.DataFrame,
-    request_log: pd.DataFrame,
+    request_log: pd.DataFrame | None,
     raw_cache_dir: Path,
+    *,
+    radius_m: float = 100.0,
 ) -> pd.DataFrame:
-    """Validate one successful cached response per target anchor.
+    """Validate one raw cached ohsome response per target anchor.
 
-    The final Stage-07d run logs every anchor as cached/fetched. This check
-    prevents a partial historical-OSM run from silently entering Stage 07e.
+    Raw deterministic cache files are the source of truth. Stage-07d users may
+    rerun only the OSM fetch cell several times; in that workflow the raw cache
+    can reach 225/225 while the persisted request-log pickle remains from an
+    earlier partial run. Therefore Stage 07e recomputes the exact Stage-07d
+    request body + cache key for every anchor instead of requiring a fresh log.
+
+    request_log is retained only as optional audit metadata.
     """
     anchors = _normalise_anchor_keys(anchors)
-    log = _normalise_anchor_keys(request_log)
 
-    required = {"cache_key", "status"}
-    missing = required.difference(log.columns)
+    required = {"latitude", "longitude", "median_observation_date"}
+    missing = required.difference(anchors.columns)
     if missing:
-        raise ValueError(f"request log missing columns: {sorted(missing)}")
-
-    ok = log.loc[log["status"].isin(["cached", "fetched"])].copy()
-    if ok.duplicated(["user_id", "location_id"]).any():
-        raise ValueError("request log contains duplicate successful anchor rows")
-
-    mapping = anchors[["user_id", "location_id"]].merge(
-        ok[["user_id", "location_id", "cache_key", "status"]],
-        on=["user_id", "location_id"],
-        how="left",
-        validate="one_to_one",
-    )
-    if mapping["cache_key"].isna().any():
-        missing_count = int(mapping["cache_key"].isna().sum())
         raise ValueError(
-            f"ohsome cache is incomplete: {missing_count} target anchors missing"
+            f"anchors missing cache-key inputs: {sorted(missing)}"
         )
 
-    mapping["cache_path"] = mapping["cache_key"].map(
-        lambda key: raw_cache_dir / f"{key}.parquet"
-    )
+    rows = []
+    for anchor in anchors.to_dict(orient="records"):
+        body = STAGE07D.build_ohsome_request(
+            anchor,
+            radius_m=float(radius_m),
+        )
+        cache_key = STAGE07D._ohsome_cache_key(body)
+        rows.append(
+            {
+                "user_id": str(anchor["user_id"]),
+                "location_id": int(anchor["location_id"]),
+                "cache_key": cache_key,
+                "cache_path": raw_cache_dir / f"{cache_key}.parquet",
+            }
+        )
+
+    mapping = pd.DataFrame(rows)
     exists = mapping["cache_path"].map(Path.exists)
     if not exists.all():
-        raise FileNotFoundError(
-            f"ohsome raw cache missing {int((~exists).sum())} parquet files"
+        missing_count = int((~exists).sum())
+        sample = mapping.loc[
+            ~exists,
+            ["user_id", "location_id", "cache_key"],
+        ].head(5)
+        raise ValueError(
+            "ohsome raw cache is incomplete: "
+            f"{missing_count} target anchors missing parquet files; "
+            f"sample={sample.to_dict(orient='records')}"
         )
-    return mapping
 
+    mapping["request_log_status"] = pd.NA
+    if request_log is not None and not request_log.empty:
+        log = _normalise_anchor_keys(request_log)
+        if "status" in log.columns:
+            audit = (
+                log[["user_id", "location_id", "status"]]
+                .drop_duplicates(["user_id", "location_id"], keep="last")
+                .rename(columns={"status": "request_log_status"})
+            )
+            mapping = mapping.drop(
+                columns=["request_log_status"]
+            ).merge(
+                audit,
+                on=["user_id", "location_id"],
+                how="left",
+                validate="one_to_one",
+            )
+
+    mapping["request_log_is_success"] = (
+        mapping["request_log_status"]
+        .isin(["cached", "fetched"])
+        .fillna(False)
+    )
+    return mapping
 
 def _bbox_to_dict(value) -> dict[str, float] | None:
     if value is None:
