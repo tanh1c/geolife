@@ -159,3 +159,10 @@ Therefore:
 Stage 07e can strengthen or weaken consistency between mobility geometry and historical mapping evidence. It cannot independently establish semantic workplace ground truth.
 
 Category-specific paired summaries are included so a composite work-compatible result can be decomposed into office/commercial, education, healthcare, industrial, retail/service, transport, civic/institutional, residential, and recreation/tourism context rather than being interpreted as one opaque score.
+
+### Raw cache vs request-log provenance
+
+Stage 07d can be completed by rerunning only the OSM fetch cell. In that workflow the raw `ohsome_raw/*.parquet` cache may reach full 225/225 coverage while the persisted `ohsome_request_log_private.pkl` remains from an earlier partial run.
+
+Stage 07e therefore recomputes each deterministic Stage-07d request body and cache key from the anchor table and validates the corresponding raw Parquet file directly. The request log is audit metadata only and is never used as the coverage source of truth.
+
