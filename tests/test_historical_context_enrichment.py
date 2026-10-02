@@ -143,3 +143,20 @@ def test_secret_isolated_fetcher_path_accepts_bytes_and_caches(tmp_path):
     assert calls["n"] == 1
     assert bool(log2.iloc[0]["cached"])
 
+def test_attach_anchor_coordinates_reconstructs_median_centroid():
+    module = _module()
+    anchors = pd.DataFrame([
+        {"user_id": "u1", "location_id": 1, "median_observation_year": 2008},
+    ])
+    clustered = pd.DataFrame([
+        {"user_id": "u1", "location_id": 1, "latitude": 39.9, "longitude": 116.4},
+        {"user_id": "u1", "location_id": 1, "latitude": 39.92, "longitude": 116.42},
+        {"user_id": "u1", "location_id": 1, "latitude": 39.91, "longitude": 116.41},
+    ])
+
+    result = module.attach_anchor_coordinates_from_clustered_stays(anchors, clustered)
+
+    assert float(result.iloc[0]["latitude"]) == 39.91
+    assert float(result.iloc[0]["longitude"]) == 116.41
+    assert int(result.iloc[0]["coordinate_stay_count"]) == 3
+
