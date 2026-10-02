@@ -125,3 +125,68 @@ The defaults can be tuned with:
 
 Do not increase these merely to maximize throughput. ohsome is a secondary historical cross-check and should respect API quota.
 
+## Measured result — 2026-10-02
+
+Stage 07d completed successfully on 225 recurring non-HOME anchors from 25 users.
+
+### CLCD primary result
+
+Coverage:
+
+- known point land-cover class: 224 / 225 anchors (99.56%);
+- unknown: 1 / 225;
+- impervious: 216 / 225 anchors (96.0%);
+- point class = 3x3 local modal class: 223 / 225 (99.11%);
+- point class = 5x5 local modal class: 222 / 225 (98.67%).
+
+Year/class distribution:
+
+| year | class | anchors | users |
+|---|---|---:|---:|
+| 2008 | impervious | 70 | 11 |
+| 2008 | water | 1 | 1 |
+| 2008 | unknown | 1 | 1 |
+| 2009 | impervious | 131 | 11 |
+| 2009 | forest | 4 | 3 |
+| 2009 | cropland | 1 | 1 |
+| 2010 | cropland | 1 | 1 |
+| 2011 | impervious | 10 | 4 |
+| 2012 | impervious | 5 | 2 |
+| 2012 | water | 1 | 1 |
+
+Interpretation:
+
+The recurring non-HOME anchor universe is overwhelmingly located on historically built-up / impervious land cover. The near-perfect point-vs-window agreement indicates that this finding is not driven by a fragile single-pixel lookup for almost all anchors.
+
+This does NOT identify office, residential, school, hospital, WORK, or occupation. It only establishes a strong physical constraint: these anchors are overwhelmingly in built-up land rather than agriculture / forest / water / barren contexts.
+
+### ohsome partial cross-check
+
+Free-tier-safe execution completed:
+
+- target anchors: 225;
+- completed/cached historical OSM extracts: 35 (15.56%);
+- cached before this run: 15;
+- newly fetched this run: 20;
+- rate-limit hits this run: 0;
+- deferred by request budget: 190;
+- request errors: 0;
+- parse errors: 0.
+
+Among the 35 completed anchors:
+
+- semantic historical OSM context found: 11;
+- broad work-compatible context: 10;
+- residential context: 0.
+
+Critical limitation:
+
+The 35 completed anchors belong to only 3 users. This is a quota-driven, sequential partial sample, not a population-representative sample. The 31.4% semantic-context and 28.6% work-compatible shares must not be generalized to all 225 anchors or all 25 users.
+
+Decision:
+
+- CLCD is sufficient to close the Stage-07d physical-context objective.
+- ohsome remains a cached/resumable cross-check that can accumulate opportunistically in later reruns.
+- Full ohsome completion is not a gate for downstream work.
+- Semantic enrichment priority remains BCL POI 2008 because it is temporally relevant to 208 / 225 anchors.
+
