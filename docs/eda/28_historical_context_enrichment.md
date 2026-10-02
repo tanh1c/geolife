@@ -63,9 +63,7 @@ For each anchor:
 - extract only semantically relevant historical OSM features;
 - preserve multi-label context categories.
 
-The ohsome v2 API requires a free API key. The notebook reads OHSOME_API_KEY from the runtime environment.
-
-If no key is present, the CLCD primary analysis still runs and the OSM cross-check is recorded as skipped.
+The ohsome cross-check uses the existing Modal secret named `ohsome-api`, which must contain `OHSOME_API_KEY`. The key is injected only into a remote Modal function that performs the HTTP request; it is not exposed to or printed by the notebook process.
 
 Historical OSM absence remains missing mapping evidence, not proof that a real-world feature did not exist.
 
