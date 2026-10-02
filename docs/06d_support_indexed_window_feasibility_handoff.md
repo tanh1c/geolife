@@ -66,3 +66,48 @@ Do not add more window sizes or relax gates after seeing the result.
 Use:
 
 notebooks/06d_support_indexed_window_feasibility.ipynb
+
+## Measured result — 2026-10-02
+
+Coverage is adequate for 6-day and 8-day blocks:
+
+- 6 / 56: 49 pairs, 18 users;
+- 6 / 84: 58 pairs, 21 users;
+- 8 / 56: 26 pairs, 11 users;
+- 8 / 84: 29 pairs, 11 users.
+
+The 10-day settings remain under coverage at 15–18 pairs from 8 users.
+
+Exact OD still behaves like a sparse sampling representation: chronological JSD is high, but only 0–6.7% of pairs exceed their support-matched random p95.
+
+Primary-feature audit:
+
+- active-location count / usable day fails rank stability in all settings;
+- cleaned distance / usable day has strong rank stability for covered 6-day and 8-day settings but misses at least one other predeclared gate in every case;
+- closest case: 6 / 56 cleaned distance passes coverage, rank stability and null calibration but has bootstrap-width / observed-IQR = 1.030 (>1.0);
+- 6 / 84 and both 8-day cleaned-distance settings exceed the <=10% random-p95 gate by small margins.
+
+Final decision table:
+
+```text
+all 6 configurations:
+candidate_features = 0
+candidate_primary_features = 0
+stage07_ready = False
+```
+
+## Final handoff decision
+
+Broad Stage 07 change detection is closed for GeoLife under this protocol.
+
+Do not create another support-size sweep and do not relax readiness thresholds after observing these near-misses.
+
+Future work may still use GeoLife for:
+
+- descriptive routine mining;
+- conditional analyses on strongly supported users/edges;
+- case studies;
+- external datasets with denser longitudinal sampling.
+
+But a broad population-level within-user change detector is not supported by the audited GeoLife evidence.
+
