@@ -545,3 +545,82 @@ def synthetic_self_check() -> dict[str, object]:
         "sources": int(len(SOURCES)),
         "plan_rows": int(len(plan)),
     }
+
+def _supported_home_rows(home_evidence: pd.DataFrame) -> pd.DataFrame:
+    home = _as_user_id(home_evidence)
+    if "unique_vote_winner" in home.columns:
+        home = home.loc[home["unique_vote_winner"].fillna(False).astype(bool)]
+    if "home_tier" in home.columns:
+        home = home.loc[
+            home["home_tier"].fillna("").astype(str).str.lower().isin({"high", "medium"})
+        ]
+    required = {"user_id", "location_id"}
+    missing = required.difference(home.columns)
+    if missing:
+        raise ValueError(f"home_evidence missing required columns: {sorted(missing)}")
+    home = home.copy()
+    home["location_id"] = pd.to_numeric(home["location_id"], errors="raise").astype(int)
+    if home["user_id"].duplicated().any():
+        raise ValueError("supported home_evidence must contain at most one row per user")
+    keep = ["user_id", "location_id"]
+    if "home_tier" in home.columns:
+        keep.append("home_tier")
+    return home[keep].rename(columns={"location_id": "home_location_id"})
+
+
+def build_support_qualified_anchors(
+    locations: pd.DataFrame,
+    home_evidence: pd.DataFrame,
+    factorized_profiles: pd.DataFrame,
+    *,
+    min_stay_count: int = 2,
+) -> pd.DataFrame:
+    """Recurring non-HOME anchors for the reliable-HOME subset.
+
+    Exact coordinates stay private; aggregate source-audit outputs must not expose them.
+    """
+    if min_stay_count < 2:
+        raise ValueError("min_stay_count must be >=2")
+
+    loc = _as_user_id(locations)
+    required = {"user_id", "location_id", "stay_count"}
+    missing = required.difference(loc.columns)
+    if missing:
+        raise ValueError(f"locations missing required columns: {sorted(missing)}")
+
+    loc = loc.copy()
+    loc["location_id"] = pd.to_numeric(loc["location_id"], errors="raise").astype(int)
+    loc["stay_count"] = pd.to_numeric(loc["stay_count"], errors="coerce").fillna(0).astype(int)
+
+    home = _supported_home_rows(home_evidence)
+    profiles = _as_user_id(factorized_profiles)
+    if profiles["user_id"].duplicated().any():
+        raise ValueError("factorized_profiles must contain one row per user")
+    if "home_context_supported" in profiles.columns:
+        profiles = profiles.loc[
+            profiles["home_context_supported"].fillna(False).astype(bool)
+        ].copy()
+
+    keep_profile = ["user_id"]
+    for column in (
+        "candidate_single_anchor_geometry",
+        "candidate_anchor_set_geometry",
+        "candidate_route_region_geometry",
+        "schedule_agnostic_needed",
+        "mobile_complexity_evidence",
+        "route_repeated",
+    ):
+        if column in profiles.columns:
+            keep_profile.append(column)
+
+    out = (
+        loc.merge(home, on="user_id", how="inner", validate="many_to_one")
+        .merge(profiles[keep_profile], on="user_id", how="inner", validate="many_to_one")
+    )
+    out = out.loc[
+        out["stay_count"].ge(int(min_stay_count))
+        & out["location_id"].ne(out["home_location_id"])
+    ].copy()
+
+    return out.sort_values(["user_id", "location_id"], kind="stable").reset_index(drop=True)
+
