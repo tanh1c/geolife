@@ -78,3 +78,21 @@ A full raw cache can coexist with an older partial `ohsome_request_log_private.p
 
 If 07e reports `ohsome raw cache is incomplete`, that means Parquet files are genuinely missing. A low count of successful request-log rows alone is not a failure.
 
+## Rerun prerequisite after namespace correction
+
+The first 07e measured run must not be interpreted because its anchor universe came from the old behavior-location namespace.
+
+Run in this order:
+
+1. corrected 07c — production semantic locations;
+2. corrected 07d — production-aligned coordinates, reuse existing ohsome raw cache by request hash;
+3. corrected 07e — namespace assertion must pass.
+
+Expected marker:
+
+```text
+production_complete_link_200m_beijing_policy_v1
+```
+
+Only the corrected rerun can be frozen as measured Stage-07e evidence.
+
