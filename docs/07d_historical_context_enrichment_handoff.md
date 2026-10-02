@@ -26,9 +26,7 @@ If remote COG access is unavailable in the runtime, do not silently substitute a
 
 Optional.
 
-Set OHSOME_API_KEY as a Modal secret/environment variable.
-
-Without a key, Stage 07d still completes the CLCD primary analysis.
+Use the existing Modal secret `ohsome-api` with required key `OHSOME_API_KEY`. The notebook attaches this secret to a small remote Modal function, so the notebook process never reads or prints the key.
 
 ## BCL POI 2008
 
