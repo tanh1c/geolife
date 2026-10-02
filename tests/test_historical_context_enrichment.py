@@ -160,3 +160,131 @@ def test_attach_anchor_coordinates_reconstructs_median_centroid():
     assert float(result.iloc[0]["longitude"]) == 116.41
     assert int(result.iloc[0]["coordinate_stay_count"]) == 3
 
+def test_free_tier_rate_limit_stops_new_requests_and_returns_partial(tmp_path):
+    module = _module()
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from io import BytesIO
+
+    table = pa.table({
+        "tags": pa.array([{"building": "office"}], type=pa.map_(pa.string(), pa.string())),
+    })
+    buffer = BytesIO()
+    pq.write_table(table, buffer)
+    payload = buffer.getvalue()
+
+    anchors = pd.DataFrame([
+        {
+            "user_id": "u1",
+            "location_id": 1,
+            "latitude": 39.9,
+            "longitude": 116.4,
+            "median_observation_date": "2009-06-15",
+        },
+        {
+            "user_id": "u1",
+            "location_id": 2,
+            "latitude": 39.91,
+            "longitude": 116.41,
+            "median_observation_date": "2009-06-16",
+        },
+        {
+            "user_id": "u1",
+            "location_id": 3,
+            "latitude": 39.92,
+            "longitude": 116.42,
+            "median_observation_date": "2009-06-17",
+        },
+    ])
+
+    calls = {"n": 0}
+
+    def fetcher(body):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {
+                "ok": True,
+                "status_code": 200,
+                "content": payload,
+                "retry_after": None,
+                "rate_limit_reset": None,
+                "error": None,
+            }
+        return {
+            "ok": False,
+            "status_code": 429,
+            "content": None,
+            "retry_after": "60",
+            "rate_limit_reset": None,
+            "error": "quota exceeded",
+        }
+
+    context, log = module.fetch_ohsome_context_with_fetcher(
+        anchors,
+        fetcher=fetcher,
+        cache_dir=tmp_path,
+        max_new_requests_per_run=20,
+    )
+
+    assert calls["n"] == 2
+    assert len(context) == 1
+    assert log["status"].tolist() == [
+        "fetched",
+        "rate_limited",
+        "deferred_rate_limited",
+    ]
+
+    summary = module.summarize_ohsome_run(anchors, context, log).iloc[0]
+    assert int(summary["anchor_completed"]) == 1
+    assert int(summary["rate_limited"]) == 1
+    assert int(summary["deferred_rate_limited"]) == 1
+
+
+def test_free_tier_request_budget_defers_remaining_anchors(tmp_path):
+    module = _module()
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from io import BytesIO
+
+    table = pa.table({
+        "tags": pa.array([{"building": "office"}], type=pa.map_(pa.string(), pa.string())),
+    })
+    buffer = BytesIO()
+    pq.write_table(table, buffer)
+    payload = buffer.getvalue()
+
+    anchors = pd.DataFrame([
+        {
+            "user_id": "u1",
+            "location_id": i,
+            "latitude": 39.9 + i * 0.001,
+            "longitude": 116.4 + i * 0.001,
+            "median_observation_date": f"2009-06-{10+i:02d}",
+        }
+        for i in range(1, 5)
+    ])
+
+    calls = {"n": 0}
+
+    def fetcher(body):
+        calls["n"] += 1
+        return {
+            "ok": True,
+            "status_code": 200,
+            "content": payload,
+            "retry_after": None,
+            "rate_limit_reset": None,
+            "error": None,
+        }
+
+    context, log = module.fetch_ohsome_context_with_fetcher(
+        anchors,
+        fetcher=fetcher,
+        cache_dir=tmp_path,
+        max_new_requests_per_run=2,
+    )
+
+    assert calls["n"] == 2
+    assert len(context) == 2
+    assert log["status"].tolist().count("deferred_request_budget") == 2
+
