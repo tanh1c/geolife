@@ -99,3 +99,63 @@ If measured archetypes have meaningful support and the evidence composition is c
 - keep mobility archetype and external semantic evidence as separate axes.
 
 External context is required before making stronger WORK/POI semantic claims.
+
+## Measured result — 2026-10-02
+
+The executed Stage-07 notebook joined:
+
+- 182 Stage-03a behavior users;
+- 25 Stage-05b work-pattern users;
+- 107 Stage-06 routine users;
+- 7 Stage-05c independent-evidence users.
+
+### Archetype distribution
+
+| regime | users | share |
+|---|---:|---:|
+| insufficient | 110 | 60.4% |
+| irregular | 48 | 26.4% |
+| multi_site_recurring | 9 | 4.9% |
+| route_centric_mobile_like | 8 | 4.4% |
+| fixed_site_like | 7 | 3.8% |
+
+No user was assigned shifted_fixed_site_like.
+
+Only 24 / 182 users (13.2%) receive a non-abstaining WORK representation. The remaining 158 / 182 (86.8%) map to insufficient-evidence or abstain-fixed-workplace states.
+
+### Evidence coherence
+
+Some distinctions are informative:
+
+- multi_site_recurring: repeated-route evidence for 9/9 users, median 11 distinct edges, median 2 repeated edges;
+- route_centric_mobile_like: repeated-route evidence for 8/8, mobile-complexity evidence for 8/8, median 24.5 distinct edges and median edge entropy 4.40;
+- fixed_site_like: stable-secondary evidence for 7/7 and HOME context for 7/7.
+
+However, the mutually-exclusive taxonomy also exposes an important structural problem:
+
+- fixed_site_like has multi_anchor_state for 7/7 users;
+- route_centric_mobile_like includes stable_single_secondary for 2/8 users;
+- one route-centric user and one multi-site user also carry shifted-schedule evidence;
+- fixed_site_like has independent Stage-05c evidence for 5/7, but median top-1 independent evidence axes is only 1.0.
+
+Therefore the evidence axes are not mutually exclusive. A user can simultaneously have a stable dominant secondary anchor, multiple recurring anchors, repeated routes, and shifted timing.
+
+### Decision
+
+Do not treat the Stage-07 v1 labels as a final occupational-mobility taxonomy.
+
+The integration audit succeeds as a diagnostic: it shows that different WORK representations are plausible and that route complexity separates some users strongly. But it also shows that site topology, route topology, and schedule timing are overlapping dimensions rather than one categorical variable.
+
+Next step: Stage 07b — factorized work-regime profiles.
+
+Represent each user on separate audited axes:
+
+1. anchor/site structure;
+2. route recurrence / route complexity;
+3. schedule-shift evidence;
+4. mobile-complexity evidence;
+5. HOME-context support;
+6. independent secondary-anchor evidence.
+
+Only after this factorization should external POI / land-use context be added as a separate semantic axis.
+
