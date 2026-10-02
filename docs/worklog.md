@@ -1683,3 +1683,25 @@ Interpretation remains conservative: CLCD provides physical context; historical 
 
 Decision: close Stage 07d. Next semantic-source priority is BCL POI 2008 access/license/CRS resolution because it is temporally relevant to 208/225 anchors.
 
+
+## 2026-10-02 — Stage 07e offline semantic-distance alignment patch
+
+A new branch, `eda/07e-semantic-distance-alignment`, starts the first full-cache semantic alignment audit after Stage 07d.
+
+The patch is deliberately offline-only. It consumes the completed 225-anchor historical OSM cache and makes no ohsome requests.
+
+Implemented scope:
+
+- validate full one-to-one anchor/cache coverage;
+- decode historical OSM WKB geometry and compute local metric anchor-to-feature distances;
+- use bbox only as a geometry-decoding fallback;
+- distinguish exact radial <=25 / <=50 / <=100 m evidence from the Stage-07d square extraction AOI;
+- preserve Stage-07d multi-label semantic categories;
+- identify the exact Stage-05b stable-secondary anchor by `dominant_location_id`;
+- compare that candidate against other recurring non-HOME anchors from the same user;
+- use 100 m censored distance for bounded within-user comparisons;
+- bootstrap user-level candidate-minus-peer context differences;
+- summarize mapped work-compatible context against Stage-07b factorized mobility axes.
+
+No measured result is frozen yet. The next step is to run the 07e notebook on the existing Modal Volume and review aggregate outputs before any PR is opened.
+\n
