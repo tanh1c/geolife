@@ -1048,3 +1048,48 @@ Therefore broad within-user Stage 07 stops here.
 
 Lesson: a research pipeline needs an explicit point at which not building another model is the correct outcome. Once representation and coverage have both been repaired and null-calibrated longitudinal evidence still fails, adding more window sizes would turn feasibility analysis into threshold search.
 
+## 2026-10-02 — Work regime is better represented as a multi-axis profile than a single class
+
+Stage 07 v1 forced evidence from 03a / 05b / 05c / 06 into one mutually-exclusive taxonomy.
+
+There is real structure: the route-centric group has high route complexity, the multi-site group has repeated-route support, and the fixed-site group has stable-secondary and HOME-context evidence.
+
+But overlap reveals the design problem:
+
+- 7/7 fixed_site_like users are also multi_anchor_state;
+- 2/8 route_centric_mobile_like users also have stable_single_secondary;
+- shifted evidence appears inside multi-site / route-centric groups instead of forming an independent class.
+
+Lesson:
+
+```text
+site topology
+route topology
+schedule timing
+mobility complexity
+```
+
+are dimensions that can be simultaneously true for one user.
+
+Occupational mobility should therefore be represented as a factorized profile rather than one exclusive label.
+
+## 2026-10-02 — WORK representation coverage is still an abstention problem
+
+Stage 07 v1 gives only 24 / 182 users a non-abstaining representation:
+
+- 7 single-anchor candidates;
+- 9 work-anchor sets;
+- 8 route/activity-region representations.
+
+The remaining 158 / 182 users are irregular or insufficient.
+
+Lesson: a taxonomy that covers only a small population subset must not be described as a universal work/job model. Abstention rate is a primary result.
+
+## 2026-10-02 — Upstream negative evidence must survive integration
+
+Five of seven fixed-site-like users have Stage-05c independent evidence available, yet their median number of top-1 independent evidence axes is only 1.0.
+
+Stage 05c already concluded that persistent secondary anchors do not justify semantic OFFICE expansion.
+
+Lesson: an integration stage must not erase upstream negative evidence. Stable anchors can inform representation geometry without creating semantic WORK truth.
+
