@@ -28,6 +28,7 @@ import pandas as pd
 
 DISTANCE_THRESHOLDS_M = (25.0, 50.0, 100.0)
 DISTANCE_BUCKETS = ("0_25", "25_50", "50_100", "none_within_100")
+EXPECTED_LOCATION_NAMESPACE = "production_complete_link_200m_beijing_policy_v1"
 
 PROFILE_AXES = (
     "site_stable_secondary",
@@ -477,6 +478,18 @@ def align_mobility_roles(
 ) -> pd.DataFrame:
     """Attach exact stable-secondary anchor role and user-level mobility axes."""
     anchors = _normalise_anchor_keys(anchor_metrics)
+    if "location_namespace" not in anchors.columns:
+        raise ValueError(
+            "anchor metrics missing location_namespace; rerun corrected 07c/07d"
+        )
+    namespaces = set(
+        anchors["location_namespace"].dropna().astype(str).unique()
+    )
+    if namespaces != {EXPECTED_LOCATION_NAMESPACE}:
+        raise ValueError(
+            "incompatible location namespace for Stage 07e: "
+            f"{sorted(namespaces)}"
+        )
     patterns = work_patterns.copy()
     patterns["user_id"] = patterns["user_id"].astype(str)
 
