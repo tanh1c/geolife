@@ -101,6 +101,67 @@ CIVIC_BUILDINGS = {"civic"}
 TRANSPORT_BUILDINGS = {"train_station", "transportation"}
 
 
+
+
+def attach_anchor_coordinates_from_clustered_stays(
+    anchors: pd.DataFrame,
+    clustered_stays: pd.DataFrame,
+) -> pd.DataFrame:
+    """Attach private anchor centroids from the frozen 200 m clustered stays.
+
+    Stage 07c's dated-anchor artifact is coordinate-free by design/legacy.
+    Stage 07d reconstructs coordinates privately from the same deterministic
+    clustering so external joins can run without changing aggregate outputs.
+    """
+    required_anchor = {"user_id", "location_id"}
+    missing = required_anchor.difference(anchors.columns)
+    if missing:
+        raise ValueError(f"anchors missing columns: {sorted(missing)}")
+
+    required_stays = {"user_id", "location_id", "latitude", "longitude"}
+    missing = required_stays.difference(clustered_stays.columns)
+    if missing:
+        raise ValueError(f"clustered_stays missing columns: {sorted(missing)}")
+
+    left = anchors.copy()
+    left["user_id"] = left["user_id"].astype(str)
+    left["location_id"] = pd.to_numeric(left["location_id"], errors="raise").astype(int)
+
+    stays = clustered_stays.copy()
+    stays["user_id"] = stays["user_id"].astype(str)
+    stays["location_id"] = pd.to_numeric(stays["location_id"], errors="raise").astype(int)
+    stays["latitude"] = pd.to_numeric(stays["latitude"], errors="raise")
+    stays["longitude"] = pd.to_numeric(stays["longitude"], errors="raise")
+
+    centroids = (
+        stays.groupby(["user_id", "location_id"], as_index=False)
+        .agg(
+            latitude=("latitude", "median"),
+            longitude=("longitude", "median"),
+            coordinate_stay_count=("latitude", "size"),
+        )
+    )
+
+    result = left.merge(
+        centroids,
+        on=["user_id", "location_id"],
+        how="left",
+        validate="one_to_one",
+    )
+
+    if result[["latitude", "longitude"]].isna().any(axis=None):
+        missing_rows = result.loc[
+            result[["latitude", "longitude"]].isna().any(axis=1),
+            ["user_id", "location_id"],
+        ]
+        raise ValueError(
+            "could not reconstruct coordinates for all anchors: "
+            f"{len(missing_rows)} missing"
+        )
+
+    return result
+
+
 def clcd_cog_url(year: int) -> str:
     year = int(year)
     if year < 1985 or year > 2022:
