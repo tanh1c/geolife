@@ -68,3 +68,51 @@ The data do not support those semantic claims.
 If the taxonomy has useful coverage and coherent upstream evidence, add external POI / land-use context as an independent semantic axis.
 
 That external step should ask whether a mobility-defined anchor or activity region is compatible with work-related place categories; it should not use POI context to retroactively redefine the mobility archetype.
+
+## Measured result — 2026-10-02
+
+Executed population:
+
+- behavior users: 182;
+- adaptive work-pattern users: 25;
+- routine users: 107;
+- independent Stage-05c evidence users: 7.
+
+V1 output:
+
+- insufficient: 110;
+- irregular: 48;
+- multi_site_recurring: 9;
+- route_centric_mobile_like: 8;
+- fixed_site_like: 7;
+- shifted_fixed_site_like: 0.
+
+Only 24 users receive a non-abstaining WORK representation.
+
+Important overlap finding:
+
+- all 7 fixed_site_like users also have multi_anchor_state;
+- 2 route_centric_mobile_like users also have stable_single_secondary;
+- shifted evidence appears inside route/multi-site users rather than forming an independent shifted-fixed class.
+
+This means the v1 mutually-exclusive archetypes combine several non-orthogonal evidence dimensions.
+
+## Handoff decision
+
+Do not merge the v1 categories into a semantic WORK taxonomy or infer occupation from them.
+
+Keep the v1 result as an integration diagnostic and proceed to Stage 07b factorized work-regime profiles.
+
+Stage 07b should preserve separate axes for:
+
+- dominant/stable secondary-anchor evidence;
+- multiple recurring-anchor evidence;
+- repeated-route evidence;
+- route complexity;
+- shifted-schedule evidence;
+- mobile-complexity evidence;
+- HOME context;
+- optional Stage-05c independent evidence.
+
+External POI / land-use enrichment should follow the factorized profile, not the current mutually-exclusive label.
+
