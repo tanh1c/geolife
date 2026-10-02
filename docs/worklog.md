@@ -1745,3 +1745,40 @@ Corrective patch:
 
 Required rerun order: corrected 07c -> corrected 07d (resume cache; fetch only missing request hashes) -> corrected 07e.
 
+## 2026-10-02 — Corrected Stage 07c measured result
+
+The production-location namespace rerun completed cleanly.
+
+Namespace validation:
+
+- location namespace: `production_complete_link_200m_beijing_policy_v1`;
+- production semantic-location users: 97;
+- production semantic locations: 1,111;
+- supported HOME ids checked: 25;
+- supported HOME ids missing: 0;
+- Stage-05b dominant work ids checked: 15;
+- Stage-05b dominant work ids missing: 0.
+
+Corrected recurring non-HOME candidate universe:
+
+- 25 users;
+- 198 anchors.
+
+Observation-year distribution:
+
+- 2008: 65 anchors / 11 users;
+- 2009: 120 anchors / 11 users;
+- 2011: 7 anchors / 4 users;
+- 2012: 6 anchors / 2 users;
+- no corrected candidate anchor has median observation year 2010.
+
+Corrected historical-source coverage:
+
+- CLCD exact-year physical context: 198 anchors / 25 users;
+- historical OSM cross-check: 198 anchors / 25 users;
+- BCL POI 2008 exact/+1-year candidate: 185 anchors / 19 users;
+- 2011 candidates: 7 anchors / 4 users;
+- Baidu 2012 candidate: 6 anchors / 2 users.
+
+This supersedes the old behavior-location universe of 225 anchors. The next required run is corrected Stage 07d on these 198 production-aligned anchors.
+
