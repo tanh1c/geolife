@@ -115,3 +115,9 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Produces descriptive regimes: shifted fixed-site-like, fixed-site-like, route-centric/mobile-like, multi-site recurring, irregular, insufficient.
 - Recommends a WORK representation (single anchor, anchor set, route/activity region, or abstain) without inferring occupation or semantic workplace truth.
 - If measured archetypes are coherent, the next independent step is external POI / land-use enrichment.
+### Stage 07b — factorized work-regime profiles
+
+- `07b_factorized_work_profiles.ipynb`
+- Replaces mutually-exclusive Stage-07 v1 classes with overlapping axes for site structure, route structure, schedule, mobility complexity, HOME context, and independent secondary-anchor evidence.
+- Emits multi-label representation options (single anchor, anchor set, route/activity region, schedule-agnostic) rather than one occupation/work class.
+- Reports pairwise axis overlap and common evidence signatures before any external semantic enrichment.
