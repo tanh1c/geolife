@@ -64,3 +64,33 @@ Optional environment overrides:
 
 A partial ohsome run is valid cross-check evidence only for the completed anchors. Do not report partial coverage as 225-anchor OSM coverage.
 
+## Measured handoff — 2026-10-02
+
+Stage 07d completed its primary objective.
+
+CLCD:
+
+- 225 anchors / 25 users processed;
+- 224 known land-cover classes;
+- 216 impervious anchors (96.0%);
+- 223/225 point-vs-3x3 agreement;
+- 222/225 point-vs-5x5 agreement.
+
+This supports a strong built-up physical-context result while providing no fine functional semantics.
+
+ohsome:
+
+- 35 / 225 anchors completed;
+- 15 cached + 20 newly fetched in the latest run;
+- no 429 in the latest run;
+- 190 deferred by the per-run free-tier request budget;
+- 11/35 have semantic OSM context;
+- 10/35 have broad work-compatible context;
+- completed anchors cover only 3 users.
+
+Do not interpret the partial ohsome proportions as population estimates. The completed set is sequential/quota-driven and user-concentrated.
+
+Stage 07d can close without full ohsome completion because ohsome is explicitly secondary/cross-check-only.
+
+Next semantic-source priority remains BCL POI 2008 access/license/CRS resolution.
+
