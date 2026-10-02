@@ -410,3 +410,36 @@ def test_profile_axis_category_summary_is_user_level():
     assert row["users_any_category_context"] == 1
     assert row["share_users_any_category_context"] == 0.5
 
+def test_stage07e_notebook_execution_contract():
+    import json
+
+    notebook_path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07e_semantic_distance_alignment.ipynb"
+    )
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    code_cells = [
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    ]
+    joined = "\n".join(code_cells)
+
+    required_snippets = [
+        "feature_dist=s07e.build_feature_distance_table",
+        "aligned=s07e.align_mobility_roles",
+        "comparisons=s07e.build_stable_secondary_user_comparisons",
+        "stable_category_summary=s07e.summarize_stable_secondary_categories",
+        "axis_category_summary=s07e.summarize_profile_axis_categories",
+        "feature_dist.to_pickle",
+        "axis_category_summary.to_csv",
+    ]
+    for snippet in required_snippets:
+        assert snippet in joined
+
+    for cell in notebook["cells"]:
+        source = "".join(cell.get("source", []))
+        if "to_pickle(" in source or "to_csv(" in source:
+            assert cell.get("cell_type") == "code"
+
