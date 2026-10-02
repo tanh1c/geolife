@@ -100,3 +100,12 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Reuses private Stage-06 day/transition caches plus Stage-03a cleaned point-day metrics; no raw rescan.
 - Evaluates 28/42/56-day coarse support-normalized features, adjacent-window test-retest stability, support-matched random-partition nulls, and feature bootstrap uncertainty.
 - Keeps exact-edge JSD as a baseline comparator; Stage 07 remains blocked until the measured 06c tables are reviewed.
+
+### Stage 06d — support-indexed window feasibility
+
+- `06d_support_indexed_window_feasibility.ipynb`
+- Reuses the Stage-06c representation but replaces fixed calendar windows with non-overlapping 6 / 8 / 10 usable-day blocks.
+- Applies 56 / 84-day calendar-span caps so equal support does not silently allow arbitrarily long elapsed-time windows.
+- Keeps the Stage-06c null calibration and bootstrap gates, and adds a >=10 unique-user coverage guard.
+- Stage 07 proceeds only if at least one predeclared primary feature passes every readiness gate.
+
