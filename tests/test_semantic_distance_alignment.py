@@ -314,3 +314,99 @@ def test_extract_anchor_feature_distances_from_parquet():
 def test_synthetic_self_check():
     module = _module()
     assert module.synthetic_self_check()["status"] == "ok"
+
+def test_stable_secondary_category_summary_uses_same_user_peers():
+    module = _module()
+    aligned = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "stable_secondary_user": True,
+                "stable_secondary_anchor": True,
+                "stable_secondary_peer_anchor": False,
+                "office_commercial_within_100m": True,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "stable_secondary_user": True,
+                "stable_secondary_anchor": False,
+                "stable_secondary_peer_anchor": True,
+                "office_commercial_within_100m": False,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 3,
+                "stable_secondary_user": True,
+                "stable_secondary_anchor": False,
+                "stable_secondary_peer_anchor": True,
+                "office_commercial_within_100m": True,
+            },
+        ]
+    )
+    for category in module.CONTEXT_CATEGORIES:
+        for threshold in module.DISTANCE_THRESHOLDS_M:
+            column = module._threshold_name(category, threshold)
+            if column not in aligned.columns:
+                aligned[column] = False
+    aligned["office_commercial_within_100m"] = [True, False, True]
+
+    result = module.summarize_stable_secondary_categories(
+        aligned,
+        thresholds_m=(100.0,),
+    )
+    row = result.loc[
+        result["category"].eq("office_commercial")
+        & result["threshold_m"].eq(100.0)
+    ].iloc[0]
+
+    assert row["users"] == 1
+    assert row["candidate_context_users"] == 1
+    assert row["mean_peer_context_share"] == 0.5
+    assert row["mean_candidate_minus_peer_share"] == 0.5
+
+
+def test_profile_axis_category_summary_is_user_level():
+    module = _module()
+    aligned = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "office_commercial_within_100m": True,
+                "route_repeated": True,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "office_commercial_within_100m": False,
+                "route_repeated": True,
+            },
+            {
+                "user_id": "u2",
+                "location_id": 1,
+                "office_commercial_within_100m": False,
+                "route_repeated": True,
+            },
+        ]
+    )
+    for category in module.CONTEXT_CATEGORIES:
+        column = module._threshold_name(category, 100.0)
+        if column not in aligned.columns:
+            aligned[column] = False
+    aligned["office_commercial_within_100m"] = [True, False, False]
+
+    result = module.summarize_profile_axis_categories(
+        aligned,
+        threshold_m=100.0,
+    )
+    row = result.loc[
+        result["axis"].eq("route_repeated")
+        & result["category"].eq("office_commercial")
+    ].iloc[0]
+
+    assert row["users"] == 2
+    assert row["users_any_category_context"] == 1
+    assert row["share_users_any_category_context"] == 0.5
+
