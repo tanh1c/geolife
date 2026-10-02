@@ -100,3 +100,28 @@ Aggregate:
 Stage 07d adds external physical/context evidence only.
 
 It does not infer occupation, employment status, true WORK, OFFICE identity, or functional semantic ground truth from CLCD.
+
+## Free-tier ohsome execution policy
+
+Measured execution returned HTTP 429 Too Many Requests on the free-tier API key.
+
+Stage 07d therefore treats ohsome as resumable partial evidence rather than an all-or-nothing dependency.
+
+Default notebook policy:
+
+- sequential requests only;
+- 6 s pause between newly fetched anchor requests;
+- maximum 20 new requests per notebook run;
+- successful Parquet responses cached by deterministic request hash;
+- first 429 stops additional fresh requests for that run;
+- cached anchors continue to be parsed;
+- remaining anchors are marked deferred rather than failed;
+- CLCD results and partial ohsome outputs are saved even when the quota is exhausted.
+
+The defaults can be tuned with:
+
+- OHSOME_MAX_NEW_REQUESTS_PER_RUN
+- OHSOME_REQUEST_PAUSE_S
+
+Do not increase these merely to maximize throughput. ohsome is a secondary historical cross-check and should respect API quota.
+
