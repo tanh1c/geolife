@@ -232,3 +232,11 @@ Decision:
 
 Stage 07d is complete. Do not spend more engineering effort on ohsome coverage for this candidate universe. The next highest-value semantic source remains BCL POI 2008 because Stage 07c showed temporal relevance to 208 / 225 anchors.
 
+## Superseded anchor-universe notice — 2026-10-02
+
+The previously measured 225-anchor Stage-07d universe was built from behavior-cluster location ids while HOME / adaptive secondary ids came from the production semantic-location namespace.
+
+Those integer ids are not interchangeable. Therefore the previous 225-anchor CLCD/OSM summaries remain descriptive only of the old coordinates and are superseded for downstream semantic interpretation.
+
+Corrected Stage 07c now rebuilds the recurring non-HOME universe from production `build_semantic_locations(... complete_link, 200m)` and carries an explicit location-namespace marker. Stage 07d must be rerun on that corrected universe before any further interpretation.
+
