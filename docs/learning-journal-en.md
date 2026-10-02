@@ -1093,3 +1093,35 @@ Stage 05c already concluded that persistent secondary anchors do not justify sem
 
 Lesson: an integration stage must not erase upstream negative evidence. Stable anchors can inform representation geometry without creating semantic WORK truth.
 
+## 2026-10-02 — Factorization turns overlap from a classification bug into a result
+
+Stage 07 v1 treated overlap among fixed-site, multi-site, and route-centric evidence as a taxonomy problem.
+
+Stage 07b preserves separate axes and shows highly structured overlap:
+
+- 9/9 stable-secondary users are also multiple-recurring;
+- 7/9 stable-secondary users also have repeated-route evidence;
+- 22/23 repeated-route users are multiple-recurring;
+- 23/23 mobile-complexity users are multiple-recurring;
+- 2/2 shifted-schedule users also have repeated-route evidence.
+
+Lesson: when evidence states systematically coexist, they should not be forced into mutually-exclusive classes. The overlap itself is behavioral information.
+
+## 2026-10-02 — A stable secondary anchor does not mean a user has only one work-like place
+
+The representation signatures show:
+
+- 7 users with single-anchor + anchor-set + route-region;
+- 2 users with single-anchor + anchor-set;
+- zero users with single-anchor only.
+
+Lesson: a dominant secondary anchor can exist inside a broader set of recurring anchors. Single-anchor geometry is therefore one candidate view, not a complete mobility description.
+
+## 2026-10-02 — External semantics should start from the HOME-supported subset
+
+Stage 07b has 72 multiple-recurring users but only 25 users with HIGH/MEDIUM HOME context.
+
+Enriching all 72 immediately risks including HOME-like anchors in a semantic WORK audit without an independent HOME exclusion.
+
+Lesson: external semantic enrichment should first target support-qualified users with reliable HOME context and enrich only recurring non-HOME anchors. The factorized mobility profile can still remain available for the full population.
+
