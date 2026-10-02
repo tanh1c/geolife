@@ -94,3 +94,24 @@ Stage 07d can close without full ohsome completion because ohsome is explicitly 
 
 Next semantic-source priority remains BCL POI 2008 access/license/CRS resolution.
 
+## Final measured handoff — full ohsome completion
+
+The historical OSM cross-check has now reached full coverage:
+
+- 225 / 225 anchors completed;
+- 25 / 25 users covered;
+- 217 cached + 8 newly fetched in the final run;
+- no rate-limit hit, deferral, request error, or parse error in the final run.
+
+Full-universe historical OSM summary:
+
+- 65 / 225 anchors (28.89%), 16 users: semantic context found;
+- 48 / 225 anchors (21.33%), 14 users: broad work-compatible context;
+- 8 / 225 anchors (3.56%), 2 users: residential context.
+
+These are now candidate-universe descriptive proportions, but still not semantic ground truth because historical OSM coverage in early China is incomplete and subject to mapping lag.
+
+Stage 07d is closed.
+
+Next recommended stage: resolve BCL POI 2008 exact file access, reuse rights, and CRS, then evaluate whether a high-precision historical semantic join is feasible for the 208 anchors temporally covered by that source.
+
