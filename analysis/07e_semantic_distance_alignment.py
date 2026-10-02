@@ -756,8 +756,11 @@ def summarize_profile_axis_context(
         axis for axis in PROFILE_AXES if axis in aligned.columns
     ]
     profile = aligned[profile_columns].drop_duplicates("user_id")
+    for axis in PROFILE_AXES:
+        if axis not in profile.columns:
+            profile[axis] = False
     per_user = per_user.merge(
-        profile,
+        profile[["user_id", *PROFILE_AXES]],
         on="user_id",
         how="left",
         validate="one_to_one",
@@ -800,6 +803,10 @@ def summarize_profile_axis_categories(
         axis for axis in PROFILE_AXES if axis in aligned.columns
     ]
     profile = aligned[profile_columns].drop_duplicates("user_id")
+    for axis in PROFILE_AXES:
+        if axis not in profile.columns:
+            profile[axis] = False
+    profile = profile[["user_id", *PROFILE_AXES]]
 
     for category in CONTEXT_CATEGORIES:
         context_column = _threshold_name(category, threshold_m)
