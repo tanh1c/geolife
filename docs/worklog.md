@@ -1496,4 +1496,23 @@ No stable-secondary user is truly single-anchor-only under the broader recurring
 Decision: accept factorization as the mobility-side representation and stop trying to create one work-regime class.
 
 Next semantic step should be external POI / land-use enrichment, but only on a support-qualified subset. Start with the 25 HIGH/MEDIUM HOME-supported users and candidate non-HOME recurring anchors so HOME exclusion is explicit. Keep the external context separate from the Stage-07b profile.
+## 2026-10-02 — Stage 07c external POI / land-use enrichment scaffolded
 
+Stage 07b established factorized mobility geometry. Stage 07c adds OpenStreetMap context as an independent semantic axis.
+
+Primary population:
+- users with HIGH/MEDIUM HOME consensus;
+- deterministic 200 m behavior locations rebuilt from the private stay cache;
+- supported HOME location excluded;
+- recurring non-HOME anchors retained at the existing stay_count >= 2 definition.
+
+External protocol:
+- OpenStreetMap Overpass only; no reverse-geocoded address step;
+- 250 m maximum query radius, aggregated at 100 m primary and 250 m sensitivity;
+- small sequential cached batches;
+- non-exclusive categories: residential, office/commercial, education, healthcare, industrial, retail/service, transport, civic/institutional, recreation/tourism;
+- raw OSM responses, exact coordinates, object IDs and user-level mappings stay private.
+
+Primary analysis compares context coverage/category prevalence across mobility roles and compares stable-secondary anchors with same-user recurring non-HOME peers.
+
+Unknown external context is treated as missing evidence, not semantic absence. Nearby POI tags do not imply occupation or OFFICE.
