@@ -22,7 +22,11 @@ TOKYO_LON = 139.6503
 
 
 def _utc(local_timestamp: str) -> pd.Timestamp:
-    return pd.Timestamp(local_timestamp, tz="Asia/Shanghai").tz_convert("UTC")
+    return _utc_in_zone(local_timestamp, "Asia/Shanghai")
+
+
+def _utc_in_zone(local_timestamp: str, timezone_id: str) -> pd.Timestamp:
+    return pd.Timestamp(local_timestamp, tz=timezone_id).tz_convert("UTC")
 
 
 def _stay(
@@ -31,10 +35,17 @@ def _stay(
     *,
     latitude: float = BEIJING_LAT,
     longitude: float = BEIJING_LON,
+    timezone_id: str = "Asia/Shanghai",
 ) -> dict[str, object]:
     return {
-        "arrival_time_utc": _utc(arrival_local).isoformat().replace("+00:00", "Z"),
-        "departure_time_utc": _utc(departure_local).isoformat().replace("+00:00", "Z"),
+        "arrival_time_utc": _utc_in_zone(
+            arrival_local,
+            timezone_id,
+        ).isoformat().replace("+00:00", "Z"),
+        "departure_time_utc": _utc_in_zone(
+            departure_local,
+            timezone_id,
+        ).isoformat().replace("+00:00", "Z"),
         "latitude": latitude,
         "longitude": longitude,
     }
@@ -76,7 +87,7 @@ def test_health_contract() -> None:
         "status": "ok",
         "service": "geolife-home-office-api",
         "api_version": "v1",
-        "model_contract": "cp2-v1",
+        "model_contract": "cp2-v2",
     }
 
 
@@ -92,7 +103,7 @@ def test_home_emits_while_office_abstains() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["user_id"] == "u-home"
-    assert body["model_contract"] == "cp2-v1"
+    assert body["model_contract"] == "cp2-v2"
 
     results = _result_by_label(body)
     assert results["HOME"]["status"] == "emitted"
@@ -104,32 +115,32 @@ def test_home_emits_while_office_abstains() -> None:
     }
 
 
-def test_out_of_scope_geography_is_200_with_explicit_abstention() -> None:
+def test_tokyo_stays_are_scored_in_tokyo_local_time() -> None:
     stays = [
         _stay(
-            "2026-01-05 21:00",
-            "2026-01-05 22:00",
+            f"2026-01-0{day} 21:00",
+            f"2026-01-0{day} 22:00",
             latitude=TOKYO_LAT,
             longitude=TOKYO_LON,
-        ),
-        _stay(
-            "2026-01-06 21:00",
-            "2026-01-06 22:00",
-            latitude=TOKYO_LAT,
-            longitude=TOKYO_LON,
-        ),
+            timezone_id="Asia/Tokyo",
+        )
+        for day in [5, 6, 7]
     ]
 
-    response = client.post("/v1/home-office/infer", json=_payload("u-travel", stays))
+    response = client.post(
+        "/v1/home-office/infer",
+        json=_payload("u-travel", stays),
+    )
 
     assert response.status_code == 200
     results = _result_by_label(response.json())
-    for label in ["HOME", "OFFICE"]:
-        assert results[label] == {
-            "label": label,
-            "status": "abstained",
-            "reason": "out_of_scope_geography",
-        }
+    assert results["HOME"]["status"] == "emitted"
+    assert results["HOME"]["relevant_dates"] == 3
+    assert results["OFFICE"]["status"] == "abstained"
+    assert (
+        results["OFFICE"]["reason"]
+        == "insufficient_semantic_evidence"
+    )
 
 
 def test_no_recurring_location_has_specific_abstention_reason() -> None:
