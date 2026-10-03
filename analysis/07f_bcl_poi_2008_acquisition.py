@@ -469,6 +469,70 @@ def discover_mdb_files(root: Path) -> list[Path]:
     return sorted(path for path in root.rglob("*.mdb") if path.is_file())
 
 
+SPATIAL_CONTAINER_SUFFIXES = {
+    ".mdb",
+    ".shp",
+    ".gpkg",
+    ".sqlite",
+    ".dbf",
+    ".csv",
+}
+
+
+def summarize_extracted_inventory(paths: Iterable[str]) -> pd.DataFrame:
+    rows = []
+    for value in paths:
+        path = Path(str(value))
+        suffix = path.suffix.lower()
+        rows.append(
+            {
+                "path": str(path),
+                "name": path.name,
+                "suffix": suffix,
+                "is_gdb_component": ".gdb" in {
+                    part.lower()[-4:] if part.lower().endswith(".gdb") else ""
+                    for part in path.parts
+                },
+                "is_supported_candidate": (
+                    suffix in SPATIAL_CONTAINER_SUFFIXES
+                    or any(part.lower().endswith(".gdb") for part in path.parts)
+                ),
+            }
+        )
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "path",
+                "name",
+                "suffix",
+                "is_gdb_component",
+                "is_supported_candidate",
+            ]
+        )
+    return pd.DataFrame(rows)
+
+
+def candidate_container_priority(path: str) -> tuple[int, str]:
+    value = str(path)
+    p = Path(value)
+    lower_parts = [part.lower() for part in p.parts]
+    if p.suffix.lower() == ".mdb":
+        priority = 0
+    elif any(part.endswith(".gdb") for part in lower_parts):
+        priority = 1
+    elif p.suffix.lower() == ".gpkg":
+        priority = 2
+    elif p.suffix.lower() == ".shp":
+        priority = 3
+    elif p.suffix.lower() == ".sqlite":
+        priority = 4
+    elif p.suffix.lower() in {".dbf", ".csv"}:
+        priority = 5
+    else:
+        priority = 99
+    return priority, value
+
+
 def parse_mdb_tables(stdout: str) -> list[str]:
     return [
         line.strip()
