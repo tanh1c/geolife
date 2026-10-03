@@ -381,7 +381,7 @@ def test_rar_public_candidate_and_format_gate():
     assert candidate["suffix"] == ".rar"
     assert decision.file_access == "pass_public_file"
     assert decision.license_status == "pass_explicit:CC BY 4.0"
-    assert decision.format_status == "inspect_archive_for_mdb"
+    assert decision.format_status == "inspect_archive_for_spatial_container"
     assert decision.runner_status == "ready_for_mdb_inspection"
 
 
