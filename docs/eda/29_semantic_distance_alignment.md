@@ -1,0 +1,257 @@
+# Stage 07e — Offline Semantic Distance + Mobility Alignment
+
+## Purpose
+
+Stage 07d established full historical-context coverage for 225 recurring non-HOME anchors across 25 users:
+
+- CLCD exact-year physical context: complete;
+- historical OSM / ohsome: 225 / 225 anchors cached.
+
+Stage 07e does **not** call external APIs. It reuses the complete historical OSM cache to ask a narrower question:
+
+> Are the mobility-derived anchor roles aligned with independently mapped historical context more strongly than same-user peer anchors?
+
+This is still an evidence audit, not semantic label production.
+
+## Inputs
+
+Required private artifacts:
+
+- Stage 07d `historical_context_private.pkl`;
+- Stage 07d `ohsome_request_log_private.pkl`;
+- Stage 07d `ohsome_raw/*.parquet` full cache;
+- Stage 05b `adaptive_work_patterns_42_private.pkl`;
+- Stage 07b `factorized_work_profiles_private.pkl`.
+
+No API key is required.
+
+## Full-cache gate
+
+07e rejects partial ohsome coverage.
+
+Every target anchor must have exactly one successful `cached` / `fetched` request-log row and a corresponding raw Parquet file.
+
+This makes 07e deterministic and prevents quota-driven sampling from entering the semantic-distance audit.
+
+## Feature geometry
+
+ohsome feature extracts contain WGS84 geometry as WKB.
+
+For each anchor, 07e:
+
+1. decodes historical feature WKB;
+2. transforms the small local neighborhood to an anchor-centred metre coordinate frame;
+3. computes anchor-to-geometry distance;
+4. falls back to the OSM feature bounding box only if WKB cannot be decoded.
+
+Stage 07d queried an axis-aligned approximately ±100 m bounding box. Corners can exceed 100 m radial distance, so 07e explicitly thresholds by true geometry distance:
+
+- <=25 m;
+- <=50 m;
+- <=100 m;
+- no mapped matching feature within 100 m.
+
+A feature returned in the bbox corner at >100 m is not counted as <=100 m evidence.
+
+## Semantic categories
+
+07e preserves the Stage-07d multi-label categories:
+
+- residential;
+- office/commercial;
+- education;
+- healthcare;
+- industrial;
+- retail/service;
+- transport;
+- civic/institutional;
+- recreation/tourism.
+
+Broad `work-compatible` context remains the union of:
+
+- office/commercial;
+- education;
+- healthcare;
+- industrial;
+- retail/service;
+- transport;
+- civic/institutional.
+
+This means only that mapped context is compatible with locations where work activity could occur. It is not a WORK/OFFICE label.
+
+## Exact stable-secondary anchor
+
+Stage 05b already records the dominant sliding-window non-HOME location as `dominant_location_id`.
+
+07e marks an anchor as the stable-secondary candidate only when:
+
+- `window_pattern == stable_secondary_anchor`; and
+- anchor `location_id == dominant_location_id`.
+
+No new anchor-ranking rule is introduced.
+
+## Within-user comparison
+
+For each stable-secondary user with at least one peer recurring non-HOME anchor, compare the candidate anchor against that user's other anchors.
+
+Primary thresholds:
+
+- mapped work-compatible context within 25 m;
+- within 50 m;
+- within 100 m.
+
+For each user:
+
+- candidate context indicator;
+- peer-anchor context share;
+- candidate minus peer share;
+- candidate censored work-context distance;
+- peer median censored distance;
+- candidate unique/tied closest mapped work-compatible context.
+
+The 100 m censored distance maps both no-detection and detections beyond 100 m to 100 m. It is a comparison device under the extraction boundary, not a claim that the true nearest feature is exactly 100 m away.
+
+Aggregate paired differences use a deterministic user bootstrap. The stable-secondary cohort is small, so these intervals are descriptive uncertainty summaries, not calibrated semantic-accuracy intervals.
+
+## Stage-07b alignment
+
+07e also provides user-level descriptive mapped-context coverage for the existing factorized axes:
+
+- site stable secondary;
+- site multiple recurring;
+- site adaptive multi-anchor;
+- repeated route;
+- shifted schedule evidence;
+- mobility complexity;
+- independent secondary evidence availability.
+
+This section does not rank axes or create a composite work-regime score.
+
+## Outputs
+
+Private:
+
+- `feature_semantic_distances_private.pkl`;
+- `anchor_semantic_distances_private.pkl`;
+- `mobility_aligned_semantic_context_private.pkl`;
+- `stable_secondary_user_comparisons_private.pkl`.
+
+Aggregate:
+
+- `work_context_distance_buckets.csv`;
+- `category_threshold_summary.csv`;
+- `stable_secondary_within_user_summary.csv`;
+- `stable_secondary_category_summary.csv`;
+- `profile_axis_context_summary.csv`;
+- `profile_axis_category_summary.csv`.
+
+## Interpretation boundary
+
+Historical OSM mapping is incomplete in early China.
+
+Therefore:
+
+- no mapped feature within 100 m != real-world absence;
+- work-compatible mapped context != WORK/OFFICE;
+- residential mapped context != HOME;
+- no occupation or employment-status inference is allowed.
+
+Stage 07e can strengthen or weaken consistency between mobility geometry and historical mapping evidence. It cannot independently establish semantic workplace ground truth.
+
+Category-specific paired summaries are included so a composite work-compatible result can be decomposed into office/commercial, education, healthcare, industrial, retail/service, transport, civic/institutional, residential, and recreation/tourism context rather than being interpreted as one opaque score.
+
+### Raw cache vs request-log provenance
+
+Stage 07d can be completed by rerunning only the OSM fetch cell. In that workflow the raw `ohsome_raw/*.parquet` cache may reach full 225/225 coverage while the persisted `ohsome_request_log_private.pkl` remains from an earlier partial run.
+
+Stage 07e therefore recomputes each deterministic Stage-07d request body and cache key from the anchor table and validates the corresponding raw Parquet file directly. The request log is audit metadata only and is never used as the coverage source of truth.
+
+## Correctness correction: Stage-05b and Stage-07c location ids must share one namespace
+
+The first 07e run exposed a namespace mismatch:
+
+- Stage 05b dominant secondary ids came from production semantic locations;
+- old Stage 07c anchors came from behavior-cluster locations.
+
+The two pipelines both used complete-link 200 m but assign ids differently and do not share the same preprocessing universe. Integer `location_id` equality was therefore invalid.
+
+Stage 07e now requires the explicit production namespace marker and rejects old artifacts. The first measured 07e tables are superseded pending corrected 07c -> 07d -> 07e rerun.
+
+## Final measured result — corrected production-aligned universe
+
+Stage 07e completed cleanly on the corrected 198-anchor / 25-user universe with:
+
+- location namespace: `production_complete_link_200m_beijing_policy_v1`;
+- raw cache validated: 198 / 198 anchors;
+- exact stable-secondary users represented: 9;
+- exact stable-secondary anchors: 9;
+- within-user comparison rows: 9.
+
+### Exact radial historical-OSM context
+
+The Stage-07d OSM existence summary used the extraction bbox. Stage 07e applies true anchor-to-geometry radial distance, so features returned in bbox corners at >100 m are not counted.
+
+Measured within <=100 m:
+
+- semantic context: 61 / 198 anchors (30.81%);
+- broad work-compatible context: 46 / 198 anchors (23.23%).
+
+Work-compatible distance buckets:
+
+| bucket | anchors | users | anchor share |
+|---|---:|---:|---:|
+| 0–25 m | 31 | 9 | 15.66% |
+| 25–50 m | 5 | 5 | 2.53% |
+| 50–100 m | 10 | 7 | 5.05% |
+| none within 100 m | 152 | 25 | 76.77% |
+
+Category coverage within 100 m:
+
+- education: 33 anchors;
+- recreation/tourism: 14;
+- retail/service: 14;
+- residential: 6;
+- office/commercial: 2;
+- transport: 2;
+- healthcare: 1;
+- civic/institutional: 0;
+- industrial: 0.
+
+### Stable-secondary within-user comparison
+
+For all 9 stable-secondary users, the exact Stage-05b dominant secondary anchor was found in the corrected anchor universe.
+
+Composite work-compatible context:
+
+| threshold | candidate-context users | mean peer context share | mean candidate - peer share | bootstrap 95% interval |
+|---|---:|---:|---:|---:|
+| 25 m | 2 / 9 | 0.107 | +0.115 | [-0.109, +0.387] |
+| 50 m | 2 / 9 | 0.141 | +0.081 | [-0.147, +0.337] |
+| 100 m | 2 / 9 | 0.203 | +0.019 | [-0.210, +0.284] |
+
+All three uncertainty intervals cross zero. Only 2 of 9 users have a candidate anchor with mapped work-compatible context at any tested threshold.
+
+Category decomposition shows that those two candidate-context cases are both driven by the `education` category. None of the 9 stable-secondary candidate anchors has mapped `office_commercial`, `industrial`, `healthcare`, `retail_service`, `transport`, `civic_institutional`, `residential`, or `recreation_tourism` context within 100 m.
+
+At 100 m, retail/service is actually more common among peer anchors than stable-secondary candidates:
+
+- mean candidate - peer share = -0.081;
+- bootstrap interval = [-0.135, -0.028].
+
+This is a descriptive contrast in a tiny cohort, not evidence that stable-secondary anchors avoid retail locations.
+
+### Decision
+
+Historical OSM does not provide a strong independent semantic validation of stable-secondary anchors as WORK/OFFICE-like places.
+
+The evidence is:
+
+- sparse at the exact candidate anchors;
+- dominated by education rather than office/commercial categories;
+- not consistently stronger than same-user recurring peers;
+- uncertainty crosses zero for the composite work-compatible comparison.
+
+Therefore Stage 07e should close as a null/mixed independent-evidence result. Do not tune mobility thresholds to improve semantic agreement and do not promote stable-secondary geometry to WORK/OFFICE semantics.
+
+The next semantic-source priority remains BCL POI 2008, now relevant to 185 / 198 corrected anchors across 19 users, after access/license/CRS resolution.
+

@@ -162,3 +162,82 @@ def test_support_qualified_anchor_builder_excludes_home_and_low_support_users():
     assert anchors.iloc[0]["user_id"] == "u1"
     assert int(anchors.iloc[0]["location_id"]) == 1
 
+def test_location_namespace_validation_accepts_matching_home_and_work_ids():
+    module = _module()
+    locations = pd.DataFrame(
+        [
+            {"user_id": "u1", "location_id": 0, "stay_count": 5},
+            {"user_id": "u1", "location_id": 1, "stay_count": 3},
+        ]
+    )
+    home = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 0,
+                "home_tier": "high",
+                "unique_vote_winner": True,
+            }
+        ]
+    )
+    work = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "dominant_location_id": 1,
+                "window_pattern": "stable_secondary_anchor",
+            }
+        ]
+    )
+
+    result = module.validate_location_namespace(locations, home, work).iloc[0]
+
+    assert result["location_namespace"] == module.PRODUCTION_LOCATION_NAMESPACE
+    assert int(result["supported_home_ids_missing"]) == 0
+    assert int(result["dominant_work_ids_missing"]) == 0
+
+
+def test_location_namespace_validation_rejects_mismatched_ids():
+    module = _module()
+    locations = pd.DataFrame(
+        [{"user_id": "u1", "location_id": 7, "stay_count": 5}]
+    )
+    home = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 0,
+                "home_tier": "high",
+                "unique_vote_winner": True,
+            }
+        ]
+    )
+
+    try:
+        module.validate_location_namespace(locations, home)
+    except ValueError as exc:
+        assert "namespace mismatch" in str(exc)
+    else:
+        raise AssertionError("mismatched HOME location ids must fail")
+
+def test_stage07c_notebook_uses_production_location_namespace():
+    import json
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07c_historical_source_alignment.ipynb"
+    )
+    notebook = json.loads(path.read_text(encoding="utf-8"))
+    code = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    )
+
+    assert "BRANCH='eda/07e-semantic-distance-alignment'" in code
+    assert "build_semantic_locations(stays,config=cfg)" in code
+    assert "validate_location_namespace(locations,home,work)" in code
+    assert "anchors['location_namespace']=s07c.PRODUCTION_LOCATION_NAMESPACE" in code
+    assert "cluster_behavior_locations(resolved,200.0)" not in code
+

@@ -288,3 +288,56 @@ def test_free_tier_request_budget_defers_remaining_anchors(tmp_path):
     assert len(context) == 2
     assert log["status"].tolist().count("deferred_request_budget") == 2
 
+def test_attach_anchor_coordinates_from_production_locations():
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "median_observation_year": 2008,
+            }
+        ]
+    )
+    locations = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "latitude": 39.91,
+                "longitude": 116.41,
+                "stay_count": 4,
+            }
+        ]
+    )
+
+    result = module.attach_anchor_coordinates_from_locations(
+        anchors,
+        locations,
+    ).iloc[0]
+
+    assert float(result["latitude"]) == 39.91
+    assert float(result["longitude"]) == 116.41
+    assert int(result["coordinate_stay_count"]) == 4
+
+def test_stage07d_notebook_uses_production_location_coordinates():
+    import json
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07d_historical_context_enrichment.ipynb"
+    )
+    notebook = json.loads(path.read_text(encoding="utf-8"))
+    code = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    )
+
+    assert "BRANCH='eda/07e-semantic-distance-alignment'" in code
+    assert "build_semantic_locations(stays,config=cfg)" in code
+    assert "attach_anchor_coordinates_from_locations(anchors,locations)" in code
+    assert "production_complete_link_200m_beijing_policy_v1" in code
+    assert "cluster_behavior_locations(resolved,200.0)" not in code
+

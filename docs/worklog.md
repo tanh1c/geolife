@@ -1683,3 +1683,199 @@ Interpretation remains conservative: CLCD provides physical context; historical 
 
 Decision: close Stage 07d. Next semantic-source priority is BCL POI 2008 access/license/CRS resolution because it is temporally relevant to 208/225 anchors.
 
+
+## 2026-10-02 — Stage 07e offline semantic-distance alignment patch
+
+A new branch, `eda/07e-semantic-distance-alignment`, starts the first full-cache semantic alignment audit after Stage 07d.
+
+The patch is deliberately offline-only. It consumes the completed 225-anchor historical OSM cache and makes no ohsome requests.
+
+Implemented scope:
+
+- validate full one-to-one anchor/cache coverage;
+- decode historical OSM WKB geometry and compute local metric anchor-to-feature distances;
+- use bbox only as a geometry-decoding fallback;
+- distinguish exact radial <=25 / <=50 / <=100 m evidence from the Stage-07d square extraction AOI;
+- preserve Stage-07d multi-label semantic categories;
+- identify the exact Stage-05b stable-secondary anchor by `dominant_location_id`;
+- compare that candidate against other recurring non-HOME anchors from the same user;
+- use 100 m censored distance for bounded within-user comparisons;
+- bootstrap user-level candidate-minus-peer context differences;
+- summarize mapped work-compatible context against Stage-07b factorized mobility axes.
+
+No measured result is frozen yet. The next step is to run the 07e notebook on the existing Modal Volume and review aggregate outputs before any PR is opened.
+\n
+
+## 2026-10-02 — Stage 07e cache-validation contract fix
+
+First Modal execution exposed a persistence mismatch: the raw ohsome cache had been resumed across runs, but the saved Stage-07d request-log pickle was from an earlier partial run. The original 07e gate incorrectly treated the log as coverage truth and reported 170 missing anchors.
+
+Fix:
+
+- recompute the exact Stage-07d request body for every anchor;
+- derive the deterministic cache key directly;
+- validate the raw Parquet file on disk;
+- retain request-log status only as optional audit metadata;
+- add regression coverage for complete raw cache + stale partial log.
+
+This preserves the intended requirement: Stage 07e needs complete raw historical OSM cache, not a freshly persisted request log.
+
+## 2026-10-02 — Location-namespace correctness issue invalidates prior 07c/07d/07e measured anchor interpretation
+
+Stage 07e exposed that Stage 05b and Stage 07c were not using the same location-id namespace.
+
+- Stage 05b used production `build_semantic_locations(... complete_link, 200m)`, whose location ids are assigned by first observation after the Beijing region policy.
+- Stage 07c/07d used `cluster_behavior_locations(..., 200m)`, whose location ids are relabeled by dwell/support and are built from a different stay universe.
+
+Therefore integer equality of `location_id` across these stages was not a valid join key.
+
+Consequences:
+
+- the old 225-anchor Stage-07c universe may have excluded the wrong location when removing HOME;
+- the old Stage-07d CLCD / OSM summaries remain technically valid for those 225 coordinates, but those coordinates are not guaranteed to be the intended production-aligned recurring non-HOME universe;
+- the first Stage-07e result (62 semantic <=100m, 46 work-compatible <=100m, 8/9 exact stable-secondary anchors) is superseded and must not be interpreted further.
+
+Corrective patch:
+
+- Stage 07c now rebuilds locations using production `build_semantic_locations` with complete-link 200 m;
+- validates that all supported HOME ids and Stage-05b dominant secondary ids exist in that namespace;
+- persists `location_namespace=production_complete_link_200m_beijing_policy_v1`;
+- Stage 07d attaches coordinates from the production location table;
+- Stage 07e rejects any artifact missing the expected namespace.
+
+Required rerun order: corrected 07c -> corrected 07d (resume cache; fetch only missing request hashes) -> corrected 07e.
+
+## 2026-10-02 — Corrected Stage 07c measured result
+
+The production-location namespace rerun completed cleanly.
+
+Namespace validation:
+
+- location namespace: `production_complete_link_200m_beijing_policy_v1`;
+- production semantic-location users: 97;
+- production semantic locations: 1,111;
+- supported HOME ids checked: 25;
+- supported HOME ids missing: 0;
+- Stage-05b dominant work ids checked: 15;
+- Stage-05b dominant work ids missing: 0.
+
+Corrected recurring non-HOME candidate universe:
+
+- 25 users;
+- 198 anchors.
+
+Observation-year distribution:
+
+- 2008: 65 anchors / 11 users;
+- 2009: 120 anchors / 11 users;
+- 2011: 7 anchors / 4 users;
+- 2012: 6 anchors / 2 users;
+- no corrected candidate anchor has median observation year 2010.
+
+Corrected historical-source coverage:
+
+- CLCD exact-year physical context: 198 anchors / 25 users;
+- historical OSM cross-check: 198 anchors / 25 users;
+- BCL POI 2008 exact/+1-year candidate: 185 anchors / 19 users;
+- 2011 candidates: 7 anchors / 4 users;
+- Baidu 2012 candidate: 6 anchors / 2 users.
+
+This supersedes the old behavior-location universe of 225 anchors. The next required run is corrected Stage 07d on these 198 production-aligned anchors.
+
+## 2026-10-03 — Corrected Stage 07d measured result
+
+The production-aligned Stage-07d rerun completed cleanly on the corrected 198-anchor universe.
+
+Universe:
+
+- 198 recurring non-HOME anchors;
+- 25 users;
+- location namespace: `production_complete_link_200m_beijing_policy_v1`.
+
+CLCD exact-year physical context:
+
+- point class known: 198 / 198 (100%);
+- impervious: 191 / 198 (96.46%);
+- point = 3x3 local mode: 197 / 198 (99.49%);
+- point = 5x5 local mode: 195 / 198 (98.48%).
+
+Class/year counts:
+
+- 2008: 63 impervious, 2 water;
+- 2009: 116 impervious, 3 forest, 1 cropland;
+- 2011: 7 impervious;
+- 2012: 5 impervious, 1 water.
+
+Historical OSM / ohsome:
+
+- target: 198;
+- completed: 198 / 198 (100%);
+- cached: 189;
+- newly fetched in final corrected run: 9;
+- rate-limited: 0;
+- deferred: 0;
+- request errors: 0;
+- parse errors: 0.
+
+Full corrected-universe OSM context:
+
+- semantic context found: 63 / 198 anchors (31.82%), 16 users;
+- broad work-compatible context: 47 / 198 anchors (23.74%), 15 users;
+- residential context: 6 / 198 anchors (3.03%), 2 users.
+
+Interpretation remains source-bounded: CLCD is physical built/impervious context only, and historical OSM is mapping evidence rather than semantic ground truth.
+
+The corrected 07d outputs supersede all old 225-anchor Stage-07d measurements.
+
+Next required run: corrected Stage 07e on this completed 198-anchor cache.
+
+## 2026-10-03 — Corrected Stage 07e completed: null/mixed independent semantic evidence
+
+The corrected production-aligned Stage-07e notebook completed without errors.
+
+Coverage:
+
+- 198 / 198 raw historical-OSM caches validated;
+- 25 users;
+- 9 stable-secondary users represented;
+- 9 exact stable-secondary anchors;
+- 9 within-user comparison rows.
+
+Exact radial historical-OSM context:
+
+- semantic <=100 m: 61 / 198 anchors;
+- broad work-compatible <=100 m: 46 / 198 anchors.
+
+Work-compatible distance buckets:
+
+- 0–25 m: 31 anchors / 9 users;
+- 25–50 m: 5 anchors / 5 users;
+- 50–100 m: 10 anchors / 7 users;
+- none within 100 m: 152 anchors / 25 users.
+
+Category <=100 m:
+
+- education 33;
+- recreation/tourism 14;
+- retail/service 14;
+- residential 6;
+- office/commercial 2;
+- transport 2;
+- healthcare 1;
+- civic/institutional 0;
+- industrial 0.
+
+Stable-secondary candidate vs same-user recurring peers:
+
+- 25 m: 2/9 candidate-context users, mean candidate-peer +0.115, bootstrap 95% [-0.109, +0.387];
+- 50 m: 2/9, +0.081, [-0.147, +0.337];
+- 100 m: 2/9, +0.019, [-0.210, +0.284].
+
+All composite intervals cross zero. Both candidate-context cases are education. No stable-secondary candidate has office/commercial context within 100 m.
+
+Retail/service at 100 m is more common among peers than candidates in this tiny cohort: mean candidate-peer -0.081, bootstrap interval [-0.135, -0.028]. This is descriptive only.
+
+Decision: Stage 07e closes as null/mixed independent semantic evidence. Historical OSM does not justify promoting stable-secondary mobility geometry to WORK/OFFICE semantics. Do not tune mobility thresholds against these external labels.
+
+Next semantic-source priority remains BCL POI 2008, temporally relevant to 185 / 198 corrected anchors across 19 users.
+

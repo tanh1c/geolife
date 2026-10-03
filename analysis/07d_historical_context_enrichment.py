@@ -103,6 +103,70 @@ TRANSPORT_BUILDINGS = {"train_station", "transportation"}
 
 
 
+def attach_anchor_coordinates_from_locations(
+    anchors: pd.DataFrame,
+    locations: pd.DataFrame,
+) -> pd.DataFrame:
+    """Attach private centroids from the production semantic-location table."""
+    required_anchor = {"user_id", "location_id"}
+    missing = required_anchor.difference(anchors.columns)
+    if missing:
+        raise ValueError(f"anchors missing columns: {sorted(missing)}")
+
+    required_locations = {
+        "user_id",
+        "location_id",
+        "latitude",
+        "longitude",
+        "stay_count",
+    }
+    missing = required_locations.difference(locations.columns)
+    if missing:
+        raise ValueError(f"locations missing columns: {sorted(missing)}")
+
+    left = anchors.copy()
+    left["user_id"] = left["user_id"].astype(str)
+    left["location_id"] = pd.to_numeric(
+        left["location_id"], errors="raise"
+    ).astype(int)
+
+    loc = locations.copy()
+    loc["user_id"] = loc["user_id"].astype(str)
+    loc["location_id"] = pd.to_numeric(
+        loc["location_id"], errors="raise"
+    ).astype(int)
+    loc["latitude"] = pd.to_numeric(loc["latitude"], errors="raise")
+    loc["longitude"] = pd.to_numeric(loc["longitude"], errors="raise")
+    loc["stay_count"] = pd.to_numeric(
+        loc["stay_count"], errors="raise"
+    ).astype(int)
+
+    result = left.merge(
+        loc[
+            [
+                "user_id",
+                "location_id",
+                "latitude",
+                "longitude",
+                "stay_count",
+            ]
+        ].rename(columns={"stay_count": "coordinate_stay_count"}),
+        on=["user_id", "location_id"],
+        how="left",
+        validate="one_to_one",
+    )
+    if result[["latitude", "longitude"]].isna().any(axis=None):
+        missing_rows = result.loc[
+            result[["latitude", "longitude"]].isna().any(axis=1),
+            ["user_id", "location_id"],
+        ]
+        raise ValueError(
+            "could not attach production coordinates for all anchors: "
+            f"{len(missing_rows)} missing"
+        )
+    return result
+
+
 def attach_anchor_coordinates_from_clustered_stays(
     anchors: pd.DataFrame,
     clustered_stays: pd.DataFrame,

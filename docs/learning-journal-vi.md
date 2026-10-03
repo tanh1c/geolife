@@ -1186,3 +1186,13 @@ Kết quả full-universe:
 
 Bài học: quota không bắt buộc phải làm giảm coverage nếu pipeline deterministic + resumable. Nhưng full API coverage vẫn không biến source thành ground truth; historical OSM ở early China còn mapping lag/incompleteness.
 
+## 2026-10-03 — Cùng threshold clustering chưa chắc cùng location namespace
+
+07e phát hiện một lỗi phương pháp quan trọng: hai pipeline đều dùng complete-link 200 m nhưng vẫn không thể join `location_id` trực tiếp nếu preprocessing và relabeling khác nhau.
+
+Sau khi sửa toàn bộ 07c→07d→07e sang production semantic-location namespace, stable-secondary coverage mới đạt đúng 9/9.
+
+Kết quả corrected cũng cho một bài học khác: external context không tự động validate mobility hypothesis. Chỉ 2/9 stable-secondary candidates có mapped work-compatible context trong 100 m, cả hai đều là education; không có candidate nào có office/commercial context. Paired candidate-vs-peer differences đều có bootstrap interval cắt 0.
+
+Bài học: correctness của join-key phải được chứng minh trước khi diễn giải evidence, và null external-validation result nên được giữ nguyên thay vì tune threshold cho đến khi “đẹp”.
+
