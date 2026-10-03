@@ -2049,3 +2049,21 @@ Refreeze status:
 - CP2 v2 namespace refreeze: blocked until those parity checks pass.
 
 Historical CP2 v1 counts (27 HOME / 16 OFFICE) remain a comparison baseline only and are not asserted as CP2 v2 output.
+
+
+## 2026-10-03 — CP2 v2 migration CI green
+
+PR #27 CI run 384 completed successfully after two migration-specific regressions were corrected:
+
+- API abstention no longer reports `out_of_scope_geography` for valid non-Beijing stays under the all-resolved timezone contract;
+- behavioral interval overlap is computed in UTC after local-window construction, preventing DST spring-forward wall-clock subtraction from overcounting elapsed dwell.
+
+Final CI status on head `b0530318`:
+
+- package install: pass;
+- Python compile: pass;
+- full pytest suite: pass;
+- notebook JSON validation: pass;
+- EDA / CP1 / CP2 / API imports: pass.
+
+PR #27 remains draft intentionally. The only remaining CP2-v2 refreeze gate is the private full-release 5,821-stay production-vs-Notebook-03 parity run.
