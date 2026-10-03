@@ -107,3 +107,36 @@ def test_synthetic_self_check():
     check = module.synthetic_self_check()
     assert check["status"] == "ok"
     assert check["location_namespace"].endswith("_v2")
+
+
+def test_stage03d_notebook_contract():
+    import json
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "03d_cp2_v2_production_migration.ipynb"
+    )
+    notebook = json.loads(path.read_text(encoding="utf-8"))
+    code = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    )
+
+    required = [
+        "run_migration_comparison",
+        "ready_for_cp2_v2_review",
+        "production_complete_link_200m_local_timezone_v2",
+        "cp2-v2",
+        "HTTP_PARITY_PASS",
+        "semantic_stays_cp2_v2_private.pkl",
+        "semantic_locations_cp2_v2_private.pkl",
+        "home_office_emissions_cp2_v2_private.pkl",
+        "ready_for_cp2_v2_refreeze_review",
+    ]
+    for snippet in required:
+        assert snippet in code
+
+    assert "assert int(direct_counts[\"HOME\"]) == 27" not in code
+    assert "out_of_scope_geography" not in code
