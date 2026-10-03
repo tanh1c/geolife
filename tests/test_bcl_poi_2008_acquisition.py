@@ -65,7 +65,7 @@ def test_missing_file_keeps_runner_blocked_even_with_metadata():
         http_status=200,
     )
 
-    assert decision.metadata_access == "pass_public_metadata"
+    assert decision.metadata_access == "pass_public_metadata_identity"
     assert decision.file_access == "blocked_no_file_available"
     assert decision.runner_status == "blocked"
 
@@ -280,3 +280,45 @@ def test_noncommercial_and_no_derivatives_licenses_do_not_auto_pass():
     assert not module.license_is_explicit_reuse_candidate("CC BY-ND 4.0")
     assert module.license_is_explicit_reuse_candidate("CC BY 4.0")
     assert module.license_is_explicit_reuse_candidate("CC BY-SA 4.0")
+
+
+def test_figshare_identity_mismatch_blocks_metadata_gate():
+    module = _module()
+    metadata = {
+        "id": module.FIGSHARE_ARTICLE_ID + 1,
+        "doi": module.FIGSHARE_DOI,
+        "license": {"name": "CC BY 4.0"},
+        "files": [],
+    }
+
+    decision = module.evaluate_acquisition_gates(
+        metadata,
+        http_status=200,
+    )
+
+    assert decision.metadata_access == "blocked_metadata_access_or_identity"
+    assert decision.runner_status == "blocked"
+
+
+def test_link_only_file_is_not_selected_as_corpus_download():
+    module = _module()
+    metadata = {
+        "id": module.FIGSHARE_ARTICLE_ID,
+        "doi": module.FIGSHARE_DOI,
+        "license": {"name": "CC BY 4.0"},
+        "files": [
+            {
+                "id": 9,
+                "name": "poi2008.zip",
+                "download_url": "https://example/poi2008.zip",
+                "is_link_only": True,
+            }
+        ],
+    }
+
+    assert module.select_public_download_candidate(metadata) is None
+    decision = module.evaluate_acquisition_gates(
+        metadata,
+        http_status=200,
+    )
+    assert decision.file_access == "blocked_link_only_not_corpus_file"
