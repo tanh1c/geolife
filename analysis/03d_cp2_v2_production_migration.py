@@ -161,10 +161,10 @@ def reference_complete_link(
                 distance_threshold=threshold_m,
             ).fit_predict(distances)
 
-        ordered["_reference_location_id"] = labels.astype(int)
+        ordered["reference_location_id"] = labels.astype(int)
         clustered_parts.append(ordered)
 
-        label_array = ordered["_reference_location_id"].to_numpy(int)
+        label_array = ordered["reference_location_id"].to_numpy(int)
         for location_id in np.unique(label_array):
             member_idx = np.flatnonzero(label_array == location_id)
             members = ordered.iloc[member_idx]
@@ -176,7 +176,7 @@ def reference_complete_link(
             rows.append(
                 {
                     "user_id": user_id,
-                    "_reference_location_id": int(location_id),
+                    "reference_location_id": int(location_id),
                     "latitude": float(members["latitude"].median()),
                     "longitude": float(members["longitude"].median()),
                     "stay_count": int(len(members)),
@@ -254,8 +254,8 @@ def _window_rows(
                     rows.append(
                         {
                             "user_id": row.user_id,
-                            "_reference_location_id": int(
-                                row._reference_location_id
+                            "reference_location_id": int(
+                                row.reference_location_id
                             ),
                             "behavior_date": window_start.date(),
                             "overlap_s": overlap_s,
@@ -267,7 +267,7 @@ def _window_rows(
         rows,
         columns=[
             "user_id",
-            "_reference_location_id",
+            "reference_location_id",
             "behavior_date",
             "overlap_s",
         ],
@@ -282,7 +282,7 @@ def _aggregate_reference(
 ) -> pd.DataFrame:
     dwell_col = f"{prefix}_dwell_s"
     dates_col = f"{prefix}_dates"
-    keys = ["user_id", "_reference_location_id"]
+    keys = ["user_id", "reference_location_id"]
     if contrib.empty:
         return pd.DataFrame(columns=[*keys, dwell_col, dates_col])
 
@@ -316,7 +316,7 @@ def reference_infer(
 ) -> pd.DataFrame:
     """Independently apply the frozen behavioral windows and emission gates."""
     cfg = config or HomeOfficeConfig()
-    keys = ["user_id", "_reference_location_id"]
+    keys = ["user_id", "reference_location_id"]
     home = _aggregate_reference(
         _window_rows(clustered, config=cfg, kind="HOME"),
         prefix="home",
@@ -387,7 +387,7 @@ def reference_infer(
                 dates_col,
                 dwell_col,
                 "stay_count",
-                "_reference_location_id",
+                "reference_location_id",
             ],
             ascending=[True, False, False, False, False, True],
             kind="stable",
@@ -428,7 +428,7 @@ def reference_infer(
             columns=[
                 "user_id",
                 "label",
-                "_reference_location_id",
+                "reference_location_id",
                 "latitude",
                 "longitude",
                 "evidence_strength",
