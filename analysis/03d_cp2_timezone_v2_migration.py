@@ -366,22 +366,41 @@ def reference_features(
     features["night_dates"] = features["night_dates"].astype(int)
     features["office_dates"] = features["office_dates"].astype(int)
 
-    night_total = features.groupby("user_id")[
-        "night_dwell_s"
-    ].transform("sum")
-    office_total = features.groupby("user_id")[
-        "office_dwell_s"
-    ].transform("sum")
-    features["night_dwell_share"] = np.where(
-        night_total > 0,
-        features["night_dwell_s"] / night_total,
-        0.0,
+    for col in ["night_dwell_s", "office_dwell_s"]:
+        features[col] = pd.to_numeric(
+            features[col],
+            errors="coerce",
+        ).fillna(0.0)
+
+    night_num = features["night_dwell_s"].to_numpy(dtype=float)
+    office_num = features["office_dwell_s"].to_numpy(dtype=float)
+    night_den = (
+        features.groupby("user_id")["night_dwell_s"]
+        .transform("sum")
+        .to_numpy(dtype=float)
     )
-    features["office_dwell_share"] = np.where(
-        office_total > 0,
-        features["office_dwell_s"] / office_total,
-        0.0,
+    office_den = (
+        features.groupby("user_id")["office_dwell_s"]
+        .transform("sum")
+        .to_numpy(dtype=float)
     )
+
+    night_share = np.zeros(len(features), dtype=float)
+    office_share = np.zeros(len(features), dtype=float)
+    np.divide(
+        night_num,
+        night_den,
+        out=night_share,
+        where=night_den > 0,
+    )
+    np.divide(
+        office_num,
+        office_den,
+        out=office_share,
+        where=office_den > 0,
+    )
+    features["night_dwell_share"] = night_share
+    features["office_dwell_share"] = office_share
     return features
 
 
