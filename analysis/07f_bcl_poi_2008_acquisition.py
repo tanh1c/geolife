@@ -226,6 +226,7 @@ def evaluate_acquisition_gates(
     error: str | None = None,
     inspected_crs: str | None = None,
     inspected_structure_ok: bool | None = None,
+    inspected_container_kind: str | None = None,
     local_candidate_files: Iterable[str] = (),
 ) -> GateDecision:
     metadata = metadata or {}
@@ -283,10 +284,18 @@ def evaluate_acquisition_gates(
         if str(value)
     }
     suffixes.update(Path(value).suffix.lower() for value in local_candidates)
-    if ".mdb" in suffixes:
+    inspected_kind = _as_text(inspected_container_kind).lower()
+    supported_inspected = {"mdb", "gdb", "gpkg", "shp", "sqlite"}
+    if inspected_kind:
+        format_status = (
+            f"pass_inspected_{inspected_kind}"
+            if inspected_kind in supported_inspected
+            else f"blocked_inspected_{inspected_kind}"
+        )
+    elif ".mdb" in suffixes:
         format_status = "pass_mdb"
     elif ".zip" in suffixes or ".rar" in suffixes:
-        format_status = "inspect_archive_for_mdb"
+        format_status = "inspect_archive_for_spatial_container"
     elif suffixes:
         format_status = "blocked_unexpected_file_format"
     else:
@@ -304,7 +313,7 @@ def evaluate_acquisition_gates(
 
     access_ready = file_access.startswith("pass_")
     license_ready = license_status.startswith("pass_")
-    format_ready = format_status in {"pass_mdb", "inspect_archive_for_mdb"}
+    format_ready = format_status.startswith("pass_")
     structure_ready = structure_status.startswith("pass_")
     crs_ready = crs_status.startswith("pass_")
 
@@ -317,7 +326,15 @@ def evaluate_acquisition_gates(
         and crs_ready
     ):
         runner_status = "ready_for_normalization"
-    elif metadata_ok and access_ready and license_ready and format_ready:
+    elif (
+        metadata_ok
+        and access_ready
+        and license_ready
+        and (
+            format_ready
+            or format_status == "inspect_archive_for_spatial_container"
+        )
+    ):
         runner_status = "ready_for_mdb_inspection"
     else:
         runner_status = "blocked"
@@ -604,12 +621,18 @@ def parse_ogrinfo_report(stdout: str) -> dict[str, Any]:
 
 
 def summarize_mdb_inspection(report: dict[str, Any]) -> pd.DataFrame:
+    """Backward-compatible name for generic spatial-container inspection."""
     ogr = report.get("ogr") or {}
     table_names = report.get("mdb_tables") or []
     return pd.DataFrame(
         [
             {
-                "mdb_path": _as_text(report.get("mdb_path")),
+                "container_path": _as_text(
+                    report.get("container_path") or report.get("mdb_path")
+                ),
+                "container_kind": _as_text(
+                    report.get("container_kind") or "mdb"
+                ),
                 "mdbtools_available": bool(report.get("mdbtools_available")),
                 "gdal_pgeo_available": bool(report.get("gdal_pgeo_available")),
                 "table_count": int(len(table_names)),
@@ -633,7 +656,11 @@ def summarize_mdb_inspection(report: dict[str, Any]) -> pd.DataFrame:
 
 
 def mdb_structure_is_plausible(report: dict[str, Any]) -> bool:
-    """Require a readable spatial point layer before normalization."""
+    """Require a readable spatial point layer before normalization.
+
+    MDB requires the GDAL PGeo driver. Other inspected spatial containers only
+    require successful GDAL layer inspection.
+    """
     ogr = report.get("ogr") or {}
     geometries = [
         _as_text(value).lower()
@@ -641,8 +668,14 @@ def mdb_structure_is_plausible(report: dict[str, Any]) -> bool:
     ]
     counts = [int(value) for value in (ogr.get("feature_counts") or [])]
     fields = ogr.get("field_names") or []
+    kind = _as_text(report.get("container_kind") or "mdb").lower()
+    driver_ok = (
+        bool(report.get("gdal_pgeo_available"))
+        if kind == "mdb"
+        else True
+    )
     return bool(
-        report.get("gdal_pgeo_available")
+        driver_ok
         and int(ogr.get("layer_count") or 0) > 0
         and any("point" in value for value in geometries)
         and any(value > 0 for value in counts)
