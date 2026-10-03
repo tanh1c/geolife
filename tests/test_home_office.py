@@ -348,3 +348,39 @@ def test_timezone_resolution_config_is_frozen_to_coordinate_iana() -> None:
 
     with pytest.raises(ValueError, match="unresolved_timezone_policy"):
         HomeOfficeConfig(unresolved_timezone_policy="raise")
+
+
+
+def test_home_window_uses_local_wall_clock_across_dst_fall_back() -> None:
+    # New York falls back on 2026-11-01. 00:30 -> 02:30 local spans
+    # three absolute hours and must all count inside the 21:00-06:00 HOME window.
+    arrival = _utc_in_zone("2026-11-01 00:30", "America/New_York")
+    departure = _utc_in_zone("2026-11-01 02:30", "America/New_York")
+    rows = []
+    for offset_days in [0, 7, 14]:
+        rows.append(
+            {
+                "user_id": "dst",
+                "arrival_time_utc": arrival + pd.Timedelta(days=offset_days),
+                "departure_time_utc": departure + pd.Timedelta(days=offset_days),
+                "duration_s": 3 * 3600.0 if offset_days == 0 else 2 * 3600.0,
+                "latitude": 40.7128,
+                "longitude": -74.0060,
+            }
+        )
+
+    config = HomeOfficeConfig(
+        home_min_dates=1,
+        home_min_share=0.0,
+        home_min_margin=0.0,
+        office_min_dates=99,
+    )
+    semantic, locations = build_semantic_locations(pd.DataFrame(rows), config=config)
+    features = __import__(
+        "geolife.model.home_office",
+        fromlist=["_location_features"],
+    )._location_features(semantic, locations, config=config)
+
+    # The first occurrence contributes 3h because the repeated 01:00 hour is
+    # represented in absolute time while the HOME boundary remains local wall time.
+    assert features["home_dwell_s"].sum() >= 7 * 3600.0
