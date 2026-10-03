@@ -403,3 +403,84 @@ def test_stage07f_notebook_contract_includes_rar_worker_support():
     assert "'.rar'" in code
     assert "'unar'" in code
     assert "RAR extraction failed" in code
+
+
+def test_gdb_structure_can_pass_without_pgeo_driver():
+    module = _module()
+    report = {
+        "container_kind": "gdb",
+        "gdal_pgeo_available": False,
+        "ogr": {
+            "layer_count": 1,
+            "geometry_types": ["Point"],
+            "feature_counts": [6000000],
+            "field_names": ["name"],
+        },
+    }
+
+    assert module.mdb_structure_is_plausible(report)
+
+
+def test_inspected_gdb_can_reach_ready_for_normalization():
+    module = _module()
+    metadata = {
+        "id": module.FIGSHARE_ARTICLE_ID,
+        "doi": module.FIGSHARE_DOI + ".v1",
+        "license": {"name": "CC BY 4.0"},
+        "files": [
+            {
+                "id": 53238599,
+                "name": "Points of interest of China in 2008.rar",
+                "download_url": "https://ndownloader.figshare.com/files/53238599",
+                "is_link_only": False,
+            }
+        ],
+    }
+
+    decision = module.evaluate_acquisition_gates(
+        metadata,
+        http_status=200,
+        inspected_crs="EPSG:4326",
+        inspected_structure_ok=True,
+        inspected_container_kind="gdb",
+    )
+
+    assert decision.format_status == "pass_inspected_gdb"
+    assert decision.structure_status == "pass_spatial_point_structure"
+    assert decision.crs_status == "pass_inspected_crs"
+    assert decision.runner_status == "ready_for_normalization"
+
+
+def test_extracted_inventory_marks_gdb_components():
+    module = _module()
+    inventory = module.summarize_extracted_inventory(
+        [
+            "/tmp/a/data.gdb/a00000001.gdbtable",
+            "/tmp/a/poi.shp",
+            "/tmp/a/readme.txt",
+        ]
+    )
+
+    assert inventory["is_gdb_component"].tolist() == [True, False, False]
+    assert inventory["is_supported_candidate"].tolist() == [True, True, False]
+
+
+def test_stage07f_notebook_contract_inventories_alternate_containers():
+    import json
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07f_bcl_poi_2008_acquisition.ipynb"
+    )
+    notebook = json.loads(path.read_text(encoding="utf-8"))
+    code = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    )
+
+    assert "extension_counts" in code
+    assert "container_kind" in code
+    assert "endswith('.gdb')" in code
+    assert "no supported spatial container found after acquisition" in code
