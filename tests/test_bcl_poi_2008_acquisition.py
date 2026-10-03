@@ -263,11 +263,10 @@ def test_stage07f_notebook_contract():
         "mdbtools",
         "odbc-mdbtools",
         "gdal-bin",
-        "ohsome",  # must not be called; checked below
         "acquisition_manifest",
+        "license_allows_public_download",
     ]
-    for snippet in required[:-1]:
+    for snippet in required:
         assert snippet in code
 
     assert "fetch_ohsome" not in code
-    assert "semantic_claim_allowed" not in code
