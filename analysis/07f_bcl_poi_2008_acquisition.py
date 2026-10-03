@@ -452,7 +452,7 @@ def parse_ogrinfo_report(stdout: str) -> dict[str, Any]:
     epsg_codes = sorted(
         set(
             re.findall(
-                r'(?:AUTHORITY\\["EPSG","|ID\\["EPSG",)(\\d+)',
+                r'(?:AUTHORITY\["EPSG","|ID\["EPSG",)(\d+)',
                 stdout,
             )
         )
