@@ -2021,3 +2021,47 @@ Final gates:
 
 Decision: close Stage 07f successfully. Stage 07g may perform deterministic Beijing-only extraction and normalization from the validated FileGDB, while preserving raw POI names and avoiding direct WORK/OFFICE semantics.
 
+## 2026-10-03 — CP2 timezone-v2 production migration patch prepared
+
+A repository audit confirmed that the final notebook-03 timezone contract had already been implemented and executed at notebook level on 2026-09-24:
+
+```text
+coordinate
+→ timezonefinder
+→ IANA timezone_id
+→ ZoneInfo(timezone_id)
+→ local wall-clock time
+```
+
+All 5,821 frozen CP1 stays resolved successfully in that audit, and the final notebook removed Asia/Shanghai/Beijing concentration as an eligibility rule.
+
+The remaining inconsistency was production code: `src/geolife/model/home_office.py` still implemented the older Beijing-radius CP2 v1 contract.
+
+This patch migrates production to the audited notebook-v2 semantics:
+
+- `timezonefinder==9.0.0` becomes a runtime dependency;
+- each stay resolves its own IANA timezone;
+- local timestamps use the same tz-naive wall-clock representation as notebook 03;
+- no Beijing-radius / China / Asia-Shanghai eligibility gate remains;
+- complete-link 200 m stays frozen;
+- HOME/OFFICE windows and emission gates stay frozen;
+- semantic and emitted locations carry namespace `complete_link_200m_local_timezone_v2`;
+- API responses identify `model_contract = cp2-v2`;
+- geography abstention is replaced by `unresolved_timezone`.
+
+A one-time independent reference implementation was added at:
+
+```text
+analysis/03d_cp2_timezone_v2_migration.py
+```
+
+and a full-release migration notebook at:
+
+```text
+notebooks/03d_cp2_timezone_v2_migration.ipynb
+```
+
+The refreeze gate requires exact per-stay timezone/local-time/location membership, exact emitted keys/evidence, and full 136-user HTTP/direct parity on the frozen 5,821-stay cache.
+
+No new measured CP2-v2 counts are accepted until that Modal notebook is executed.
+
