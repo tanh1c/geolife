@@ -255,3 +255,64 @@ If none exists, the audit stores extension counts and representative paths and r
 
 GDAL PGeo is required only for an actual MDB. Other supported spatial containers are inspected with their native GDAL driver.
 
+## Final measured result — ready for normalization
+
+The third Modal run completed the acquisition/provenance/CRS audit successfully.
+
+### Public source identity
+
+- Figshare article id: 28667492;
+- DOI: `10.6084/m9.figshare.28667492.v1`;
+- licence: CC BY 4.0;
+- direct public file: `Points of interest of China in 2008.rar`;
+- file size: 120,023,687 bytes;
+- MD5: `e77c3473874a6fb64fd0c52d3c66fc84`.
+
+### Extracted archive structure
+
+The RAR does not contain an MDB. It contains an ArcGIS File Geodatabase:
+
+```text
+POI2008All.gdb
+```
+
+Extracted inventory:
+
+- 45 files;
+- FileGDB components include `.gdbtable`, `.gdbtablx`, `.gdbindexes`, `.atx`, `.spx`.
+
+This resolves the discrepancy with the older BCL page wording that described an ArcGIS Personal Geodatabase. The actual current Figshare attachment is a File Geodatabase.
+
+### GDAL inspection
+
+Selected container:
+
+```text
+container_kind = gdb
+container_path = .../POI2008All.gdb
+```
+
+Measured layer metadata:
+
+- layer: `POI2008CN`;
+- geometry: Point;
+- feature count: 6,039,158;
+- CRS: EPSG:4326;
+- fields: `PNAME`, `X`, `Y`.
+
+### Final gates
+
+```text
+metadata_access   = pass_public_metadata_identity
+file_access       = pass_public_file
+license_status    = pass_explicit:CC BY 4.0
+format_status     = pass_inspected_gdb
+structure_status  = pass_spatial_point_structure
+crs_status        = pass_inspected_crs
+runner_status     = ready_for_normalization
+```
+
+Stage 07f therefore closes successfully.
+
+The next stage may normalize/extract the FileGDB deterministically, but must preserve the semantic boundary: the source provides POI names and coordinates, not trusted WORK/OFFICE categories.
+
