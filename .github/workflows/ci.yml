@@ -52,6 +52,7 @@ jobs:
               'notebooks/07d_historical_context_enrichment.ipynb',
               'notebooks/07e_semantic_distance_alignment.ipynb',
               'notebooks/07f_bcl_poi_2008_acquisition.ipynb',
+              'notebooks/07g_bcl_beijing_normalization.ipynb',
           ]:
               json.load(open(path, encoding='utf-8'))
               print(path, 'json ok')
