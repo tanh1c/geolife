@@ -33,11 +33,13 @@ SEMANTIC_STAY_COLUMNS = [
     "departure_time_local",
     "arrival_local_date",
     "arrival_local_weekday",
+    "location_namespace",
     "location_id",
 ]
 
 LOCATION_COLUMNS = [
     "user_id",
+    "location_namespace",
     "location_id",
     "latitude",
     "longitude",
@@ -234,6 +236,18 @@ def _resolve_local_time(stays: pd.DataFrame) -> pd.DataFrame:
     )
     return result
 
+def location_namespace(
+    config: HomeOfficeConfig | None = None,
+) -> str:
+    """Return the semantic-location namespace for the active CP2 contract."""
+    cfg = config or HomeOfficeConfig()
+    if cfg.clustering_method == "complete_link":
+        spatial = f"complete_link_{cfg.location_max_diameter_m:g}m"
+    else:
+        spatial = f"dbscan_{cfg.dbscan_eps_m:g}m"
+    return f"{spatial}_local_timezone_v2"
+
+
 def _pairwise_haversine_matrix_m(group: pd.DataFrame) -> np.ndarray:
     lat = group["latitude"].to_numpy(dtype=float)
     lon = group["longitude"].to_numpy(dtype=float)
@@ -345,6 +359,8 @@ def build_semantic_locations(
                 group,
                 eps_m=cfg.dbscan_eps_m,
             )
+        namespace = location_namespace(cfg)
+        clustered_user["location_namespace"] = namespace
         clustered_parts.append(clustered_user)
 
         labels = clustered_user["location_id"].to_numpy(dtype=int)
@@ -365,6 +381,7 @@ def build_semantic_locations(
             location_rows.append(
                 {
                     "user_id": user_id,
+                    "location_namespace": namespace,
                     "location_id": int(location_id),
                     "latitude": float(members["latitude"].median()),
                     "longitude": float(members["longitude"].median()),
