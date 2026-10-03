@@ -1879,3 +1879,36 @@ Decision: Stage 07e closes as null/mixed independent semantic evidence. Historic
 
 Next semantic-source priority remains BCL POI 2008, temporally relevant to 185 / 198 corrected anchors across 19 users.
 
+## 2026-10-03 — Stage 07f BCL POI 2008 acquisition / provenance / CRS patch started
+
+After corrected Stage 07e closed as null/mixed historical-OSM semantic evidence, the next source priority is BCL POI 2008:
+
+- temporally relevant to 185 / 198 corrected recurring non-HOME anchors;
+- 19 / 25 candidate users.
+
+Current official BCL record states:
+
+- >6 million mainland-China POIs;
+- snapshot scraped in 2008;
+- ArcGIS Personal Geodatabase 10.1;
+- coordinates + place names;
+- no category field;
+- access/documentation DOI `10.6084/m9.figshare.28667492`.
+
+The official BCL page itself currently exposes no downloadable attachment, so 07f does not hard-code a guessed file URL. Instead the notebook probes the public Figshare API at runtime.
+
+Modal-first implementation:
+
+- public metadata/files probe with no authentication;
+- explicit licence gate before public auto-download;
+- deterministic MDB/ZIP candidate selection;
+- manual/cached inbox fallback;
+- resumable `.part` streaming download with Range support;
+- metadata size/MD5 verification and local SHA-256;
+- safe ZIP extraction;
+- isolated Modal worker image with `mdbtools`, unixODBC, `odbc-mdbtools`, GDAL and unzip;
+- MDB table/schema inspection plus GDAL PGeo layer/CRS inspection;
+- explicit blocked / ready-for-inspection / ready-for-normalization terminal states.
+
+No semantic join is implemented in 07f. A later 07g is allowed only if access, explicit reuse licence, format and CRS gates pass.
+
