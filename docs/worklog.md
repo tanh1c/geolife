@@ -2021,3 +2021,46 @@ Final gates:
 
 Decision: close Stage 07f successfully. Stage 07g may perform deterministic Beijing-only extraction and normalization from the validated FileGDB, while preserving raw POI names and avoiding direct WORK/OFFICE semantics.
 
+## 2026-10-03 — Stage 07g BCL production-Beijing normalization patch started
+
+Stage 07f closed with a validated BCL 2008 FileGDB:
+
+- `POI2008All.gdb`;
+- layer `POI2008CN`;
+- 6,039,158 Point features;
+- EPSG:4326;
+- fields `PNAME/X/Y`;
+- CC BY 4.0 source provenance.
+
+Stage 07g now normalizes the source to the frozen CP2 geographic study policy rather than introducing a new administrative-boundary definition.
+
+Geographic policy:
+
+- center 39.9042, 116.4074;
+- radius 100 km;
+- values read from production `HomeOfficeConfig`.
+
+Modal-first implementation:
+
+- validate Stage-07f manifest and FileGDB handoff;
+- compute a conservative spherical bbox around the production 100 km circle;
+- use `ogr2ogr -spat` to push the coarse filter into FileGDB;
+- stage only `PNAME/X/Y` + WKT geometry;
+- read staging CSV in 200k-row chunks;
+- exact Haversine-filter to <=100 km;
+- preserve raw place name and raw X/Y;
+- preserve FileGDB geometry lon/lat separately;
+- compute geometry-vs-X/Y distance QC;
+- write ZSTD Parquet directly to the persistent Volume;
+- compute duplicate/name/bbox/radius/hash QC with bounded memory;
+- fingerprint the source MD5 + FileGDB/layer + production region + schema for idempotent reruns.
+
+Planned normalized artifact:
+
+```text
+/mnt/geolife-data/external/bcl_poi_2008/normalized/
+  bcl_poi_2008_beijing_100km_v1.parquet
+```
+
+Stage 07g remains non-semantic. It does not map `PNAME` to WORK/OFFICE categories and does not modify mobility thresholds.
+
