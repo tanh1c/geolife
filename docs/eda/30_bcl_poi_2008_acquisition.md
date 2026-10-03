@@ -51,8 +51,8 @@ Failure is blocking.
 
 Passes when either:
 
-- Figshare metadata exposes a downloadable `.mdb` or `.zip`; or
-- a manually acquired/cached `.mdb` or `.zip` exists in the declared Modal Volume inbox.
+- Figshare metadata exposes a downloadable `.mdb`, `.zip`, or `.rar`; or
+- a manually acquired/cached `.mdb`, `.zip`, or `.rar` exists in the declared Modal Volume inbox.
 
 The notebook never assumes that DOI metadata implies a downloadable file.
 
@@ -69,7 +69,8 @@ This is a technical reproducibility gate, not legal advice.
 Accepted acquisition containers:
 
 - direct `.mdb`;
-- `.zip` containing at least one `.mdb`.
+- `.zip` containing at least one `.mdb`;
+- `.rar` containing at least one `.mdb`.
 
 Other formats are blocked until explicitly reviewed.
 
@@ -222,3 +223,16 @@ The official BCL description says this source has place names but no category fi
 Therefore even a fully usable file does not provide direct WORK/OFFICE labels.
 
 Any later semantic evidence must use a predeclared, high-precision lexical mapping with explicit unknown/ambiguous output. Free-form occupation or workplace inference is not allowed.
+
+
+### Measured official Figshare attachment
+
+The first Modal run resolved one direct public attachment:
+
+- `Points of interest of China in 2008.rar`;
+- 120,023,687 bytes;
+- MD5 `e77c3473874a6fb64fd0c52d3c66fc84`;
+- CC BY 4.0;
+- not link-only.
+
+RAR is therefore a first-class supported acquisition container. The worker installs Debian `unar`, which supports RAR extraction on Linux, then continues with the same MDB/GDAL inspection gates.
