@@ -795,6 +795,7 @@ def synthetic_self_check() -> dict[str, Any]:
         http_status=200,
         inspected_crs="EPSG:4326",
         inspected_structure_ok=True,
+        inspected_container_kind="mdb",
     )
     assert decision.runner_status == "ready_for_normalization"
     candidate = select_public_download_candidate(metadata)
