@@ -96,3 +96,32 @@ production_complete_link_200m_beijing_policy_v1
 
 Only the corrected rerun can be frozen as measured Stage-07e evidence.
 
+## Final corrected measured handoff
+
+Stage 07e completed on the production-aligned universe:
+
+- 198 / 198 raw OSM caches validated;
+- 25 users;
+- 9 stable-secondary users;
+- 9 exact stable-secondary anchors;
+- 9 within-user comparisons.
+
+Exact radial <=100 m historical-OSM context:
+
+- 61 / 198 anchors have any semantic context;
+- 46 / 198 have broad work-compatible context.
+
+Stable-secondary candidates:
+
+- 2 / 9 have mapped work-compatible context within 25 m;
+- 2 / 9 within 50 m;
+- 2 / 9 within 100 m.
+
+Candidate-minus-peer mean differences are +0.115, +0.081, and +0.019 respectively, but all bootstrap 95% intervals cross zero.
+
+Both candidate-context cases are `education`. No exact stable-secondary candidate has mapped office/commercial context within 100 m.
+
+Decision: close Stage 07e as null/mixed independent semantic evidence. Do not create WORK/OFFICE labels from this result.
+
+Next source priority: BCL POI 2008 acquisition / reuse-rights / CRS audit for the 185 / 198 corrected anchors that are temporally eligible.
+
