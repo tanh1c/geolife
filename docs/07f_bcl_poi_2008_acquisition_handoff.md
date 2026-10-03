@@ -201,3 +201,28 @@ container candidates
 
 If no supported container is found, send the printed extension counts and representative paths; that is now an explicit source-format audit result rather than a generic runtime error.
 
+## Final measured handoff
+
+Stage 07f reached:
+
+```text
+runner_status = ready_for_normalization
+```
+
+Measured source/container:
+
+```text
+RAR:  Points of interest of China in 2008.rar
+GDB:  POI2008All.gdb
+Layer: POI2008CN
+Geometry: Point
+Features: 6,039,158
+CRS: EPSG:4326
+Fields: PNAME, X, Y
+Licence: CC BY 4.0
+```
+
+The actual Figshare attachment is an ArcGIS File Geodatabase, not an MDB.
+
+Stage 07g can now focus on deterministic normalization / Beijing-only extraction. It should not repeat provenance/download work except to validate the existing manifest/hash and source path.
+
