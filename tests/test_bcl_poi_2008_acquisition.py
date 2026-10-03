@@ -351,3 +351,55 @@ def test_mdb_structure_gate_requires_spatial_point_layer():
 
     assert module.mdb_structure_is_plausible(good)
     assert not module.mdb_structure_is_plausible(bad)
+
+
+def test_rar_public_candidate_and_format_gate():
+    module = _module()
+    metadata = {
+        "id": module.FIGSHARE_ARTICLE_ID,
+        "doi": module.FIGSHARE_DOI + ".v1",
+        "license": {"name": "CC BY 4.0"},
+        "files": [
+            {
+                "id": 53238599,
+                "name": "Points of interest of China in 2008.rar",
+                "size": 120023687,
+                "download_url": "https://ndownloader.figshare.com/files/53238599",
+                "computed_md5": "e77c3473874a6fb64fd0c52d3c66fc84",
+                "is_link_only": False,
+            }
+        ],
+    }
+
+    candidate = module.select_public_download_candidate(metadata)
+    decision = module.evaluate_acquisition_gates(
+        metadata,
+        http_status=200,
+    )
+
+    assert candidate is not None
+    assert candidate["suffix"] == ".rar"
+    assert decision.file_access == "pass_public_file"
+    assert decision.license_status == "pass_explicit:CC BY 4.0"
+    assert decision.format_status == "inspect_archive_for_mdb"
+    assert decision.runner_status == "ready_for_mdb_inspection"
+
+
+def test_stage07f_notebook_contract_includes_rar_worker_support():
+    import json
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07f_bcl_poi_2008_acquisition.ipynb"
+    )
+    notebook = json.loads(path.read_text(encoding="utf-8"))
+    code = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    )
+
+    assert "'.rar'" in code
+    assert "'unar'" in code
+    assert "RAR extraction failed" in code
