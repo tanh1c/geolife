@@ -1176,3 +1176,11 @@ The corrected result also shows why external context should be treated as an aud
 
 Lesson: prove join-key identity before interpreting evidence, and preserve a null external-validation result instead of tuning thresholds until semantic agreement looks favorable.
 
+## 2026-10-03 — Documented format is not a substitute for inspecting the actual artifact
+
+The BCL page describes the 2008 source as an ArcGIS Personal Geodatabase, but the current Figshare attachment actually extracts to `POI2008All.gdb`, an ArcGIS File Geodatabase.
+
+A hard-coded MDB-only pipeline would have incorrectly classified the source as unusable. After inspecting the real archive, GDAL reads layer `POI2008CN` with 6,039,158 point features, EPSG:4326, and fields `PNAME/X/Y`.
+
+Lesson: documented format is provenance context, not runtime truth. External-data pipelines should inspect the actual container, schema, and CRS before normalization logic is written.
+

@@ -1196,3 +1196,11 @@ Kết quả corrected cũng cho một bài học khác: external context không 
 
 Bài học: correctness của join-key phải được chứng minh trước khi diễn giải evidence, và null external-validation result nên được giữ nguyên thay vì tune threshold cho đến khi “đẹp”.
 
+## 2026-10-03 — Metadata mô tả format không thay thế inspection của file thật
+
+BCL page mô tả nguồn 2008 là ArcGIS Personal Geodatabase, nhưng attachment Figshare hiện tại sau khi giải nén thực tế là `POI2008All.gdb` — ArcGIS File Geodatabase.
+
+Nếu pipeline hard-code `.mdb`, ta sẽ kết luận sai rằng source bị hỏng. Sau khi đổi sang inspect archive thật, GDAL đọc được layer `POI2008CN`, 6,039,158 point features, EPSG:4326 và fields `PNAME/X/Y`.
+
+Bài học: documentation format là provenance clue, không phải runtime truth. Với external data, hãy inspect container thật, schema thật và CRS thật trước khi viết normalization code.
+

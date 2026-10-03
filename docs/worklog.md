@@ -1879,3 +1879,145 @@ Decision: Stage 07e closes as null/mixed independent semantic evidence. Historic
 
 Next semantic-source priority remains BCL POI 2008, temporally relevant to 185 / 198 corrected anchors across 19 users.
 
+## 2026-10-03 — Stage 07f BCL POI 2008 acquisition / provenance / CRS patch started
+
+After corrected Stage 07e closed as null/mixed historical-OSM semantic evidence, the next source priority is BCL POI 2008:
+
+- temporally relevant to 185 / 198 corrected recurring non-HOME anchors;
+- 19 / 25 candidate users.
+
+Current official BCL record states:
+
+- >6 million mainland-China POIs;
+- snapshot scraped in 2008;
+- ArcGIS Personal Geodatabase 10.1;
+- coordinates + place names;
+- no category field;
+- access/documentation DOI `10.6084/m9.figshare.28667492`.
+
+The official BCL page itself currently exposes no downloadable attachment, so 07f does not hard-code a guessed file URL. Instead the notebook probes the public Figshare API at runtime.
+
+Modal-first implementation:
+
+- public metadata/files probe with no authentication;
+- explicit licence gate before public auto-download;
+- deterministic MDB/ZIP candidate selection;
+- manual/cached inbox fallback;
+- resumable `.part` streaming download with Range support;
+- metadata size/MD5 verification and local SHA-256;
+- safe ZIP extraction;
+- isolated Modal worker image with `mdbtools`, unixODBC, `odbc-mdbtools`, GDAL and unzip;
+- MDB table/schema inspection plus GDAL PGeo layer/CRS inspection;
+- explicit blocked / ready-for-inspection / ready-for-normalization terminal states.
+
+No semantic join is implemented in 07f. A later 07g is allowed only if access, explicit reuse licence, format and CRS gates pass.
+
+## 2026-10-03 — First Stage 07f Modal run: official file resolved; RAR support required
+
+The first executed Stage-07f notebook resolved the official Figshare record successfully.
+
+Measured public metadata:
+
+- HTTP 200;
+- article id: 28667492;
+- title: `Points of interest of China in 2008`;
+- DOI: `10.6084/m9.figshare.28667492.v1`;
+- licence: CC BY 4.0;
+- one direct public file;
+- file: `Points of interest of China in 2008.rar`;
+- size: 120,023,687 bytes;
+- MD5: `e77c3473874a6fb64fd0c52d3c66fc84`;
+- link-only: false.
+
+Corrected anchor relevance was also reproduced:
+
+- 198 candidate anchors / 25 users;
+- 185 BCL-eligible anchors / 19 users;
+- 65 exact 2008 anchors;
+- 120 explicit +1-year 2009 proxy anchors.
+
+The original 07f implementation allowed MDB/ZIP only, so the run ended blocked solely on `.rar` container format. This was an implementation limitation, not a source-access blocker.
+
+Follow-up patch:
+
+- add `.rar` as an accepted acquisition container;
+- prefer direct MDB, then ZIP, then RAR;
+- install Debian `unar` in the Modal worker;
+- extract RAR into the persistent external-data directory;
+- retain the same size/MD5/SHA-256, MDB structure, GDAL PGeo, and CRS gates.
+
+No manual upload is required for the official source discovered by this run.
+
+## 2026-10-03 — Second Stage 07f Modal run: RAR extraction succeeds but no MDB is present
+
+The RAR-enabled notebook successfully reached the post-extraction inspection stage:
+
+- official Figshare RAR selected automatically;
+- public source mode;
+- worker started successfully;
+- download/integrity gates had already passed;
+- RAR extraction completed without returning an extraction error.
+
+The worker then reported:
+
+```text
+worker ok: False
+worker error: no .mdb found after acquisition
+```
+
+This means the source archive does not expose an `.mdb` file at the location/path pattern expected by the first inspector, despite the BCL documentation describing ArcGIS Personal Geodatabase 10.1.
+
+Do not infer that the archive is unusable yet. The correct next action is to inspect the actual extracted tree and archive inventory.
+
+Follow-up patch:
+
+- persist/print archive listing and extracted extension counts;
+- enumerate representative extracted paths;
+- detect `.mdb`, FileGDB `.gdb` directories, GeoPackage, Shapefile and SQLite containers;
+- inspect the selected container with GDAL;
+- require PGeo only when the selected container is truly MDB;
+- if no supported spatial container exists, return an explicit blocked result plus inventory rather than the ambiguous `no .mdb` error.
+
+The next 07f rerun reuses the already cached RAR and extracted directory, so it should not require a new 120 MB download.
+
+## 2026-10-03 — Stage 07f complete: BCL POI 2008 ready for normalization
+
+The third Modal run completed the BCL acquisition/provenance/CRS audit successfully.
+
+Source:
+
+- Figshare article 28667492;
+- DOI `10.6084/m9.figshare.28667492.v1`;
+- CC BY 4.0;
+- `Points of interest of China in 2008.rar`;
+- 120,023,687 bytes;
+- MD5 `e77c3473874a6fb64fd0c52d3c66fc84`.
+
+The extracted archive contains a File Geodatabase:
+
+```text
+POI2008All.gdb
+```
+
+not an MDB.
+
+Measured GDAL inspection:
+
+- layer `POI2008CN`;
+- Point geometry;
+- 6,039,158 features;
+- EPSG:4326;
+- fields `PNAME`, `X`, `Y`.
+
+Final gates:
+
+- metadata identity pass;
+- file access pass;
+- explicit CC BY 4.0 licence pass;
+- FileGDB format pass;
+- spatial point structure pass;
+- CRS pass;
+- `runner_status = ready_for_normalization`.
+
+Decision: close Stage 07f successfully. Stage 07g may perform deterministic Beijing-only extraction and normalization from the validated FileGDB, while preserving raw POI names and avoiding direct WORK/OFFICE semantics.
+

@@ -145,3 +145,14 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Joins Stage-07b factorized mobility axes descriptively.
 - No WORK/OFFICE/HOME or occupation semantics are emitted.
 
+### Stage 07f — BCL POI 2008 acquisition / provenance / CRS audit
+
+- `07f_bcl_poi_2008_acquisition.ipynb`
+- Probes the official BCL-linked Figshare record at runtime instead of hard-coding an unverified file URL.
+- Uses public Figshare metadata/files without authentication.
+- Auto-download is gated on explicit reusable licence metadata.
+- Supports cached/manual MDB/ZIP/RAR fallback under the Modal Volume.
+- Runs large-file download, archive extraction, MDB Tools and GDAL PGeo inspection in an isolated Modal worker.
+- Persists resumable raw/extracted files and a provenance/hash manifest.
+- Does not perform semantic WORK/OFFICE inference or invent POI categories from names.
+
