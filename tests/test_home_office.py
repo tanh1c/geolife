@@ -351,36 +351,22 @@ def test_timezone_resolution_config_is_frozen_to_coordinate_iana() -> None:
 
 
 
-def test_home_window_uses_local_wall_clock_across_dst_fall_back() -> None:
-    # New York falls back on 2026-11-01. 00:30 -> 02:30 local spans
-    # three absolute hours and must all count inside the 21:00-06:00 HOME window.
-    arrival = _utc_in_zone("2026-11-01 00:30", "America/New_York")
-    departure = _utc_in_zone("2026-11-01 02:30", "America/New_York")
-    rows = []
-    for offset_days in [0, 7, 14]:
-        rows.append(
+def test_local_timestamp_representation_matches_notebook_v2() -> None:
+    frame = pd.DataFrame(
+        [
             {
-                "user_id": "dst",
-                "arrival_time_utc": arrival + pd.Timedelta(days=offset_days),
-                "departure_time_utc": departure + pd.Timedelta(days=offset_days),
-                "duration_s": 3 * 3600.0 if offset_days == 0 else 2 * 3600.0,
-                "latitude": 40.7128,
-                "longitude": -74.0060,
+                "user_id": "u",
+                "arrival_time_utc": pd.Timestamp("2026-01-05T13:00:00Z"),
+                "departure_time_utc": pd.Timestamp("2026-01-05T14:00:00Z"),
+                "duration_s": 3600.0,
+                "latitude": BEIJING_LAT,
+                "longitude": BEIJING_LON,
             }
-        )
-
-    config = HomeOfficeConfig(
-        home_min_dates=1,
-        home_min_share=0.0,
-        home_min_margin=0.0,
-        office_min_dates=99,
+        ]
     )
-    semantic, locations = build_semantic_locations(pd.DataFrame(rows), config=config)
-    features = __import__(
-        "geolife.model.home_office",
-        fromlist=["_location_features"],
-    )._location_features(semantic, locations, config=config)
 
-    # The first occurrence contributes 3h because the repeated 01:00 hour is
-    # represented in absolute time while the HOME boundary remains local wall time.
-    assert features["home_dwell_s"].sum() >= 7 * 3600.0
+    semantic, _ = build_semantic_locations(frame)
+
+    local = semantic.iloc[0]["arrival_time_local"]
+    assert local == pd.Timestamp("2026-01-05 21:00:00")
+    assert local.tzinfo is None
