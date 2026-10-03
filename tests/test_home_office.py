@@ -115,8 +115,8 @@ def test_dst_local_interval_handling_uses_real_elapsed_overlap() -> None:
         ]
     )
     config = HomeOfficeConfig(
-        home_start_hour=1,
-        home_end_hour=4,
+        home_start_hour=21,
+        home_end_hour=6,
         home_min_dates=1,
         home_min_share=0.0,
         home_min_margin=0.0,
