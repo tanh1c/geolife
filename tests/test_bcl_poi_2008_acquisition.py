@@ -74,6 +74,7 @@ def test_manual_mdb_can_pass_file_and_format_gate_but_not_crs():
     module = _module()
     metadata = {
         "id": module.FIGSHARE_ARTICLE_ID,
+        "doi": module.FIGSHARE_DOI,
         "license": {"name": "CC BY 4.0"},
         "files": [],
     }
@@ -94,6 +95,7 @@ def test_ambiguous_license_stays_blocked():
     module = _module()
     metadata = {
         "id": module.FIGSHARE_ARTICLE_ID,
+        "doi": module.FIGSHARE_DOI,
         "license": {"name": "Custom terms"},
         "files": [
             {
