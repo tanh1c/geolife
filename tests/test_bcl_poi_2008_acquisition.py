@@ -221,6 +221,7 @@ def test_acquisition_manifest_keeps_semantic_claims_disabled(tmp_path):
         file_access="pass_public_file",
         license_status="pass_explicit:CC BY 4.0",
         format_status="pass_mdb",
+        structure_status="pass_spatial_point_structure",
         crs_status="pass_inspected_crs",
         runner_status="ready_for_normalization",
         notes="",
@@ -324,3 +325,29 @@ def test_link_only_file_is_not_selected_as_corpus_download():
         http_status=200,
     )
     assert decision.file_access == "blocked_link_only_not_corpus_file"
+
+
+def test_mdb_structure_gate_requires_spatial_point_layer():
+    module = _module()
+
+    good = {
+        "gdal_pgeo_available": True,
+        "ogr": {
+            "layer_count": 1,
+            "geometry_types": ["Point"],
+            "feature_counts": [6000000],
+            "field_names": ["name"],
+        },
+    }
+    bad = {
+        "gdal_pgeo_available": True,
+        "ogr": {
+            "layer_count": 1,
+            "geometry_types": ["None"],
+            "feature_counts": [6000000],
+            "field_names": ["name"],
+        },
+    }
+
+    assert module.mdb_structure_is_plausible(good)
+    assert not module.mdb_structure_is_plausible(bad)
