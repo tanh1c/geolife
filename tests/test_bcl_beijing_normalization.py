@@ -297,3 +297,21 @@ def test_stage07g_notebook_contract():
 
     assert "WORK" not in code
     assert "OFFICE" not in code
+
+
+def test_normalize_chunk_preserves_null_name_as_nullable_string():
+    module = _module()
+    region = module.production_study_region()
+    frame = pd.DataFrame(
+        {
+            "WKT": [f"POINT ({region.longitude} {region.latitude})"],
+            "PNAME": [None],
+            "X": [region.longitude],
+            "Y": [region.latitude],
+        }
+    )
+
+    out = module.normalize_bbox_chunk(frame, region=region)
+
+    assert len(out) == 1
+    assert pd.isna(out.iloc[0]["pname_raw"])
