@@ -95,7 +95,7 @@ Example:
 {
   "user_id": "042",
   "api_version": "v1",
-  "model_contract": "cp2-v1",
+  "model_contract": "cp2-v2",
   "locations": [
     {
       "label": "HOME",
@@ -165,7 +165,7 @@ Valid requests can return no HOME or OFFICE label when evidence is weak.
 Stable reasons include:
 
 - `insufficient_stay_history`;
-- `out_of_scope_geography`;
+- `unresolved_timezone`;
 - `insufficient_recurring_history`;
 - `insufficient_semantic_evidence`.
 
@@ -220,3 +220,36 @@ Checkpoint evaluation uses:
 
 The manual-review protocol is documented in
 `docs/evaluation/01_home_office_manual_plausibility.md`.
+
+
+## CP2 v2 local-timezone migration — 2026-10-03
+
+The current migration candidate removes the old Beijing-radius eligibility gate from semantic inference.
+
+Production semantic time becomes:
+
+```text
+stay latitude/longitude
+→ timezonefinder
+→ IANA timezone_id
+→ ZoneInfo(timezone_id)
+→ local wall-clock arrival/departure
+```
+
+Every stay with a resolved timezone remains eligible for recurrence and HOME/OFFICE evidence, including travel stays. Geography is not used as a semantic eligibility rule.
+
+The API path remains versioned as `/v1/...`, while the model contract becomes:
+
+```text
+cp2-v2
+```
+
+A fully unresolved stay request abstains with:
+
+```text
+unresolved_timezone
+```
+
+instead of `out_of_scope_geography`.
+
+This migration is not allowed to merge until the frozen 5,821-stay release audit passes independent Notebook-03 parity and full-release HTTP parity.
