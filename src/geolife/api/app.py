@@ -95,7 +95,7 @@ def health() -> HealthResponse:
                             "value": {
                                 "user_id": "demo-user",
                                 "api_version": "v1",
-                                "model_contract": "cp2-v1",
+                                "model_contract": "cp2-v2",
                                 "locations": [
                                     {
                                         "label": "HOME",
@@ -117,7 +117,7 @@ def health() -> HealthResponse:
                             "value": {
                                 "user_id": "demo-user",
                                 "api_version": "v1",
-                                "model_contract": "cp2-v1",
+                                "model_contract": "cp2-v2",
                                 "locations": [],
                                 "abstentions": [
                                     {"label": "HOME", "reason": "insufficient_stay_history"},

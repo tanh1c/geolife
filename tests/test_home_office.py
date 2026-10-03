@@ -18,7 +18,11 @@ BEIJING_LON = 116.4074
 
 
 def _utc(local_timestamp: str) -> pd.Timestamp:
-    return pd.Timestamp(local_timestamp, tz="Asia/Shanghai").tz_convert("UTC")
+    return _utc_in_zone(local_timestamp, "Asia/Shanghai")
+
+
+def _utc_in_zone(local_timestamp: str, timezone_id: str) -> pd.Timestamp:
+    return pd.Timestamp(local_timestamp, tz=timezone_id).tz_convert("UTC")
 
 
 def _stays(
@@ -51,54 +55,112 @@ def _stays(
     ]
 
 
-def test_beijing_user_cohort_still_excludes_out_of_region_travel_stays() -> None:
-    rows = []
-    for day in range(1, 5):
-        rows.append(
-            (
-                "eligible",
-                f"2026-01-0{day} 21:00",
-                f"2026-01-0{day} 22:00",
-                BEIJING_LAT,
-                BEIJING_LON,
-            )
-        )
-    rows.append(
-        (
-            "eligible",
-            "2026-01-05 21:00",
-            "2026-01-05 22:00",
-            35.6762,
-            139.6503,
-        )
+def test_all_resolved_stays_are_retained_without_beijing_geography_gate() -> None:
+    frame = pd.DataFrame(
+        [
+            {
+                "user_id": "traveler",
+                "arrival_time_utc": _utc_in_zone(
+                    "2026-01-05 21:00",
+                    "Asia/Shanghai",
+                ),
+                "departure_time_utc": _utc_in_zone(
+                    "2026-01-05 22:00",
+                    "Asia/Shanghai",
+                ),
+                "latitude": BEIJING_LAT,
+                "longitude": BEIJING_LON,
+            },
+            {
+                "user_id": "traveler",
+                "arrival_time_utc": _utc_in_zone(
+                    "2026-01-06 21:00",
+                    "Asia/Tokyo",
+                ),
+                "departure_time_utc": _utc_in_zone(
+                    "2026-01-06 22:00",
+                    "Asia/Tokyo",
+                ),
+                "latitude": 35.6762,
+                "longitude": 139.6503,
+            },
+        ]
+    )
+    frame["duration_s"] = (
+        frame["departure_time_utc"] - frame["arrival_time_utc"]
+    ).dt.total_seconds()
+
+    semantic_stays, _ = build_semantic_locations(frame)
+
+    assert len(semantic_stays) == 2
+    assert set(semantic_stays["timezone_id"]) == {
+        "Asia/Shanghai",
+        "Asia/Tokyo",
+    }
+
+
+def test_each_stay_uses_its_coordinate_derived_local_clock() -> None:
+    frame = pd.DataFrame(
+        [
+            {
+                "user_id": "traveler",
+                "arrival_time_utc": pd.Timestamp(
+                    "2026-01-05T13:00:00Z"
+                ),
+                "departure_time_utc": pd.Timestamp(
+                    "2026-01-05T14:00:00Z"
+                ),
+                "duration_s": 3600.0,
+                "latitude": BEIJING_LAT,
+                "longitude": BEIJING_LON,
+            },
+            {
+                "user_id": "traveler",
+                "arrival_time_utc": pd.Timestamp(
+                    "2026-01-05T13:00:00Z"
+                ),
+                "departure_time_utc": pd.Timestamp(
+                    "2026-01-05T14:00:00Z"
+                ),
+                "duration_s": 3600.0,
+                "latitude": 35.6762,
+                "longitude": 139.6503,
+            },
+        ]
     )
 
-    for day in range(1, 4):
+    semantic_stays, _ = build_semantic_locations(frame)
+    by_tz = semantic_stays.set_index("timezone_id")
+
+    assert by_tz.loc["Asia/Shanghai", "arrival_time_local"].hour == 21
+    assert by_tz.loc["Asia/Tokyo", "arrival_time_local"].hour == 22
+
+
+def test_travel_stays_can_contribute_to_home_in_their_own_timezone() -> None:
+    rows = []
+    for day in ["2026-01-05", "2026-01-06", "2026-01-07"]:
         rows.append(
-            (
-                "ineligible",
-                f"2026-01-0{day} 21:00",
-                f"2026-01-0{day} 22:00",
-                BEIJING_LAT,
-                BEIJING_LON,
-            )
-        )
-    for day in range(4, 6):
-        rows.append(
-            (
-                "ineligible",
-                f"2026-01-0{day} 21:00",
-                f"2026-01-0{day} 22:00",
-                35.6762,
-                139.6503,
-            )
+            {
+                "user_id": "traveler",
+                "arrival_time_utc": _utc_in_zone(
+                    f"{day} 21:00",
+                    "Asia/Tokyo",
+                ),
+                "departure_time_utc": _utc_in_zone(
+                    f"{day} 22:00",
+                    "Asia/Tokyo",
+                ),
+                "duration_s": 3600.0,
+                "latitude": 35.6762,
+                "longitude": 139.6503,
+            }
         )
 
-    semantic_stays, _ = build_semantic_locations(_stays(rows))
+    out = infer_home_office(pd.DataFrame(rows))
 
-    assert set(semantic_stays["user_id"]) == {"eligible"}
-    assert len(semantic_stays) == 4
-    assert semantic_stays["distance_to_beijing_km"].max() <= 100.0
+    home = out.query("label == 'HOME'").iloc[0]
+    assert home["relevant_dates"] == 3
+    assert home["relevant_dwell_share"] == pytest.approx(1.0)
 
 
 def test_complete_link_does_not_chain_a_three_point_300m_span_into_one_location() -> None:
@@ -222,6 +284,10 @@ def test_office_uses_its_separate_default_gate() -> None:
 
 def test_evidence_strength_is_not_reported_as_probability() -> None:
     config = HomeOfficeConfig()
+    assert config.timezone_resolution == "coordinate_iana"
+    assert config.unresolved_timezone_policy == "drop"
+    assert not hasattr(config, "beijing_radius_km")
+    assert not hasattr(config, "timezone")
     assert config.home_min_dates == 3
     assert config.home_min_share == 0.50
     assert config.home_min_margin == 0.20
@@ -273,3 +339,49 @@ def test_clustering_method_config_validation() -> None:
 
     with pytest.raises(ValueError, match="dbscan_eps_m"):
         HomeOfficeConfig(clustering_method="dbscan", dbscan_eps_m=0.0)
+
+
+
+def test_timezone_resolution_config_is_frozen_to_coordinate_iana() -> None:
+    with pytest.raises(ValueError, match="timezone_resolution"):
+        HomeOfficeConfig(timezone_resolution="fixed")
+
+    with pytest.raises(ValueError, match="unresolved_timezone_policy"):
+        HomeOfficeConfig(unresolved_timezone_policy="raise")
+
+
+
+def test_local_timestamp_representation_matches_notebook_v2() -> None:
+    frame = pd.DataFrame(
+        [
+            {
+                "user_id": "u",
+                "arrival_time_utc": pd.Timestamp("2026-01-05T13:00:00Z"),
+                "departure_time_utc": pd.Timestamp("2026-01-05T14:00:00Z"),
+                "duration_s": 3600.0,
+                "latitude": BEIJING_LAT,
+                "longitude": BEIJING_LON,
+            }
+        ]
+    )
+
+    semantic, _ = build_semantic_locations(frame)
+
+    local = semantic.iloc[0]["arrival_time_local"]
+    assert local == pd.Timestamp("2026-01-05 21:00:00")
+    assert local.tzinfo is None
+
+
+
+def test_emitted_rows_carry_cp2_v2_location_namespace() -> None:
+    rows = [
+        ("u", "2026-01-05 21:00", "2026-01-05 22:00", BEIJING_LAT, BEIJING_LON),
+        ("u", "2026-01-06 21:00", "2026-01-06 22:00", BEIJING_LAT, BEIJING_LON),
+        ("u", "2026-01-07 21:00", "2026-01-07 22:00", BEIJING_LAT, BEIJING_LON),
+    ]
+
+    out = infer_home_office(_stays(rows))
+
+    assert set(out["location_namespace"]) == {
+        "complete_link_200m_local_timezone_v2"
+    }

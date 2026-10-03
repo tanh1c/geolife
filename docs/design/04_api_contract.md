@@ -333,3 +333,19 @@ The full HTTP replay exposed a pandas `FutureWarning` when the production model 
 The result values were correct, but the warning indicated a future dtype-behavior risk.
 
 The production code was amended to concatenate only non-empty emission frames, and a regression test was added. This does not change frozen CP2 semantics or parity counts.
+
+## CP2 v2 serving migration — 2026-10-03
+
+The stay-event API keeps the same endpoint path and transport schema but the semantic model contract is versioned to `cp2-v2`.
+
+CP2 v2 removes the Beijing geography cohort from semantic eligibility. Each stay uses its coordinate-derived IANA timezone before behavioral scoring.
+
+Accordingly:
+
+- `model_contract` becomes `cp2-v2`;
+- `out_of_scope_geography` is no longer a v2 abstention reason;
+- an empty semantic scope caused by failed timezone resolution uses `unresolved_timezone`;
+- recurring-history and semantic-evidence abstention semantics remain unchanged.
+
+Full-release HTTP ↔ direct-model parity is re-gated in `notebooks/03d_cp2_timezone_v2_migration.ipynb` before refreeze.
+

@@ -38,6 +38,7 @@ jobs:
               'notebooks/02b_staypoint_sensitivity_validation.ipynb',
               'notebooks/02c_same_second_transport_audit.ipynb',
               'notebooks/03_home_office_baseline.ipynb',
+              'notebooks/03d_cp2_timezone_v2_migration.ipynb',
               'notebooks/04_api_contract_validation.ipynb',
               'notebooks/05_home_office_reliability_validation.ipynb',
               'notebooks/05b_home_consensus_adaptive_work.ipynb',
@@ -62,7 +63,7 @@ jobs:
         run: python -c "from geolife.staypoints import clean_trajectory, clean_trajectory_with_audit, detect_staypoints; print('staypoint APIs import ok')"
 
       - name: Import CP2 model APIs
-        run: python -c "from geolife.model import HomeOfficeConfig, build_semantic_locations, infer_home_office; print('CP2 model APIs import ok')"
+        run: python -c "from geolife.model import HomeOfficeConfig, build_semantic_locations, infer_home_office, location_namespace; print('CP2 v2 model APIs import ok:', location_namespace())"
 
       - name: Import API contracts
         run: python -c "from geolife.api import app, ClassifyRequest, ClassifyResponse, InferRequest, InferResponse; print('API contracts import ok')"

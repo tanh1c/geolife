@@ -360,3 +360,17 @@ across representative epsilon values. Required diagnostics should include:
 
 No MinPts value is frozen or claimed optimal yet. A higher value may reduce permissive chaining/noise retention but can also reduce coverage for sparsely observed users.
 
+## CP2 v2 migration candidate — 2026-10-03
+
+The frozen CP2 v1 Beijing-radius/timezone policy above is retained as historical design evidence only.
+
+The production migration candidate follows the already-audited final notebook-03 contract:
+
+- every valid stay resolves its own IANA timezone from coordinate;
+- UTC timestamps are converted to per-stay local wall-clock time;
+- no Beijing-radius, China-only, or Asia/Shanghai-concentration eligibility gate is applied;
+- complete-link 200 m and the existing HOME/OFFICE scoring gates are retained;
+- semantic locations are namespaced as `complete_link_200m_local_timezone_v2`.
+
+Refreeze requires the full 5,821-stay notebook-03 reference parity audit in `notebooks/03d_cp2_timezone_v2_migration.ipynb`. Until that measured run passes, this section is a migration candidate rather than a completed production refreeze.
+
