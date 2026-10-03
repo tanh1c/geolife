@@ -182,3 +182,22 @@ licence CC BY 4.0
 ```
 
 The corrected notebook downloads this automatically and extracts it with `unar`; no manual inbox upload should be needed unless public availability changes.
+
+## After the second runtime
+
+RAR download and extraction have already succeeded on Modal, but no `.mdb` file was found.
+
+The next notebook version reuses the cached RAR and prints the extracted inventory. It automatically detects MDB, FileGDB, GeoPackage, Shapefile, or SQLite.
+
+Important outputs now include:
+
+```text
+extracted file_count
+extension_counts
+container_kind
+container_path
+container candidates
+```
+
+If no supported container is found, send the printed extension counts and representative paths; that is now an explicit source-format audit result rather than a generic runtime error.
+
