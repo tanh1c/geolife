@@ -1829,3 +1829,53 @@ The corrected 07d outputs supersede all old 225-anchor Stage-07d measurements.
 
 Next required run: corrected Stage 07e on this completed 198-anchor cache.
 
+## 2026-10-03 — Corrected Stage 07e completed: null/mixed independent semantic evidence
+
+The corrected production-aligned Stage-07e notebook completed without errors.
+
+Coverage:
+
+- 198 / 198 raw historical-OSM caches validated;
+- 25 users;
+- 9 stable-secondary users represented;
+- 9 exact stable-secondary anchors;
+- 9 within-user comparison rows.
+
+Exact radial historical-OSM context:
+
+- semantic <=100 m: 61 / 198 anchors;
+- broad work-compatible <=100 m: 46 / 198 anchors.
+
+Work-compatible distance buckets:
+
+- 0–25 m: 31 anchors / 9 users;
+- 25–50 m: 5 anchors / 5 users;
+- 50–100 m: 10 anchors / 7 users;
+- none within 100 m: 152 anchors / 25 users.
+
+Category <=100 m:
+
+- education 33;
+- recreation/tourism 14;
+- retail/service 14;
+- residential 6;
+- office/commercial 2;
+- transport 2;
+- healthcare 1;
+- civic/institutional 0;
+- industrial 0.
+
+Stable-secondary candidate vs same-user recurring peers:
+
+- 25 m: 2/9 candidate-context users, mean candidate-peer +0.115, bootstrap 95% [-0.109, +0.387];
+- 50 m: 2/9, +0.081, [-0.147, +0.337];
+- 100 m: 2/9, +0.019, [-0.210, +0.284].
+
+All composite intervals cross zero. Both candidate-context cases are education. No stable-secondary candidate has office/commercial context within 100 m.
+
+Retail/service at 100 m is more common among peers than candidates in this tiny cohort: mean candidate-peer -0.081, bootstrap interval [-0.135, -0.028]. This is descriptive only.
+
+Decision: Stage 07e closes as null/mixed independent semantic evidence. Historical OSM does not justify promoting stable-secondary mobility geometry to WORK/OFFICE semantics. Do not tune mobility thresholds against these external labels.
+
+Next semantic-source priority remains BCL POI 2008, temporally relevant to 185 / 198 corrected anchors across 19 users.
+
