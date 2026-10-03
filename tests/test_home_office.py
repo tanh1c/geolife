@@ -370,3 +370,18 @@ def test_local_timestamp_representation_matches_notebook_v2() -> None:
     local = semantic.iloc[0]["arrival_time_local"]
     assert local == pd.Timestamp("2026-01-05 21:00:00")
     assert local.tzinfo is None
+
+
+
+def test_emitted_rows_carry_cp2_v2_location_namespace() -> None:
+    rows = [
+        ("u", "2026-01-05 21:00", "2026-01-05 22:00", BEIJING_LAT, BEIJING_LON),
+        ("u", "2026-01-06 21:00", "2026-01-06 22:00", BEIJING_LAT, BEIJING_LON),
+        ("u", "2026-01-07 21:00", "2026-01-07 22:00", BEIJING_LAT, BEIJING_LON),
+    ]
+
+    out = infer_home_office(_stays(rows))
+
+    assert set(out["location_namespace"]) == {
+        "complete_link_200m_local_timezone_v2"
+    }
