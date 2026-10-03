@@ -337,6 +337,21 @@ The existing production `HomeOfficeConfig` remains the frozen CP2 v1 implementat
 
 The prior 80/80 Asia/Shanghai-focused notebook candidate should be treated as superseded, not as an additional frozen contract.
 
+
+## CP2 v2 production migration branch — 2026-10-03
+
+Branch `cp2-v2-timezone-production` ports the audited final Notebook-03 timezone contract into production:
+
+- `build_semantic_locations()` now retains every stay whose coordinate resolves to an IANA timezone;
+- each stay receives `timezone_id`, `arrival_time_local`, and `departure_time_local` from its own coordinate and `ZoneInfo`;
+- the Beijing-radius and 80/80 Asia/Shanghai eligibility gates are removed from `HomeOfficeConfig`;
+- complete-link clustering remains the production default with a 200 m maximum diameter;
+- `timezonefinder==9.0.0` is promoted from notebook/dev-only use to a production dependency;
+- regression coverage includes all-resolved retention, travel-stay timezone handling, no Beijing gate, DST/local-interval behavior, and the existing complete-link compactness contract;
+- `analysis/03_cp2_v2_parity.py` is the release-level parity/refreeze harness for the private 5,821-stay cache.
+
+This branch is **migration-complete but not yet refrozen**. CP2 v2 becomes the frozen production namespace only after the private full-release parity run confirms the expected Notebook-03 reference at the semantic-stay, user/location, HOME, and OFFICE levels. Until that run passes, historical CP2 v1 counts remain historical evidence rather than v2 expectations.
+
 ### Open follow-up: DBSCAN MinPts sensitivity
 
 The current DBSCAN benchmark fixes `min_samples=1`. This was useful for an initial coverage-oriented benchmark but has not been justified by a MinPts sensitivity study.
