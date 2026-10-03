@@ -1782,3 +1782,50 @@ Corrected historical-source coverage:
 
 This supersedes the old behavior-location universe of 225 anchors. The next required run is corrected Stage 07d on these 198 production-aligned anchors.
 
+## 2026-10-03 — Corrected Stage 07d measured result
+
+The production-aligned Stage-07d rerun completed cleanly on the corrected 198-anchor universe.
+
+Universe:
+
+- 198 recurring non-HOME anchors;
+- 25 users;
+- location namespace: `production_complete_link_200m_beijing_policy_v1`.
+
+CLCD exact-year physical context:
+
+- point class known: 198 / 198 (100%);
+- impervious: 191 / 198 (96.46%);
+- point = 3x3 local mode: 197 / 198 (99.49%);
+- point = 5x5 local mode: 195 / 198 (98.48%).
+
+Class/year counts:
+
+- 2008: 63 impervious, 2 water;
+- 2009: 116 impervious, 3 forest, 1 cropland;
+- 2011: 7 impervious;
+- 2012: 5 impervious, 1 water.
+
+Historical OSM / ohsome:
+
+- target: 198;
+- completed: 198 / 198 (100%);
+- cached: 189;
+- newly fetched in final corrected run: 9;
+- rate-limited: 0;
+- deferred: 0;
+- request errors: 0;
+- parse errors: 0.
+
+Full corrected-universe OSM context:
+
+- semantic context found: 63 / 198 anchors (31.82%), 16 users;
+- broad work-compatible context: 47 / 198 anchors (23.74%), 15 users;
+- residential context: 6 / 198 anchors (3.03%), 2 users.
+
+Interpretation remains source-bounded: CLCD is physical built/impervious context only, and historical OSM is mapping evidence rather than semantic ground truth.
+
+The corrected 07d outputs supersede all old 225-anchor Stage-07d measurements.
+
+Next required run: corrected Stage 07e on this completed 198-anchor cache.
+
