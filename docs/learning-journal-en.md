@@ -1166,3 +1166,13 @@ Full-universe result:
 
 Lesson: quota limits do not necessarily imply incomplete coverage when the pipeline is deterministic and resumable. But full API coverage still does not make the source ground truth; early-China historical OSM remains affected by mapping lag and incompleteness.
 
+## 2026-10-03 — The same clustering threshold does not imply the same location namespace
+
+Stage 07e exposed an important methodological failure mode: two pipelines can both use complete-link at 200 m and still produce incompatible location ids when preprocessing and relabeling differ.
+
+After correcting 07c→07d→07e to use the production semantic-location namespace end to end, stable-secondary coverage became the expected 9/9.
+
+The corrected result also shows why external context should be treated as an audit rather than a target. Only 2/9 stable-secondary candidates have mapped work-compatible context within 100 m, both through education; none has office/commercial context. Paired candidate-vs-peer bootstrap intervals cross zero at every tested threshold.
+
+Lesson: prove join-key identity before interpreting evidence, and preserve a null external-validation result instead of tuning thresholds until semantic agreement looks favorable.
+
