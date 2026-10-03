@@ -1912,3 +1912,39 @@ Modal-first implementation:
 
 No semantic join is implemented in 07f. A later 07g is allowed only if access, explicit reuse licence, format and CRS gates pass.
 
+## 2026-10-03 — First Stage 07f Modal run: official file resolved; RAR support required
+
+The first executed Stage-07f notebook resolved the official Figshare record successfully.
+
+Measured public metadata:
+
+- HTTP 200;
+- article id: 28667492;
+- title: `Points of interest of China in 2008`;
+- DOI: `10.6084/m9.figshare.28667492.v1`;
+- licence: CC BY 4.0;
+- one direct public file;
+- file: `Points of interest of China in 2008.rar`;
+- size: 120,023,687 bytes;
+- MD5: `e77c3473874a6fb64fd0c52d3c66fc84`;
+- link-only: false.
+
+Corrected anchor relevance was also reproduced:
+
+- 198 candidate anchors / 25 users;
+- 185 BCL-eligible anchors / 19 users;
+- 65 exact 2008 anchors;
+- 120 explicit +1-year 2009 proxy anchors.
+
+The original 07f implementation allowed MDB/ZIP only, so the run ended blocked solely on `.rar` container format. This was an implementation limitation, not a source-access blocker.
+
+Follow-up patch:
+
+- add `.rar` as an accepted acquisition container;
+- prefer direct MDB, then ZIP, then RAR;
+- install Debian `unar` in the Modal worker;
+- extract RAR into the persistent external-data directory;
+- retain the same size/MD5/SHA-256, MDB structure, GDAL PGeo, and CRS gates.
+
+No manual upload is required for the official source discovered by this run.
+
