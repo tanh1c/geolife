@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering, DBSCAN
+from timezonefinder import TimezoneFinder
 
 from geolife.geo.distance import haversine_m
 
@@ -26,7 +28,7 @@ SEMANTIC_STAY_COLUMNS = [
     "duration_s",
     "latitude",
     "longitude",
-    "distance_to_beijing_km",
+    "timezone_id",
     "arrival_time_local",
     "departure_time_local",
     "arrival_local_date",
@@ -64,14 +66,15 @@ OUTPUT_COLUMNS = [
 
 @dataclass(frozen=True)
 class HomeOfficeConfig:
-    """Frozen CP2 v1 engineering baseline for Home/Office inference."""
+    """CP2 v2 Home/Office inference with per-stay local timezone semantics.
 
-    beijing_latitude: float = 39.9042
-    beijing_longitude: float = 116.4074
-    beijing_radius_km: float = 100.0
-    beijing_min_stay_share: float = 0.80
-    beijing_min_dwell_share: float = 0.80
-    timezone: str = "Asia/Shanghai"
+    Geography is not an eligibility gate. Each valid stay is resolved from its
+    own WGS84 coordinate to an IANA timezone and behavioral windows are applied
+    in that stay's local wall-clock time.
+    """
+
+    timezone_resolution: str = "coordinate_iana"
+    unresolved_timezone_policy: str = "drop"
 
     location_max_diameter_m: float = 200.0
     clustering_method: str = "complete_link"
@@ -95,8 +98,10 @@ class HomeOfficeConfig:
     support_saturation_dates: int = 5
 
     def __post_init__(self) -> None:
-        if self.beijing_radius_km <= 0:
-            raise ValueError("beijing_radius_km must be positive")
+        if self.timezone_resolution != "coordinate_iana":
+            raise ValueError("timezone_resolution must be coordinate_iana")
+        if self.unresolved_timezone_policy != "drop":
+            raise ValueError("unresolved_timezone_policy must be drop")
         if self.location_max_diameter_m <= 0:
             raise ValueError("location_max_diameter_m must be positive")
         if self.clustering_method not in {"complete_link", "dbscan"}:
@@ -106,8 +111,6 @@ class HomeOfficeConfig:
         if self.min_relevant_date_overlap_s < 0:
             raise ValueError("min_relevant_date_overlap_s must be non-negative")
         for name, value in [
-            ("beijing_min_stay_share", self.beijing_min_stay_share),
-            ("beijing_min_dwell_share", self.beijing_min_dwell_share),
             ("home_min_share", self.home_min_share),
             ("home_min_margin", self.home_min_margin),
             ("office_min_share", self.office_min_share),
@@ -134,7 +137,6 @@ class HomeOfficeConfig:
             raise ValueError("office_weekdays must not be empty")
         if any(day < 0 or day > 6 for day in self.office_weekdays):
             raise ValueError("office_weekdays values must be between 0 and 6")
-        ZoneInfo(self.timezone)
 
 
 def _empty_semantic_stays() -> pd.DataFrame:
@@ -179,6 +181,65 @@ def _validate_stays(stays: pd.DataFrame) -> pd.DataFrame:
         ["user_id", "arrival_time_utc", "departure_time_utc"],
         kind="stable",
     ).reset_index(drop=True)
+
+
+@lru_cache(maxsize=1)
+def _timezone_finder() -> TimezoneFinder:
+    return TimezoneFinder(in_memory=True)
+
+
+def _timezone_for_coordinates(latitude: float, longitude: float) -> str | None:
+    return _timezone_finder().timezone_at(
+        lng=float(longitude),
+        lat=float(latitude),
+    )
+
+
+def _resolve_local_time(stays: pd.DataFrame) -> pd.DataFrame:
+    """Resolve each stay independently to IANA local wall-clock time."""
+    result = stays.copy()
+    result["timezone_id"] = [
+        _timezone_for_coordinates(latitude, longitude)
+        for latitude, longitude in zip(
+            result["latitude"],
+            result["longitude"],
+            strict=True,
+        )
+    ]
+    result = result.loc[result["timezone_id"].notna()].copy()
+    if result.empty:
+        return result
+
+    result["arrival_time_local"] = pd.Series(
+        [pd.NaT] * len(result),
+        index=result.index,
+        dtype="object",
+    )
+    result["departure_time_local"] = pd.Series(
+        [pd.NaT] * len(result),
+        index=result.index,
+        dtype="object",
+    )
+    for timezone_id, indices in result.groupby("timezone_id", sort=True).groups.items():
+        zone = ZoneInfo(str(timezone_id))
+        result.loc[indices, "arrival_time_local"] = (
+            result.loc[indices, "arrival_time_utc"]
+            .dt.tz_convert(zone)
+            .astype(object)
+        )
+        result.loc[indices, "departure_time_local"] = (
+            result.loc[indices, "departure_time_utc"]
+            .dt.tz_convert(zone)
+            .astype(object)
+        )
+
+    result["arrival_local_date"] = result["arrival_time_local"].map(
+        lambda value: value.date() if pd.notna(value) else pd.NaT
+    )
+    result["arrival_local_weekday"] = result["arrival_time_local"].map(
+        lambda value: value.weekday() if pd.notna(value) else pd.NA
+    ).astype("Int64")
+    return result
 
 
 def _pairwise_haversine_matrix_m(group: pd.DataFrame) -> np.ndarray:
@@ -268,65 +329,23 @@ def build_semantic_locations(
     *,
     config: HomeOfficeConfig | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Apply CP2 geography/timezone policy and per-user location clustering.
+    """Resolve per-stay local time and cluster recurring locations per user.
 
-    The default production method is complete-link. DBSCAN is available as a
-    benchmark variant so Track B1 can compare clustering behavior without
-    changing the production default.
+    CP2 v2 has no Beijing/China eligibility gate. Every valid stay whose WGS84
+    coordinate resolves to an IANA timezone is retained. HOME/OFFICE behavioral
+    windows are applied only after conversion into each stay's own local time.
 
-    Returns in-region semantic stays with a per-user location_id and the
-    corresponding location summary table. Out-of-region travel stays and users
-    outside the Beijing-focused cohort are intentionally absent.
+    Complete-link remains the production spatial representation. DBSCAN remains
+    an explicit benchmark variant.
     """
     cfg = config or HomeOfficeConfig()
     raw = _validate_stays(stays)
     if raw.empty:
         return _empty_semantic_stays(), _empty_locations()
 
-    distance_km = np.asarray(
-        haversine_m(
-            raw["latitude"].to_numpy(dtype=float),
-            raw["longitude"].to_numpy(dtype=float),
-            cfg.beijing_latitude,
-            cfg.beijing_longitude,
-        ),
-        dtype=float,
-    ) / 1000.0
-
-    raw["distance_to_beijing_km"] = distance_km
-    raw["_inside_region"] = raw["distance_to_beijing_km"] <= cfg.beijing_radius_km
-    raw["_inside_dwell_s"] = np.where(raw["_inside_region"], raw["duration_s"], 0.0)
-
-    by_user = (
-        raw.groupby("user_id")
-        .agg(
-            total_stays=("user_id", "size"),
-            inside_stays=("_inside_region", "sum"),
-            total_dwell_s=("duration_s", "sum"),
-            inside_dwell_s=("_inside_dwell_s", "sum"),
-        )
-    )
-    by_user["stay_share_inside"] = by_user["inside_stays"] / by_user["total_stays"]
-    by_user["dwell_share_inside"] = np.where(
-        by_user["total_dwell_s"] > 0,
-        by_user["inside_dwell_s"] / by_user["total_dwell_s"],
-        0.0,
-    )
-
-    eligible = by_user.index[
-        (by_user["stay_share_inside"] >= cfg.beijing_min_stay_share)
-        & (by_user["dwell_share_inside"] >= cfg.beijing_min_dwell_share)
-    ]
-
-    semantic = raw[raw["user_id"].isin(eligible) & raw["_inside_region"]].copy()
+    semantic = _resolve_local_time(raw)
     if semantic.empty:
         return _empty_semantic_stays(), _empty_locations()
-
-    timezone = ZoneInfo(cfg.timezone)
-    semantic["arrival_time_local"] = semantic["arrival_time_utc"].dt.tz_convert(timezone)
-    semantic["departure_time_local"] = semantic["departure_time_utc"].dt.tz_convert(timezone)
-    semantic["arrival_local_date"] = semantic["arrival_time_local"].dt.date
-    semantic["arrival_local_weekday"] = semantic["arrival_time_local"].dt.weekday
 
     clustered_parts: list[pd.DataFrame] = []
     location_rows: list[dict[str, object]] = []
@@ -366,7 +385,7 @@ def build_semantic_locations(
                     "latitude": float(members["latitude"].median()),
                     "longitude": float(members["longitude"].median()),
                     "stay_count": int(len(members)),
-                    "active_local_dates": int(members["arrival_time_local"].dt.date.nunique()),
+                    "active_local_dates": int(members["arrival_local_date"].nunique()),
                     "total_dwell_h": float(members["duration_s"].sum() / 3600.0),
                     "diameter_m": diameter_m,
                 }
@@ -607,6 +626,7 @@ def infer_home_office(
 ) -> pd.DataFrame:
     """Infer conservative Home/Office labels from CP1 stay events.
 
+    Each stay is scored in its coordinate-derived IANA local time.
     evidence_strength is a heuristic evidence index in [0, 1], not a
     calibrated probability of semantic correctness.
     """
