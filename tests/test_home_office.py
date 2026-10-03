@@ -51,54 +51,82 @@ def _stays(
     ]
 
 
-def test_beijing_user_cohort_still_excludes_out_of_region_travel_stays() -> None:
-    rows = []
-    for day in range(1, 5):
-        rows.append(
-            (
-                "eligible",
-                f"2026-01-0{day} 21:00",
-                f"2026-01-0{day} 22:00",
-                BEIJING_LAT,
-                BEIJING_LON,
-            )
-        )
-    rows.append(
-        (
-            "eligible",
-            "2026-01-05 21:00",
-            "2026-01-05 22:00",
-            35.6762,
-            139.6503,
-        )
+def test_all_resolved_stays_are_retained_without_beijing_eligibility_gate() -> None:
+    stays = _stays(
+        [
+            ("beijing_user", "2026-01-01 21:00", "2026-01-01 22:00", BEIJING_LAT, BEIJING_LON),
+            ("travel_user", "2026-01-02 21:00", "2026-01-02 22:00", 35.6762, 139.6503),
+            ("travel_user", "2026-01-03 21:00", "2026-01-03 22:00", 40.7128, -74.0060),
+        ]
     )
 
-    for day in range(1, 4):
-        rows.append(
-            (
-                "ineligible",
-                f"2026-01-0{day} 21:00",
-                f"2026-01-0{day} 22:00",
-                BEIJING_LAT,
-                BEIJING_LON,
-            )
-        )
-    for day in range(4, 6):
-        rows.append(
-            (
-                "ineligible",
-                f"2026-01-0{day} 21:00",
-                f"2026-01-0{day} 22:00",
-                35.6762,
-                139.6503,
-            )
-        )
+    semantic_stays, _ = build_semantic_locations(stays)
 
-    semantic_stays, _ = build_semantic_locations(_stays(rows))
+    assert len(semantic_stays) == len(stays)
+    assert set(semantic_stays["user_id"]) == {"beijing_user", "travel_user"}
+    assert "distance_to_beijing_km" not in semantic_stays.columns
 
-    assert set(semantic_stays["user_id"]) == {"eligible"}
-    assert len(semantic_stays) == 4
-    assert semantic_stays["distance_to_beijing_km"].max() <= 100.0
+
+def test_coordinate_to_timezone_id_and_travel_stay_uses_its_own_timezone() -> None:
+    stays = pd.DataFrame(
+        [
+            {
+                "user_id": "u",
+                "arrival_time_utc": pd.Timestamp("2026-01-01T12:00:00Z"),
+                "departure_time_utc": pd.Timestamp("2026-01-01T13:00:00Z"),
+                "duration_s": 3600.0,
+                "latitude": BEIJING_LAT,
+                "longitude": BEIJING_LON,
+            },
+            {
+                "user_id": "u",
+                "arrival_time_utc": pd.Timestamp("2026-01-02T12:00:00Z"),
+                "departure_time_utc": pd.Timestamp("2026-01-02T13:00:00Z"),
+                "duration_s": 3600.0,
+                "latitude": 35.6762,
+                "longitude": 139.6503,
+            },
+        ]
+    )
+
+    semantic_stays, _ = build_semantic_locations(stays)
+    by_zone = semantic_stays.set_index("timezone_id")
+
+    assert "Asia/Shanghai" in by_zone.index
+    assert "Asia/Tokyo" in by_zone.index
+    assert by_zone.loc["Asia/Shanghai", "arrival_time_local"].hour == 20
+    assert by_zone.loc["Asia/Tokyo", "arrival_time_local"].hour == 21
+
+
+def test_dst_local_interval_handling_uses_real_elapsed_overlap() -> None:
+    # New York springs forward on 2026-03-08. This stay spans 01:30 -> 03:30
+    # local, which is only one hour of elapsed time.
+    stays = pd.DataFrame(
+        [
+            {
+                "user_id": "u",
+                "arrival_time_utc": pd.Timestamp("2026-03-08T06:30:00Z"),
+                "departure_time_utc": pd.Timestamp("2026-03-08T07:30:00Z"),
+                "duration_s": 3600.0,
+                "latitude": 40.7128,
+                "longitude": -74.0060,
+            }
+        ]
+    )
+    config = HomeOfficeConfig(
+        home_start_hour=1,
+        home_end_hour=4,
+        home_min_dates=1,
+        home_min_share=0.0,
+        home_min_margin=0.0,
+        office_min_dates=99,
+        min_relevant_date_overlap_s=0.0,
+    )
+
+    out = infer_home_office(stays, config=config)
+    home = out.loc[out["label"] == "HOME"].iloc[0]
+
+    assert home["relevant_dwell_h"] == pytest.approx(1.0)
 
 
 def test_complete_link_does_not_chain_a_three_point_300m_span_into_one_location() -> None:
