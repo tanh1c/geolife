@@ -386,8 +386,14 @@ def _interval_overlap_s(
     window_start: pd.Timestamp,
     window_end: pd.Timestamp,
 ) -> float:
-    overlap_start = max(start, window_start)
-    overlap_end = min(end, window_end)
+    """Return real elapsed overlap, including across DST offset transitions."""
+    start_utc = pd.Timestamp(start).tz_convert("UTC")
+    end_utc = pd.Timestamp(end).tz_convert("UTC")
+    window_start_utc = pd.Timestamp(window_start).tz_convert("UTC")
+    window_end_utc = pd.Timestamp(window_end).tz_convert("UTC")
+
+    overlap_start = max(start_utc, window_start_utc)
+    overlap_end = min(end_utc, window_end_utc)
     if overlap_end <= overlap_start:
         return 0.0
     return float((overlap_end - overlap_start).total_seconds())
