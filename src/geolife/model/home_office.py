@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, time, timedelta
 from functools import lru_cache
 from zoneinfo import ZoneInfo
 
@@ -416,6 +417,22 @@ def _interval_overlap_s(
     return float((overlap_end - overlap_start).total_seconds())
 
 
+def _local_boundary(
+    local_date,
+    hour: int,
+    timezone_id: str,
+) -> pd.Timestamp:
+    """Construct a local wall-clock boundary with the zone's offset that day."""
+    zone = ZoneInfo(str(timezone_id))
+    return pd.Timestamp(
+        datetime.combine(
+            local_date,
+            time(hour=int(hour)),
+            tzinfo=zone,
+        )
+    )
+
+
 def _window_contributions(
     semantic_stays: pd.DataFrame,
     *,
@@ -427,25 +444,49 @@ def _window_contributions(
     for row in semantic_stays.itertuples(index=False):
         start = row.arrival_time_local
         end = row.departure_time_local
-        day = start.normalize() - pd.Timedelta(days=1)
-        last_day = end.normalize()
+        timezone_id = str(row.timezone_id)
 
-        while day <= last_day:
+        first_date = start.date() - timedelta(days=1)
+        last_date = end.date()
+        day = first_date
+
+        while day <= last_date:
             if kind == "home":
-                window_start = day + pd.Timedelta(hours=config.home_start_hour)
-                window_end = day + pd.Timedelta(days=1) + pd.Timedelta(hours=config.home_end_hour)
-                behavior_date = window_start.date()
+                window_start = _local_boundary(
+                    day,
+                    config.home_start_hour,
+                    timezone_id,
+                )
+                window_end = _local_boundary(
+                    day + timedelta(days=1),
+                    config.home_end_hour,
+                    timezone_id,
+                )
+                behavior_date = day
                 include = True
             elif kind == "office":
-                window_start = day + pd.Timedelta(hours=config.office_start_hour)
-                window_end = day + pd.Timedelta(hours=config.office_end_hour)
-                behavior_date = window_start.date()
+                window_start = _local_boundary(
+                    day,
+                    config.office_start_hour,
+                    timezone_id,
+                )
+                window_end = _local_boundary(
+                    day,
+                    config.office_end_hour,
+                    timezone_id,
+                )
+                behavior_date = day
                 include = day.weekday() in config.office_weekdays
             else:
                 raise ValueError(f"unknown contribution kind: {kind}")
 
             if include:
-                overlap_s = _interval_overlap_s(start, end, window_start, window_end)
+                overlap_s = _interval_overlap_s(
+                    start,
+                    end,
+                    window_start,
+                    window_end,
+                )
                 if overlap_s > 0:
                     rows.append(
                         {
@@ -455,13 +496,17 @@ def _window_contributions(
                             "overlap_s": overlap_s,
                         }
                     )
-            day += pd.Timedelta(days=1)
+            day += timedelta(days=1)
 
     return pd.DataFrame(
         rows,
-        columns=["user_id", "location_id", "behavior_date", "overlap_s"],
+        columns=[
+            "user_id",
+            "location_id",
+            "behavior_date",
+            "overlap_s",
+        ],
     )
-
 
 def _aggregate_window(
     contrib: pd.DataFrame,
