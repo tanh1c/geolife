@@ -96,7 +96,7 @@ Manual fallback inbox:
 
 Do not invent a URL.
 
-If you obtain the exact file from a provenance-preserving source, upload the original MDB/ZIP to that inbox and rerun.
+If you obtain the exact file from a provenance-preserving source, upload the original MDB/ZIP/RAR to that inbox and rerun.
 
 ### If the public licence is unclear
 
@@ -168,3 +168,17 @@ If it reaches `ready_for_normalization`, the next patch should be Stage 07g:
 - name preservation;
 - no category invention;
 - high-precision lexical semantic audit against the 185 eligible anchors.
+
+
+## Measured first-run update
+
+The official Figshare record now exposes a direct public RAR attachment:
+
+```text
+Points of interest of China in 2008.rar
+120023687 bytes
+MD5 e77c3473874a6fb64fd0c52d3c66fc84
+licence CC BY 4.0
+```
+
+The corrected notebook downloads this automatically and extracts it with `unar`; no manual inbox upload should be needed unless public availability changes.
