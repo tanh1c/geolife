@@ -177,3 +177,81 @@ The two pipelines both used complete-link 200 m but assign ids differently and d
 
 Stage 07e now requires the explicit production namespace marker and rejects old artifacts. The first measured 07e tables are superseded pending corrected 07c -> 07d -> 07e rerun.
 
+## Final measured result — corrected production-aligned universe
+
+Stage 07e completed cleanly on the corrected 198-anchor / 25-user universe with:
+
+- location namespace: `production_complete_link_200m_beijing_policy_v1`;
+- raw cache validated: 198 / 198 anchors;
+- exact stable-secondary users represented: 9;
+- exact stable-secondary anchors: 9;
+- within-user comparison rows: 9.
+
+### Exact radial historical-OSM context
+
+The Stage-07d OSM existence summary used the extraction bbox. Stage 07e applies true anchor-to-geometry radial distance, so features returned in bbox corners at >100 m are not counted.
+
+Measured within <=100 m:
+
+- semantic context: 61 / 198 anchors (30.81%);
+- broad work-compatible context: 46 / 198 anchors (23.23%).
+
+Work-compatible distance buckets:
+
+| bucket | anchors | users | anchor share |
+|---|---:|---:|---:|
+| 0–25 m | 31 | 9 | 15.66% |
+| 25–50 m | 5 | 5 | 2.53% |
+| 50–100 m | 10 | 7 | 5.05% |
+| none within 100 m | 152 | 25 | 76.77% |
+
+Category coverage within 100 m:
+
+- education: 33 anchors;
+- recreation/tourism: 14;
+- retail/service: 14;
+- residential: 6;
+- office/commercial: 2;
+- transport: 2;
+- healthcare: 1;
+- civic/institutional: 0;
+- industrial: 0.
+
+### Stable-secondary within-user comparison
+
+For all 9 stable-secondary users, the exact Stage-05b dominant secondary anchor was found in the corrected anchor universe.
+
+Composite work-compatible context:
+
+| threshold | candidate-context users | mean peer context share | mean candidate - peer share | bootstrap 95% interval |
+|---|---:|---:|---:|---:|
+| 25 m | 2 / 9 | 0.107 | +0.115 | [-0.109, +0.387] |
+| 50 m | 2 / 9 | 0.141 | +0.081 | [-0.147, +0.337] |
+| 100 m | 2 / 9 | 0.203 | +0.019 | [-0.210, +0.284] |
+
+All three uncertainty intervals cross zero. Only 2 of 9 users have a candidate anchor with mapped work-compatible context at any tested threshold.
+
+Category decomposition shows that those two candidate-context cases are both driven by the `education` category. None of the 9 stable-secondary candidate anchors has mapped `office_commercial`, `industrial`, `healthcare`, `retail_service`, `transport`, `civic_institutional`, `residential`, or `recreation_tourism` context within 100 m.
+
+At 100 m, retail/service is actually more common among peer anchors than stable-secondary candidates:
+
+- mean candidate - peer share = -0.081;
+- bootstrap interval = [-0.135, -0.028].
+
+This is a descriptive contrast in a tiny cohort, not evidence that stable-secondary anchors avoid retail locations.
+
+### Decision
+
+Historical OSM does not provide a strong independent semantic validation of stable-secondary anchors as WORK/OFFICE-like places.
+
+The evidence is:
+
+- sparse at the exact candidate anchors;
+- dominated by education rather than office/commercial categories;
+- not consistently stronger than same-user recurring peers;
+- uncertainty crosses zero for the composite work-compatible comparison.
+
+Therefore Stage 07e should close as a null/mixed independent-evidence result. Do not tune mobility thresholds to improve semantic agreement and do not promote stable-secondary geometry to WORK/OFFICE semantics.
+
+The next semantic-source priority remains BCL POI 2008, now relevant to 185 / 198 corrected anchors across 19 users, after access/license/CRS resolution.
+
