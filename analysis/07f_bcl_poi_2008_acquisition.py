@@ -83,13 +83,41 @@ def _normalise_license(metadata: dict[str, Any]) -> tuple[str, str]:
 
 
 def license_is_explicit_reuse_candidate(name: str, url: str = "") -> bool:
-    """Return whether metadata explicitly names a broadly reusable licence.
+    """Return whether metadata explicitly names a reusable licence candidate.
 
-    This is a technical gate, not legal advice. Any ambiguous or missing
-    licence stays blocked.
+    Conservative automation policy:
+    - allow CC BY, CC BY-SA, CC0/public-domain and ODC attribution/share-alike;
+    - block NC and ND variants for automated downstream reuse review;
+    - ambiguous/missing terms remain blocked.
+
+    This is a technical gate, not legal advice.
     """
     haystack = f"{name} {url}".lower()
-    return any(token in haystack for token in RECOGNIZED_REUSE_LICENSE_TOKENS)
+    blockers = (
+        "noncommercial",
+        "non-commercial",
+        "cc by-nc",
+        "/by-nc",
+        "no derivatives",
+        "no-derivatives",
+        "cc by-nd",
+        "/by-nd",
+    )
+    if any(token in haystack for token in blockers):
+        return False
+
+    allow = (
+        "cc by ",
+        "cc-by ",
+        "creative commons attribution",
+        "cc by-sa",
+        "cc-by-sa",
+        "cc0",
+        "public domain",
+        "odc-by",
+        "odbl",
+    )
+    return any(token in haystack for token in allow)
 
 
 def figshare_files(metadata: dict[str, Any]) -> pd.DataFrame:
@@ -424,7 +452,7 @@ def parse_ogrinfo_report(stdout: str) -> dict[str, Any]:
     epsg_codes = sorted(
         set(
             re.findall(
-                r'AUTHORITY\["EPSG","(\d+)"\]',
+                r'(?:AUTHORITY\\["EPSG","|ID\\["EPSG",)(\\d+)',
                 stdout,
             )
         )
