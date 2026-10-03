@@ -4,10 +4,12 @@ from geolife.model.home_office import (
     HomeOfficeConfig,
     build_semantic_locations,
     infer_home_office,
+    location_namespace,
 )
 
 __all__ = [
     "HomeOfficeConfig",
     "build_semantic_locations",
     "infer_home_office",
+    "location_namespace",
 ]
