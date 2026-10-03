@@ -23,7 +23,7 @@ LABELS = ("HOME", "OFFICE")
 
 
 def request_to_stay_frame(request: InferRequest) -> pd.DataFrame:
-    """Convert one validated stay-event request into the frozen CP2 stay schema."""
+    """Convert one validated stay-event request into the CP2 v2 stay schema."""
     records = [stay.model_dump() for stay in request.stays]
     frame = pd.DataFrame.from_records(records)
 
@@ -111,13 +111,13 @@ def _abstained(label: str, reason: AbstentionReason) -> AbstainedResult:
 
 
 def infer_request(request: InferRequest) -> InferResponse:
-    """Run the frozen CP2 model from already-detected stay events."""
+    """Run the CP2 v2 model from already-detected stay events."""
     stays = request_to_stay_frame(request)
 
     semantic_stays, locations = build_semantic_locations(stays)
 
     if semantic_stays.empty:
-        reason = AbstentionReason.OUT_OF_SCOPE_GEOGRAPHY
+        reason = AbstentionReason.UNRESOLVED_TIMEZONE
         results: list[SemanticResult] = [_abstained(label, reason) for label in LABELS]
         return InferResponse(user_id=request.user_id, results=results)
 
@@ -178,7 +178,7 @@ def classify_raw_request(user_id: str, request: ClassifyRequest) -> ClassifyResp
             user_id=normalized_user_id,
             locations=[],
             abstentions=_classification_abstentions(
-                AbstentionReason.OUT_OF_SCOPE_GEOGRAPHY
+                AbstentionReason.UNRESOLVED_TIMEZONE
             ),
         )
 

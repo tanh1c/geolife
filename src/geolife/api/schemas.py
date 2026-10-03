@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 class AbstentionReason(str, Enum):
     INSUFFICIENT_STAY_HISTORY = "insufficient_stay_history"
-    OUT_OF_SCOPE_GEOGRAPHY = "out_of_scope_geography"
+    UNRESOLVED_TIMEZONE = "unresolved_timezone"
     INSUFFICIENT_RECURRING_HISTORY = "insufficient_recurring_history"
     INSUFFICIENT_SEMANTIC_EVIDENCE = "insufficient_semantic_evidence"
 
@@ -84,7 +84,7 @@ class InferResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     user_id: str
-    model_contract: Literal["cp2-v1"] = "cp2-v1"
+    model_contract: Literal["cp2-v2"] = "cp2-v2"
     results: list[SemanticResult] = Field(min_length=2, max_length=2)
 
 
@@ -175,7 +175,7 @@ class ClassifyResponse(BaseModel):
 
     user_id: str
     api_version: Literal["v1"] = "v1"
-    model_contract: Literal["cp2-v1"] = "cp2-v1"
+    model_contract: Literal["cp2-v2"] = "cp2-v2"
     locations: list[ClassifiedLocation]
     abstentions: list[ClassificationAbstention]
 
@@ -186,4 +186,4 @@ class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     service: Literal["geolife-home-office-api"] = "geolife-home-office-api"
     api_version: Literal["v1"] = "v1"
-    model_contract: Literal["cp2-v1"] = "cp2-v1"
+    model_contract: Literal["cp2-v2"] = "cp2-v2"

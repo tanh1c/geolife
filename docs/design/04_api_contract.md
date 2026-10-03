@@ -68,7 +68,7 @@ Response:
   "status": "ok",
   "service": "geolife-home-office-api",
   "api_version": "v1",
-  "model_contract": "cp2-v1"
+  "model_contract": "cp2-v2"
 }
 ```
 
@@ -118,7 +118,7 @@ The response always contains results for both semantic labels:
 ```json
 {
   "user_id": "042",
-  "model_contract": "cp2-v1",
+  "model_contract": "cp2-v2",
   "results": [
     {
       "label": "HOME",
@@ -143,7 +143,7 @@ The response always contains results for both semantic labels:
 
 v1 uses a small stable enum:
 
-- `out_of_scope_geography`
+- `unresolved_timezone`
   - the user's stay/dwell history does not satisfy the frozen Beijing-focused cohort, so no semantic-time inference is attempted;
 - `insufficient_recurring_history`
   - the user enters the semantic cohort but has no recurring location with >=2 stays;
@@ -313,14 +313,14 @@ Across the 136 valid per-user requests, each semantic label always returns eithe
 HOME:
 
 - emitted: 27;
-- `out_of_scope_geography`: 39;
+- `unresolved_timezone`: 39;
 - `insufficient_recurring_history`: 24;
 - `insufficient_semantic_evidence`: 46.
 
 OFFICE:
 
 - emitted: 16;
-- `out_of_scope_geography`: 39;
+- `unresolved_timezone`: 39;
 - `insufficient_recurring_history`: 24;
 - `insufficient_semantic_evidence`: 57.
 
@@ -333,3 +333,36 @@ The full HTTP replay exposed a pandas `FutureWarning` when the production model 
 The result values were correct, but the warning indicated a future dtype-behavior risk.
 
 The production code was amended to concatenate only non-empty emission frames, and a regression test was added. This does not change frozen CP2 semantics or parity counts.
+
+
+## CP2 v2 local-timezone migration — 2026-10-03
+
+The current migration candidate removes the old Beijing-radius eligibility gate from semantic inference.
+
+Production semantic time becomes:
+
+```text
+stay latitude/longitude
+→ timezonefinder
+→ IANA timezone_id
+→ ZoneInfo(timezone_id)
+→ local wall-clock arrival/departure
+```
+
+Every stay with a resolved timezone remains eligible for recurrence and HOME/OFFICE evidence, including travel stays. Geography is not used as a semantic eligibility rule.
+
+The API path remains versioned as `/v1/...`, while the model contract becomes:
+
+```text
+cp2-v2
+```
+
+A fully unresolved stay request abstains with:
+
+```text
+unresolved_timezone
+```
+
+instead of `out_of_scope_geography`.
+
+This migration is not allowed to merge until the frozen 5,821-stay release audit passes independent Notebook-03 parity and full-release HTTP parity.

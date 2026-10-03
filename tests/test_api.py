@@ -76,7 +76,7 @@ def test_health_contract() -> None:
         "status": "ok",
         "service": "geolife-home-office-api",
         "api_version": "v1",
-        "model_contract": "cp2-v1",
+        "model_contract": "cp2-v2",
     }
 
 
@@ -92,7 +92,7 @@ def test_home_emits_while_office_abstains() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["user_id"] == "u-home"
-    assert body["model_contract"] == "cp2-v1"
+    assert body["model_contract"] == "cp2-v2"
 
     results = _result_by_label(body)
     assert results["HOME"]["status"] == "emitted"
@@ -104,32 +104,41 @@ def test_home_emits_while_office_abstains() -> None:
     }
 
 
-def test_out_of_scope_geography_is_200_with_explicit_abstention() -> None:
+def test_non_beijing_timezone_can_emit_home() -> None:
+    def tokyo_stay(day: str) -> dict[str, object]:
+        arrival = pd.Timestamp(
+            f"{day} 21:00",
+            tz="Asia/Tokyo",
+        ).tz_convert("UTC")
+        departure = pd.Timestamp(
+            f"{day} 22:00",
+            tz="Asia/Tokyo",
+        ).tz_convert("UTC")
+        return {
+            "arrival_time_utc": arrival.isoformat().replace("+00:00", "Z"),
+            "departure_time_utc": departure.isoformat().replace("+00:00", "Z"),
+            "latitude": TOKYO_LAT,
+            "longitude": TOKYO_LON,
+        }
+
     stays = [
-        _stay(
-            "2026-01-05 21:00",
-            "2026-01-05 22:00",
-            latitude=TOKYO_LAT,
-            longitude=TOKYO_LON,
-        ),
-        _stay(
-            "2026-01-06 21:00",
-            "2026-01-06 22:00",
-            latitude=TOKYO_LAT,
-            longitude=TOKYO_LON,
-        ),
+        tokyo_stay("2026-01-05"),
+        tokyo_stay("2026-01-06"),
+        tokyo_stay("2026-01-07"),
     ]
 
-    response = client.post("/v1/home-office/infer", json=_payload("u-travel", stays))
+    response = client.post(
+        "/v1/home-office/infer",
+        json=_payload("u-travel", stays),
+    )
 
     assert response.status_code == 200
-    results = _result_by_label(response.json())
-    for label in ["HOME", "OFFICE"]:
-        assert results[label] == {
-            "label": label,
-            "status": "abstained",
-            "reason": "out_of_scope_geography",
-        }
+    body = response.json()
+    assert body["model_contract"] == "cp2-v2"
+    results = _result_by_label(body)
+    assert results["HOME"]["status"] == "emitted"
+    assert results["HOME"]["relevant_dates"] == 3
+    assert results["OFFICE"]["status"] == "abstained"
 
 
 def test_no_recurring_location_has_specific_abstention_reason() -> None:
@@ -244,6 +253,9 @@ def test_openapi_exposes_v1_inference_and_discriminated_result_shapes() -> None:
 
     response_schema = post["responses"]["200"]["content"]["application/json"]["schema"]
     assert response_schema
+    abstention_enum = schema["components"]["schemas"]["AbstentionReason"]["enum"]
+    assert "unresolved_timezone" in abstention_enum
+    assert "out_of_scope_geography" not in abstention_enum
 
 
 def test_http_result_matches_direct_production_model() -> None:

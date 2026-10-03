@@ -9,10 +9,12 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import zipfile
 from functools import lru_cache
 from importlib.metadata import PackageNotFoundError, version
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -22,7 +24,21 @@ import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
 from geolife.geo.distance import haversine_m
-from geolife.model import HomeOfficeConfig, build_semantic_locations, infer_home_office
+_FROZEN_V1_SPEC = spec_from_file_location(
+    "cp2_v1_frozen_comparator",
+    Path(__file__).resolve().with_name("cp2_v1_frozen_comparator.py"),
+)
+if _FROZEN_V1_SPEC is None or _FROZEN_V1_SPEC.loader is None:
+    raise RuntimeError("cannot load frozen CP2-v1 comparator helper")
+_FROZEN_V1 = module_from_spec(_FROZEN_V1_SPEC)
+sys.modules.setdefault(_FROZEN_V1_SPEC.name, _FROZEN_V1)
+_FROZEN_V1_SPEC.loader.exec_module(_FROZEN_V1)
+
+FrozenV1HomeOfficeConfig = _FROZEN_V1.FrozenV1HomeOfficeConfig
+build_frozen_v1_semantic_locations = (
+    _FROZEN_V1.build_frozen_v1_semantic_locations
+)
+HomeOfficeConfig = FrozenV1HomeOfficeConfig
 from geolife.staypoints import clean_trajectory_with_audit, detect_staypoints
 
 ARTIFACT_DIR = Path("artifacts/03a")
@@ -673,7 +689,7 @@ def _audit_row(user_id: str, label: str, reason: str, candidate: pd.Series | Non
 def _window_features(
     semantic_stays: pd.DataFrame,
     locations: pd.DataFrame,
-    config: HomeOfficeConfig,
+    config: FrozenV1HomeOfficeConfig,
     label: str,
 ) -> pd.DataFrame:
     prefix = "home" if label == "HOME" else "office"
@@ -717,7 +733,7 @@ def _window_features(
     return features
 
 
-def _top_audit_candidate(features: pd.DataFrame, label: str, config: HomeOfficeConfig) -> pd.Series | None:
+def _top_audit_candidate(features: pd.DataFrame, label: str, config: FrozenV1HomeOfficeConfig) -> pd.Series | None:
     """Mirror frozen candidate eligibility while retaining raw-overlap diagnostics."""
     prefix = "home" if label == "HOME" else "office"
     dwell_col, dates_col, share_col = (f"{prefix}_{suffix}" for suffix in ("dwell_s", "dates", "dwell_share"))
@@ -744,7 +760,7 @@ def _top_audit_candidate(features: pd.DataFrame, label: str, config: HomeOfficeC
     return top
 
 
-def _candidate_reason(candidate: pd.Series | None, label: str, config: HomeOfficeConfig) -> str:
+def _candidate_reason(candidate: pd.Series | None, label: str, config: FrozenV1HomeOfficeConfig) -> str:
     if candidate is None:
         return "no_behavioral_window_overlap"
     if candidate.get("_insufficient_relevant_dates", False):
@@ -760,9 +776,9 @@ def _candidate_reason(candidate: pd.Series | None, label: str, config: HomeOffic
 
 def build_baseline_user_audit(release_users: set[str], stays: pd.DataFrame) -> pd.DataFrame:
     """Reconstruct one ordered frozen-v1 outcome for each release user and label."""
-    config = HomeOfficeConfig()
+    config = FrozenV1HomeOfficeConfig()
     raw_users = set(stays["user_id"].astype(str)) if not stays.empty else set()
-    semantic, locations = build_semantic_locations(stays, config=config)
+    semantic, locations = build_frozen_v1_semantic_locations(stays, config=config)
     semantic_users = set(semantic["user_id"].astype(str)) if not semantic.empty else set()
     recurring_users = (
         set(locations.loc[locations["stay_count"] >= 2, "user_id"].astype(str))
@@ -793,11 +809,9 @@ def build_baseline_user_audit(release_users: set[str], stays: pd.DataFrame) -> p
     assert len(audit) == len(release_users) * 2
     assert not audit.duplicated(["user_id", "label"]).any()
     assert audit["reject_reason"].isin(REASON_ORDER).all()
-    emitted = infer_home_office(stays, config=config).loc[:, ["user_id", "label"]]
-    audited = audit.loc[audit["reject_reason"] == "emitted", ["user_id", "label"]]
-    audited_pairs = set(audited.itertuples(index=False, name=None))
-    emitted_pairs = set(emitted.itertuples(index=False, name=None))
-    assert audited_pairs == emitted_pairs
+    # Historical v1 comparator is intentionally self-contained after production
+    # migrates to CP2 v2. Full-release 27/16 parity remains asserted by the
+    # comparator runner rather than against the current production model.
     return audit
 
 

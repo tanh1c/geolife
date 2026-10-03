@@ -2021,3 +2021,41 @@ Final gates:
 
 Decision: close Stage 07f successfully. Stage 07g may perform deterministic Beijing-only extraction and normalization from the validated FileGDB, while preserving raw POI names and avoiding direct WORK/OFFICE semantics.
 
+## 2026-10-03 — CP2 v2 production migration patch: promote audited per-stay local timezone contract
+
+A repo audit corrected a mistaken assumption made while starting Stage 07g.
+
+Notebook 03 had already implemented and reviewed the final timezone candidate:
+
+```text
+(latitude, longitude)
+→ timezonefinder
+→ IANA timezone_id
+→ ZoneInfo(timezone_id)
+→ local wall-clock time
+```
+
+The executed audit established that all 5,821 frozen CP1 stays resolve to an IANA timezone. The final notebook keeps all resolved stays and does not use Beijing-only, China-only, or Asia/Shanghai concentration as an eligibility gate.
+
+The remaining inconsistency is production code: `src/geolife/model/home_office.py` still carried the older CP2-v1 Beijing-radius cohort.
+
+Migration patch:
+
+- remove Beijing radius / stay-share / dwell-share / fixed-timezone fields from `HomeOfficeConfig`;
+- add production per-stay timezone resolution with `timezonefinder==9.0.0`;
+- retain timezone ID and local wall-clock arrival/departure per stay;
+- keep all timezone-resolved travel stays;
+- preserve complete-link 200 m and frozen HOME/OFFICE behavioral evidence gates;
+- publish API `model_contract = cp2-v2`;
+- replace `out_of_scope_geography` with `unresolved_timezone`;
+- add an independent Notebook-03 reference implementation for migration parity;
+- add a full-release 136-user HTTP parity runner;
+- define the new semantic location namespace:
+  `production_complete_link_200m_local_timezone_v2`.
+
+Important correction to the Stage-07f handoff: source acquisition/provenance remains valid, but any anchor counts derived from the legacy CP2-v1 semantic namespace must be considered stale after CP2-v2 refreeze.
+
+The superseded Stage-07g Beijing-100-km normalization must not be run. Future BCL enrichment should be driven by the refrozen anchor universe rather than by an invented Beijing-only population gate.
+
+Merge gate: CI green is necessary but not sufficient. Run the 03d Modal migration notebook on the frozen 5,821 stays, review the measured v1→v2 delta, and require independent semantic parity plus full-release HTTP parity before merging.
+

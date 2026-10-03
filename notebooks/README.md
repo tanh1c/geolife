@@ -156,3 +156,13 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Persists resumable raw/extracted files and a provenance/hash manifest.
 - Does not perform semantic WORK/OFFICE inference or invent POI categories from names.
 
+### Stage 03d — CP2 v2 production migration / refreeze audit
+
+- `03d_cp2_v2_production_migration.ipynb`
+- Reuses the frozen 5,821-stay CP1 cache; no raw PLT rescan.
+- Validates production coordinate → IANA timezone → local-wall-clock semantics against an independent reconstruction of the final Notebook-03 candidate.
+- Compares complete-link cluster signatures and HOME/OFFICE evidence without treating old raw cluster IDs as stable.
+- Replays all 136 stay-bearing users through the internal HTTP endpoint and requires exact direct-model parity.
+- Freezes private CP2-v2 semantic artifacts under the namespace `production_complete_link_200m_local_timezone_v2` only after technical parity passes.
+- Historical 27 HOME / 16 OFFICE counts are reported as v1 comparison, not a v2 target.
+
