@@ -238,7 +238,7 @@ def _complete_link_user(
     *,
     threshold_m: float,
 ) -> tuple[pd.DataFrame, np.ndarray]:
-    ordered = group.sort_values("arrival_time_local", kind="stable").copy()
+    ordered = group.sort_values("arrival_time_utc", kind="stable").copy()
     n = len(ordered)
 
     if n == 1:
@@ -255,7 +255,7 @@ def _complete_link_user(
 
     ordered["_raw_location_id"] = raw_labels.astype(int)
     first_seen = (
-        ordered.groupby("_raw_location_id", sort=False)["arrival_time_local"]
+        ordered.groupby("_raw_location_id", sort=False)["arrival_time_utc"]
         .min()
         .sort_values(kind="stable")
     )
@@ -291,7 +291,7 @@ def _dbscan_user(
 
     ordered["_raw_location_id"] = raw_labels.astype(int)
     first_seen = (
-        ordered.groupby("_raw_location_id", sort=False)["arrival_time_local"]
+        ordered.groupby("_raw_location_id", sort=False)["arrival_time_utc"]
         .min()
         .sort_values(kind="stable")
     )
@@ -360,7 +360,9 @@ def build_semantic_locations(
                     "latitude": float(members["latitude"].median()),
                     "longitude": float(members["longitude"].median()),
                     "stay_count": int(len(members)),
-                    "active_local_dates": int(members["arrival_time_local"].dt.date.nunique()),
+                    "active_local_dates": int(
+                        members["arrival_time_local"].map(lambda value: value.date()).nunique()
+                    ),
                     "total_dwell_h": float(members["duration_s"].sum() / 3600.0),
                     "diameter_m": diameter_m,
                 }
@@ -368,7 +370,7 @@ def build_semantic_locations(
 
     clustered = pd.concat(clustered_parts, ignore_index=True)
     clustered = clustered.sort_values(
-        ["user_id", "arrival_time_local", "location_id"],
+        ["user_id", "arrival_time_utc", "location_id"],
         kind="stable",
     ).reset_index(drop=True)
 
