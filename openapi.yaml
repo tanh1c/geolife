@@ -103,7 +103,7 @@ paths:
                   value:
                     user_id: demo-user
                     api_version: v1
-                    model_contract: cp2-v1
+                    model_contract: cp2-v2
                     locations:
                     - label: HOME
                       location_id: 0
@@ -117,7 +117,7 @@ paths:
                   value:
                     user_id: demo-user
                     api_version: v1
-                    model_contract: cp2-v1
+                    model_contract: cp2-v2
                     locations: []
                     abstentions:
                     - label: HOME
@@ -204,7 +204,7 @@ components:
       type: string
       enum:
       - insufficient_stay_history
-      - out_of_scope_geography
+      - unresolved_timezone
       - insufficient_recurring_history
       - insufficient_semantic_evidence
       title: AbstentionReason
@@ -289,9 +289,9 @@ components:
           default: v1
         model_contract:
           type: string
-          const: cp2-v1
+          const: cp2-v2
           title: Model Contract
-          default: cp2-v1
+          default: cp2-v2
         locations:
           items:
             $ref: '#/components/schemas/ClassifiedLocation'
@@ -412,9 +412,9 @@ components:
           default: v1
         model_contract:
           type: string
-          const: cp2-v1
+          const: cp2-v2
           title: Model Contract
-          default: cp2-v1
+          default: cp2-v2
       additionalProperties: false
       type: object
       title: HealthResponse
@@ -445,9 +445,9 @@ components:
           title: User Id
         model_contract:
           type: string
-          const: cp2-v1
+          const: cp2-v2
           title: Model Contract
-          default: cp2-v1
+          default: cp2-v2
         results:
           items:
             oneOf:
