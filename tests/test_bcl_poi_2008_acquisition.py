@@ -168,6 +168,7 @@ y: Real (0.0)
     assert report["layer_count"] == 1
     assert set(report["field_names"]) == {"name", "x", "y"}
     assert report["srs_blocks"]
+    assert report["epsg_codes"] == ["4326"]
 
 
 def test_bcl_eligible_anchor_summary_uses_corrected_namespace():
@@ -270,3 +271,12 @@ def test_stage07f_notebook_contract():
         assert snippet in code
 
     assert "fetch_ohsome" not in code
+
+
+def test_noncommercial_and_no_derivatives_licenses_do_not_auto_pass():
+    module = _module()
+
+    assert not module.license_is_explicit_reuse_candidate("CC BY-NC 4.0")
+    assert not module.license_is_explicit_reuse_candidate("CC BY-ND 4.0")
+    assert module.license_is_explicit_reuse_candidate("CC BY 4.0")
+    assert module.license_is_explicit_reuse_candidate("CC BY-SA 4.0")
