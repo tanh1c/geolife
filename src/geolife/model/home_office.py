@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
 from functools import lru_cache
 from zoneinfo import ZoneInfo
 
@@ -197,7 +196,7 @@ def _timezone_for_coordinates(latitude: float, longitude: float) -> str | None:
 
 
 def _resolve_local_time(stays: pd.DataFrame) -> pd.DataFrame:
-    """Resolve each stay independently to IANA local wall-clock time."""
+    """Resolve each stay to the notebook-v2 IANA local wall-clock representation."""
     result = stays.copy()
     result["timezone_id"] = [
         _timezone_for_coordinates(latitude, longitude)
@@ -211,37 +210,29 @@ def _resolve_local_time(stays: pd.DataFrame) -> pd.DataFrame:
     if result.empty:
         return result
 
-    result["arrival_time_local"] = pd.Series(
-        [pd.NaT] * len(result),
-        index=result.index,
-        dtype="object",
-    )
-    result["departure_time_local"] = pd.Series(
-        [pd.NaT] * len(result),
-        index=result.index,
-        dtype="object",
-    )
+    arrival_local = pd.Series(pd.NaT, index=result.index, dtype="datetime64[ns]")
+    departure_local = pd.Series(pd.NaT, index=result.index, dtype="datetime64[ns]")
+
     for timezone_id, indices in result.groupby("timezone_id", sort=True).groups.items():
         zone = ZoneInfo(str(timezone_id))
-        result.loc[indices, "arrival_time_local"] = (
+        arrival_local.loc[indices] = (
             result.loc[indices, "arrival_time_utc"]
             .dt.tz_convert(zone)
-            .astype(object)
+            .dt.tz_localize(None)
         )
-        result.loc[indices, "departure_time_local"] = (
+        departure_local.loc[indices] = (
             result.loc[indices, "departure_time_utc"]
             .dt.tz_convert(zone)
-            .astype(object)
+            .dt.tz_localize(None)
         )
 
-    result["arrival_local_date"] = result["arrival_time_local"].map(
-        lambda value: value.date() if pd.notna(value) else pd.NaT
+    result["arrival_time_local"] = arrival_local
+    result["departure_time_local"] = departure_local
+    result["arrival_local_date"] = result["arrival_time_local"].dt.date
+    result["arrival_local_weekday"] = (
+        result["arrival_time_local"].dt.weekday.astype("Int64")
     )
-    result["arrival_local_weekday"] = result["arrival_time_local"].map(
-        lambda value: value.weekday() if pd.notna(value) else pd.NA
-    ).astype("Int64")
     return result
-
 
 def _pairwise_haversine_matrix_m(group: pd.DataFrame) -> np.ndarray:
     lat = group["latitude"].to_numpy(dtype=float)
@@ -262,7 +253,7 @@ def _complete_link_user(
     *,
     threshold_m: float,
 ) -> tuple[pd.DataFrame, np.ndarray]:
-    ordered = group.sort_values("arrival_time_local", kind="stable").copy()
+    ordered = group.sort_values("arrival_time_utc", kind="stable").copy()
     n = len(ordered)
 
     if n == 1:
@@ -277,15 +268,7 @@ def _complete_link_user(
         distance_threshold=threshold_m,
     ).fit_predict(distances)
 
-    ordered["_raw_location_id"] = raw_labels.astype(int)
-    first_seen = (
-        ordered.groupby("_raw_location_id", sort=False)["arrival_time_local"]
-        .min()
-        .sort_values(kind="stable")
-    )
-    label_map = {raw: idx for idx, raw in enumerate(first_seen.index)}
-    ordered["location_id"] = ordered["_raw_location_id"].map(label_map).astype(int)
-    ordered = ordered.drop(columns="_raw_location_id")
+    ordered["location_id"] = raw_labels.astype(int)
     return ordered, distances
 
 
@@ -296,7 +279,7 @@ def _dbscan_user(
     eps_m: float,
 ) -> tuple[pd.DataFrame, np.ndarray]:
     """Cluster one user's stays with Haversine DBSCAN for benchmark use."""
-    ordered = group.sort_values("arrival_time_local", kind="stable").copy()
+    ordered = group.sort_values("arrival_time_utc", kind="stable").copy()
     n = len(ordered)
 
     if n == 1:
@@ -394,7 +377,7 @@ def build_semantic_locations(
 
     clustered = pd.concat(clustered_parts, ignore_index=True)
     clustered = clustered.sort_values(
-        ["user_id", "arrival_time_local", "location_id"],
+        ["user_id", "arrival_time_utc", "location_id"],
         kind="stable",
     ).reset_index(drop=True)
 
@@ -417,65 +400,41 @@ def _interval_overlap_s(
     return float((overlap_end - overlap_start).total_seconds())
 
 
-def _local_boundary(
-    local_date,
-    hour: int,
-    timezone_id: str,
-) -> pd.Timestamp:
-    """Construct a local wall-clock boundary with the zone's offset that day."""
-    zone = ZoneInfo(str(timezone_id))
-    return pd.Timestamp(
-        datetime.combine(
-            local_date,
-            time(hour=int(hour)),
-            tzinfo=zone,
-        )
-    )
-
-
 def _window_contributions(
     semantic_stays: pd.DataFrame,
     *,
     config: HomeOfficeConfig,
     kind: str,
 ) -> pd.DataFrame:
+    """Apply notebook-v2 behavioral windows to naive local wall-clock times."""
     rows: list[dict[str, object]] = []
 
     for row in semantic_stays.itertuples(index=False):
         start = row.arrival_time_local
         end = row.departure_time_local
-        timezone_id = str(row.timezone_id)
+        day = start.normalize() - pd.Timedelta(days=1)
+        last_day = end.normalize()
 
-        first_date = start.date() - timedelta(days=1)
-        last_date = end.date()
-        day = first_date
-
-        while day <= last_date:
+        while day <= last_day:
             if kind == "home":
-                window_start = _local_boundary(
-                    day,
-                    config.home_start_hour,
-                    timezone_id,
+                window_start = day + pd.Timedelta(
+                    hours=config.home_start_hour
                 )
-                window_end = _local_boundary(
-                    day + timedelta(days=1),
-                    config.home_end_hour,
-                    timezone_id,
+                window_end = (
+                    day
+                    + pd.Timedelta(days=1)
+                    + pd.Timedelta(hours=config.home_end_hour)
                 )
-                behavior_date = day
+                behavior_date = window_start.date()
                 include = True
             elif kind == "office":
-                window_start = _local_boundary(
-                    day,
-                    config.office_start_hour,
-                    timezone_id,
+                window_start = day + pd.Timedelta(
+                    hours=config.office_start_hour
                 )
-                window_end = _local_boundary(
-                    day,
-                    config.office_end_hour,
-                    timezone_id,
+                window_end = day + pd.Timedelta(
+                    hours=config.office_end_hour
                 )
-                behavior_date = day
+                behavior_date = window_start.date()
                 include = day.weekday() in config.office_weekdays
             else:
                 raise ValueError(f"unknown contribution kind: {kind}")
@@ -496,7 +455,7 @@ def _window_contributions(
                             "overlap_s": overlap_s,
                         }
                     )
-            day += timedelta(days=1)
+            day += pd.Timedelta(days=1)
 
     return pd.DataFrame(
         rows,
