@@ -50,6 +50,7 @@ class GateDecision:
     file_access: str
     license_status: str
     format_status: str
+    structure_status: str
     crs_status: str
     runner_status: str
     notes: str
@@ -224,6 +225,7 @@ def evaluate_acquisition_gates(
     http_status: int | None,
     error: str | None = None,
     inspected_crs: str | None = None,
+    inspected_structure_ok: bool | None = None,
     local_candidate_files: Iterable[str] = (),
 ) -> GateDecision:
     metadata = metadata or {}
@@ -290,15 +292,30 @@ def evaluate_acquisition_gates(
     else:
         format_status = "blocked_no_file_to_inspect"
 
+    if inspected_structure_ok is True:
+        structure_status = "pass_spatial_point_structure"
+    elif inspected_structure_ok is False:
+        structure_status = "blocked_unusable_mdb_structure"
+    else:
+        structure_status = "pending_mdb_structure_inspection"
+
     crs_text = _as_text(inspected_crs)
     crs_status = "pass_inspected_crs" if crs_text else "blocked_pending_mdb_crs_inspection"
 
     access_ready = file_access.startswith("pass_")
     license_ready = license_status.startswith("pass_")
     format_ready = format_status in {"pass_mdb", "inspect_archive_for_mdb"}
+    structure_ready = structure_status.startswith("pass_")
     crs_ready = crs_status.startswith("pass_")
 
-    if metadata_ok and access_ready and license_ready and format_ready and crs_ready:
+    if (
+        metadata_ok
+        and access_ready
+        and license_ready
+        and format_ready
+        and structure_ready
+        and crs_ready
+    ):
         runner_status = "ready_for_normalization"
     elif metadata_ok and access_ready and license_ready and format_ready:
         runner_status = "ready_for_mdb_inspection"
@@ -320,6 +337,7 @@ def evaluate_acquisition_gates(
         file_access=file_access,
         license_status=license_status,
         format_status=format_status,
+        structure_status=structure_status,
         crs_status=crs_status,
         runner_status=runner_status,
         notes=notes,
@@ -550,6 +568,24 @@ def summarize_mdb_inspection(report: dict[str, Any]) -> pd.DataFrame:
     )
 
 
+def mdb_structure_is_plausible(report: dict[str, Any]) -> bool:
+    """Require a readable spatial point layer before normalization."""
+    ogr = report.get("ogr") or {}
+    geometries = [
+        _as_text(value).lower()
+        for value in (ogr.get("geometry_types") or [])
+    ]
+    counts = [int(value) for value in (ogr.get("feature_counts") or [])]
+    fields = ogr.get("field_names") or []
+    return bool(
+        report.get("gdal_pgeo_available")
+        and int(ogr.get("layer_count") or 0) > 0
+        and any("point" in value for value in geometries)
+        and any(value > 0 for value in counts)
+        and len(fields) > 0
+    )
+
+
 def choose_crs_text(report: dict[str, Any]) -> str:
     ogr = report.get("ogr") or {}
     epsg = ogr.get("epsg_codes") or []
@@ -661,6 +697,7 @@ def synthetic_self_check() -> dict[str, Any]:
         metadata,
         http_status=200,
         inspected_crs="EPSG:4326",
+        inspected_structure_ok=True,
     )
     assert decision.runner_status == "ready_for_normalization"
     candidate = select_public_download_candidate(metadata)
