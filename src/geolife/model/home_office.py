@@ -52,6 +52,7 @@ LOCATION_COLUMNS = [
 OUTPUT_COLUMNS = [
     "user_id",
     "label",
+    "location_namespace",
     "location_id",
     "latitude",
     "longitude",
