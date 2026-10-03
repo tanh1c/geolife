@@ -1948,3 +1948,35 @@ Follow-up patch:
 
 No manual upload is required for the official source discovered by this run.
 
+## 2026-10-03 — Second Stage 07f Modal run: RAR extraction succeeds but no MDB is present
+
+The RAR-enabled notebook successfully reached the post-extraction inspection stage:
+
+- official Figshare RAR selected automatically;
+- public source mode;
+- worker started successfully;
+- download/integrity gates had already passed;
+- RAR extraction completed without returning an extraction error.
+
+The worker then reported:
+
+```text
+worker ok: False
+worker error: no .mdb found after acquisition
+```
+
+This means the source archive does not expose an `.mdb` file at the location/path pattern expected by the first inspector, despite the BCL documentation describing ArcGIS Personal Geodatabase 10.1.
+
+Do not infer that the archive is unusable yet. The correct next action is to inspect the actual extracted tree and archive inventory.
+
+Follow-up patch:
+
+- persist/print archive listing and extracted extension counts;
+- enumerate representative extracted paths;
+- detect `.mdb`, FileGDB `.gdb` directories, GeoPackage, Shapefile and SQLite containers;
+- inspect the selected container with GDAL;
+- require PGeo only when the selected container is truly MDB;
+- if no supported spatial container exists, return an explicit blocked result plus inventory rather than the ambiguous `no .mdb` error.
+
+The next 07f rerun reuses the already cached RAR and extracted directory, so it should not require a new 120 MB download.
+
