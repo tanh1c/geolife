@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering, DBSCAN
+from timezonefinder import TimezoneFinder
 
 from geolife.geo.distance import haversine_m
 
@@ -26,7 +28,7 @@ SEMANTIC_STAY_COLUMNS = [
     "duration_s",
     "latitude",
     "longitude",
-    "distance_to_beijing_km",
+    "timezone_id",
     "arrival_time_local",
     "departure_time_local",
     "arrival_local_date",
@@ -64,14 +66,11 @@ OUTPUT_COLUMNS = [
 
 @dataclass(frozen=True)
 class HomeOfficeConfig:
-    """Frozen CP2 v1 engineering baseline for Home/Office inference."""
+    """Frozen CP2 v2 engineering baseline for Home/Office inference.
 
-    beijing_latitude: float = 39.9042
-    beijing_longitude: float = 116.4074
-    beijing_radius_km: float = 100.0
-    beijing_min_stay_share: float = 0.80
-    beijing_min_dwell_share: float = 0.80
-    timezone: str = "Asia/Shanghai"
+    Timezone is resolved independently for every stay from its WGS84
+    coordinate. Geography is not an eligibility gate.
+    """
 
     location_max_diameter_m: float = 200.0
     clustering_method: str = "complete_link"
@@ -95,8 +94,6 @@ class HomeOfficeConfig:
     support_saturation_dates: int = 5
 
     def __post_init__(self) -> None:
-        if self.beijing_radius_km <= 0:
-            raise ValueError("beijing_radius_km must be positive")
         if self.location_max_diameter_m <= 0:
             raise ValueError("location_max_diameter_m must be positive")
         if self.clustering_method not in {"complete_link", "dbscan"}:
@@ -106,8 +103,6 @@ class HomeOfficeConfig:
         if self.min_relevant_date_overlap_s < 0:
             raise ValueError("min_relevant_date_overlap_s must be non-negative")
         for name, value in [
-            ("beijing_min_stay_share", self.beijing_min_stay_share),
-            ("beijing_min_dwell_share", self.beijing_min_dwell_share),
             ("home_min_share", self.home_min_share),
             ("home_min_margin", self.home_min_margin),
             ("office_min_share", self.office_min_share),
@@ -134,8 +129,86 @@ class HomeOfficeConfig:
             raise ValueError("office_weekdays must not be empty")
         if any(day < 0 or day > 6 for day in self.office_weekdays):
             raise ValueError("office_weekdays values must be between 0 and 6")
-        ZoneInfo(self.timezone)
 
+
+@lru_cache(maxsize=1)
+def _timezone_finder() -> TimezoneFinder:
+    """Reuse the offline timezone-boundary index across inference calls."""
+    return TimezoneFinder(in_memory=True)
+
+
+def _utc_to_local_wall_time(
+    timestamps: pd.Series,
+    timezone_id: str,
+) -> pd.Series:
+    """Convert UTC instants to timezone-specific naive local wall time."""
+    return (
+        pd.to_datetime(timestamps, utc=True)
+        .dt.tz_convert(ZoneInfo(timezone_id))
+        .dt.tz_localize(None)
+    )
+
+
+def resolve_stay_timezones(stays: pd.DataFrame) -> pd.DataFrame:
+    """Attach coordinate-derived IANA timezone IDs and local wall-clock fields.
+
+    Unresolved stays remain visible in this audit table. The semantic builder
+    retains only rows with a resolved timezone.
+    """
+    raw = _validate_stays(stays)
+    if raw.empty:
+        out = raw.copy()
+        out["timezone_id"] = pd.Series(dtype="string")
+        out["arrival_time_local"] = pd.Series(dtype="datetime64[ns]")
+        out["departure_time_local"] = pd.Series(dtype="datetime64[ns]")
+        out["arrival_local_date"] = pd.Series(dtype="object")
+        out["arrival_local_weekday"] = pd.Series(dtype="Int64")
+        return out
+
+    finder = _timezone_finder()
+    result = raw.copy()
+    result["timezone_id"] = pd.array(
+        [
+            finder.timezone_at(lng=float(longitude), lat=float(latitude))
+            for latitude, longitude in zip(
+                result["latitude"].to_numpy(dtype=float),
+                result["longitude"].to_numpy(dtype=float),
+                strict=True,
+            )
+        ],
+        dtype="string",
+    )
+    result["arrival_time_local"] = pd.NaT
+    result["departure_time_local"] = pd.NaT
+
+    resolved = result["timezone_id"].notna()
+    for timezone_id, indices in result.loc[resolved].groupby(
+        "timezone_id",
+        sort=True,
+    ).groups.items():
+        tzid = str(timezone_id)
+        result.loc[indices, "arrival_time_local"] = _utc_to_local_wall_time(
+            result.loc[indices, "arrival_time_utc"],
+            tzid,
+        ).to_numpy()
+        result.loc[indices, "departure_time_local"] = _utc_to_local_wall_time(
+            result.loc[indices, "departure_time_utc"],
+            tzid,
+        ).to_numpy()
+
+    result["arrival_time_local"] = pd.to_datetime(
+        result["arrival_time_local"],
+        errors="coerce",
+    )
+    result["departure_time_local"] = pd.to_datetime(
+        result["departure_time_local"],
+        errors="coerce",
+    )
+    result["arrival_local_date"] = result["arrival_time_local"].dt.date
+    result["arrival_local_weekday"] = (
+        result["arrival_time_local"].dt.weekday.astype("Int64")
+    )
+    return result
 
 def _empty_semantic_stays() -> pd.DataFrame:
     return pd.DataFrame(columns=SEMANTIC_STAY_COLUMNS)
@@ -200,7 +273,7 @@ def _complete_link_user(
     *,
     threshold_m: float,
 ) -> tuple[pd.DataFrame, np.ndarray]:
-    ordered = group.sort_values("arrival_time_local", kind="stable").copy()
+    ordered = group.sort_values("arrival_time_utc", kind="stable").copy()
     n = len(ordered)
 
     if n == 1:
@@ -217,7 +290,7 @@ def _complete_link_user(
 
     ordered["_raw_location_id"] = raw_labels.astype(int)
     first_seen = (
-        ordered.groupby("_raw_location_id", sort=False)["arrival_time_local"]
+        ordered.groupby("_raw_location_id", sort=False)["arrival_time_utc"]
         .min()
         .sort_values(kind="stable")
     )
@@ -234,7 +307,7 @@ def _dbscan_user(
     eps_m: float,
 ) -> tuple[pd.DataFrame, np.ndarray]:
     """Cluster one user's stays with Haversine DBSCAN for benchmark use."""
-    ordered = group.sort_values("arrival_time_local", kind="stable").copy()
+    ordered = group.sort_values("arrival_time_utc", kind="stable").copy()
     n = len(ordered)
 
     if n == 1:
@@ -253,7 +326,7 @@ def _dbscan_user(
 
     ordered["_raw_location_id"] = raw_labels.astype(int)
     first_seen = (
-        ordered.groupby("_raw_location_id", sort=False)["arrival_time_local"]
+        ordered.groupby("_raw_location_id", sort=False)["arrival_time_utc"]
         .min()
         .sort_values(kind="stable")
     )
@@ -268,65 +341,20 @@ def build_semantic_locations(
     *,
     config: HomeOfficeConfig | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Apply CP2 geography/timezone policy and per-user location clustering.
+    """Resolve per-stay local time and cluster recurring locations.
 
-    The default production method is complete-link. DBSCAN is available as a
-    benchmark variant so Track B1 can compare clustering behavior without
-    changing the production default.
-
-    Returns in-region semantic stays with a per-user location_id and the
-    corresponding location summary table. Out-of-region travel stays and users
-    outside the Beijing-focused cohort are intentionally absent.
+    CP2 v2 has no Beijing/China geography eligibility gate. Every valid stay
+    whose WGS84 coordinate resolves to an IANA timezone is retained. Travel
+    stays use their own local wall clock.
     """
     cfg = config or HomeOfficeConfig()
-    raw = _validate_stays(stays)
-    if raw.empty:
+    resolved = resolve_stay_timezones(stays)
+    if resolved.empty:
         return _empty_semantic_stays(), _empty_locations()
 
-    distance_km = np.asarray(
-        haversine_m(
-            raw["latitude"].to_numpy(dtype=float),
-            raw["longitude"].to_numpy(dtype=float),
-            cfg.beijing_latitude,
-            cfg.beijing_longitude,
-        ),
-        dtype=float,
-    ) / 1000.0
-
-    raw["distance_to_beijing_km"] = distance_km
-    raw["_inside_region"] = raw["distance_to_beijing_km"] <= cfg.beijing_radius_km
-    raw["_inside_dwell_s"] = np.where(raw["_inside_region"], raw["duration_s"], 0.0)
-
-    by_user = (
-        raw.groupby("user_id")
-        .agg(
-            total_stays=("user_id", "size"),
-            inside_stays=("_inside_region", "sum"),
-            total_dwell_s=("duration_s", "sum"),
-            inside_dwell_s=("_inside_dwell_s", "sum"),
-        )
-    )
-    by_user["stay_share_inside"] = by_user["inside_stays"] / by_user["total_stays"]
-    by_user["dwell_share_inside"] = np.where(
-        by_user["total_dwell_s"] > 0,
-        by_user["inside_dwell_s"] / by_user["total_dwell_s"],
-        0.0,
-    )
-
-    eligible = by_user.index[
-        (by_user["stay_share_inside"] >= cfg.beijing_min_stay_share)
-        & (by_user["dwell_share_inside"] >= cfg.beijing_min_dwell_share)
-    ]
-
-    semantic = raw[raw["user_id"].isin(eligible) & raw["_inside_region"]].copy()
+    semantic = resolved.loc[resolved["timezone_id"].notna()].copy()
     if semantic.empty:
         return _empty_semantic_stays(), _empty_locations()
-
-    timezone = ZoneInfo(cfg.timezone)
-    semantic["arrival_time_local"] = semantic["arrival_time_utc"].dt.tz_convert(timezone)
-    semantic["departure_time_local"] = semantic["departure_time_utc"].dt.tz_convert(timezone)
-    semantic["arrival_local_date"] = semantic["arrival_time_local"].dt.date
-    semantic["arrival_local_weekday"] = semantic["arrival_time_local"].dt.weekday
 
     clustered_parts: list[pd.DataFrame] = []
     location_rows: list[dict[str, object]] = []
@@ -334,13 +362,11 @@ def build_semantic_locations(
     for user_id, group in semantic.groupby("user_id", sort=True):
         if cfg.clustering_method == "complete_link":
             clustered_user, distances = _complete_link_user(
-                group,
-                threshold_m=cfg.location_max_diameter_m,
+                group, threshold_m=cfg.location_max_diameter_m
             )
         else:
             clustered_user, distances = _dbscan_user(
-                group,
-                eps_m=cfg.dbscan_eps_m,
+                group, eps_m=cfg.dbscan_eps_m
             )
         clustered_parts.append(clustered_user)
 
@@ -357,7 +383,9 @@ def build_semantic_locations(
                 cfg.clustering_method == "complete_link"
                 and diameter_m > cfg.location_max_diameter_m + 1e-6
             ):
-                raise RuntimeError("complete-link location exceeded configured maximum diameter")
+                raise RuntimeError(
+                    "complete-link location exceeded configured maximum diameter"
+                )
 
             location_rows.append(
                 {
@@ -366,7 +394,9 @@ def build_semantic_locations(
                     "latitude": float(members["latitude"].median()),
                     "longitude": float(members["longitude"].median()),
                     "stay_count": int(len(members)),
-                    "active_local_dates": int(members["arrival_time_local"].dt.date.nunique()),
+                    "active_local_dates": int(
+                        members["arrival_time_local"].dt.date.nunique()
+                    ),
                     "total_dwell_h": float(members["duration_s"].sum() / 3600.0),
                     "diameter_m": diameter_m,
                 }
@@ -374,15 +404,16 @@ def build_semantic_locations(
 
     clustered = pd.concat(clustered_parts, ignore_index=True)
     clustered = clustered.sort_values(
-        ["user_id", "arrival_time_local", "location_id"],
+        ["user_id", "arrival_time_utc", "location_id"],
         kind="stable",
     ).reset_index(drop=True)
 
     locations = pd.DataFrame(location_rows, columns=LOCATION_COLUMNS)
-    locations = locations.sort_values(["user_id", "location_id"], kind="stable").reset_index(drop=True)
+    locations = locations.sort_values(
+        ["user_id", "location_id"], kind="stable"
+    ).reset_index(drop=True)
 
     return clustered.loc[:, SEMANTIC_STAY_COLUMNS], locations
-
 
 def _interval_overlap_s(
     start: pd.Timestamp,
