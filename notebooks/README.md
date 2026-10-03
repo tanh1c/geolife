@@ -156,3 +156,12 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Persists resumable raw/extracted files and a provenance/hash manifest.
 - Does not perform semantic WORK/OFFICE inference or invent POI categories from names.
 
+### Stage 03d — CP2 timezone-v2 production migration / refreeze
+
+- `03d_cp2_timezone_v2_migration.ipynb`
+- Reuses the frozen 5,821 CP1 stays; no raw rescan.
+- Compares production CP2 v2 against an independent implementation transcribed from final notebook 03.
+- Requires exact per-stay timezone/local-time/location-id parity plus exact HOME/OFFICE emission/evidence parity.
+- Replays all 136 stay-bearing users through the HTTP stay-event endpoint and requires direct-model parity.
+- Freezes semantic-location namespace `complete_link_200m_local_timezone_v2` only after the measured run passes.
+
