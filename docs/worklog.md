@@ -1980,3 +1980,44 @@ Follow-up patch:
 
 The next 07f rerun reuses the already cached RAR and extracted directory, so it should not require a new 120 MB download.
 
+## 2026-10-03 — Stage 07f complete: BCL POI 2008 ready for normalization
+
+The third Modal run completed the BCL acquisition/provenance/CRS audit successfully.
+
+Source:
+
+- Figshare article 28667492;
+- DOI `10.6084/m9.figshare.28667492.v1`;
+- CC BY 4.0;
+- `Points of interest of China in 2008.rar`;
+- 120,023,687 bytes;
+- MD5 `e77c3473874a6fb64fd0c52d3c66fc84`.
+
+The extracted archive contains a File Geodatabase:
+
+```text
+POI2008All.gdb
+```
+
+not an MDB.
+
+Measured GDAL inspection:
+
+- layer `POI2008CN`;
+- Point geometry;
+- 6,039,158 features;
+- EPSG:4326;
+- fields `PNAME`, `X`, `Y`.
+
+Final gates:
+
+- metadata identity pass;
+- file access pass;
+- explicit CC BY 4.0 licence pass;
+- FileGDB format pass;
+- spatial point structure pass;
+- CRS pass;
+- `runner_status = ready_for_normalization`.
+
+Decision: close Stage 07f successfully. Stage 07g may perform deterministic Beijing-only extraction and normalization from the validated FileGDB, while preserving raw POI names and avoiding direct WORK/OFFICE semantics.
+
