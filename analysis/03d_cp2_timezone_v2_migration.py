@@ -561,6 +561,48 @@ def compare_migration(
             )
         )
 
+    stay_key = [
+        "user_id",
+        "arrival_time_utc",
+        "departure_time_utc",
+        "latitude",
+        "longitude",
+    ]
+    prod_stays = production_semantic.sort_values(
+        stay_key,
+        kind="stable",
+    ).reset_index(drop=True)
+    ref_stays = reference_semantic.sort_values(
+        stay_key,
+        kind="stable",
+    ).reset_index(drop=True)
+
+    timezone_equal = False
+    location_equal = False
+    if len(prod_stays) == len(ref_stays):
+        key_equal_stays = prod_stays[stay_key].equals(
+            ref_stays[stay_key]
+        )
+        timezone_equal = bool(
+            key_equal_stays
+            and prod_stays["timezone_id"].equals(
+                ref_stays["timezone_id"]
+            )
+            and prod_stays["arrival_time_local"].equals(
+                ref_stays["arrival_time_local"]
+            )
+            and prod_stays["departure_time_local"].equals(
+                ref_stays["departure_time_local"]
+            )
+        )
+        location_equal = bool(
+            key_equal_stays
+            and np.array_equal(
+                prod_stays["location_id"].to_numpy(int),
+                ref_stays["location_id"].to_numpy(int),
+            )
+        )
+
     prod_location_keys = production_locations[
         ["user_id", "location_id", "stay_count"]
     ].sort_values(
@@ -573,17 +615,9 @@ def compare_migration(
         ["user_id", "location_id"],
         kind="stable",
     ).reset_index(drop=True)
-    location_equal = prod_location_keys.equals(ref_location_keys)
-
-    timezone_equal = (
-        len(production_semantic) == len(reference_semantic)
-        and production_semantic["timezone_id"].value_counts(
-            dropna=False
-        ).sort_index().equals(
-            reference_semantic["timezone_id"].value_counts(
-                dropna=False
-            ).sort_index()
-        )
+    location_equal = bool(
+        location_equal
+        and prod_location_keys.equals(ref_location_keys)
     )
 
     summary = pd.DataFrame(
