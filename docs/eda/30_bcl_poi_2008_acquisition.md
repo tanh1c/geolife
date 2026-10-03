@@ -236,3 +236,22 @@ The first Modal run resolved one direct public attachment:
 - not link-only.
 
 RAR is therefore a first-class supported acquisition container. The worker installs Debian `unar`, which supports RAR extraction on Linux, then continues with the same MDB/GDAL inspection gates.
+
+### Archive-container inspection after the second runtime
+
+The official RAR may not expose an `.mdb` file directly even though the BCL documentation describes ArcGIS Personal Geodatabase 10.1.
+
+Stage 07f therefore treats the documentation format as a claim to verify, not as a filename assumption.
+
+After extraction the worker now inventories the real tree and checks, in order:
+
+1. `.mdb`;
+2. FileGDB `.gdb` directory;
+3. GeoPackage `.gpkg`;
+4. Shapefile `.shp`;
+5. SQLite `.sqlite`.
+
+If none exists, the audit stores extension counts and representative paths and remains blocked.
+
+GDAL PGeo is required only for an actual MDB. Other supported spatial containers are inspected with their native GDAL driver.
+
