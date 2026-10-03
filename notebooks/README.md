@@ -156,3 +156,13 @@ The mentor-demo notebook now also includes a visual v2 layer: deterministic raw 
 - Persists resumable raw/extracted files and a provenance/hash manifest.
 - Does not perform semantic WORK/OFFICE inference or invent POI categories from names.
 
+### Stage 07g — BCL POI 2008 production-Beijing normalization
+
+- `07g_bcl_beijing_normalization.ipynb`
+- Reuses the validated Stage-07f FileGDB; no redownload or API key.
+- Uses GDAL bbox pushdown, then exact Haversine <=100 km filtering aligned with `HomeOfficeConfig`.
+- Streams bbox rows in 200k-row chunks and writes ZSTD Parquet directly to the Modal Volume.
+- Preserves raw `PNAME/X/Y` separately from geometry-derived lon/lat.
+- Produces geometry-vs-raw-coordinate, duplicate, schema, radius, hash and provenance QC.
+- Does not create WORK/OFFICE/HOME or lexical POI categories.
+
