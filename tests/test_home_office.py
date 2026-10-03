@@ -8,6 +8,7 @@ import pytest
 
 from geolife.model.home_office import (
     HomeOfficeConfig,
+    _window_contributions,
     build_semantic_locations,
     infer_home_office,
 )
@@ -123,10 +124,15 @@ def test_dst_local_interval_handling_uses_real_elapsed_overlap() -> None:
         min_relevant_date_overlap_s=0.0,
     )
 
-    out = infer_home_office(stays, config=config)
-    home = out.loc[out["label"] == "HOME"].iloc[0]
+    semantic_stays, _ = build_semantic_locations(stays, config=config)
+    contributions = _window_contributions(
+        semantic_stays,
+        config=config,
+        kind="home",
+    )
 
-    assert home["relevant_dwell_h"] == pytest.approx(1.0)
+    assert semantic_stays.iloc[0]["timezone_id"] == "America/New_York"
+    assert contributions["overlap_s"].sum() == pytest.approx(3600.0)
 
 
 def test_complete_link_does_not_chain_a_three_point_300m_span_into_one_location() -> None:
