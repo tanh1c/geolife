@@ -33,7 +33,7 @@ FIGSHARE_ARTICLE_ID = 28667492
 FIGSHARE_API_URL = f"https://api.figshare.com/v2/articles/{FIGSHARE_ARTICLE_ID}"
 EXPECTED_LOCATION_NAMESPACE = "production_complete_link_200m_beijing_policy_v1"
 
-ALLOWED_ARCHIVE_SUFFIXES = {".mdb", ".zip"}
+ALLOWED_ARCHIVE_SUFFIXES = {".mdb", ".zip", ".rar"}
 RECOGNIZED_REUSE_LICENSE_TOKENS = (
     "cc by",
     "creative commons attribution",
@@ -285,7 +285,7 @@ def evaluate_acquisition_gates(
     suffixes.update(Path(value).suffix.lower() for value in local_candidates)
     if ".mdb" in suffixes:
         format_status = "pass_mdb"
-    elif ".zip" in suffixes:
+    elif ".zip" in suffixes or ".rar" in suffixes:
         format_status = "inspect_archive_for_mdb"
     elif suffixes:
         format_status = "blocked_unexpected_file_format"
@@ -364,7 +364,7 @@ def select_public_download_candidate(metadata: dict[str, Any]) -> dict[str, Any]
     if files.empty:
         return None
 
-    priority = {".mdb": 0, ".zip": 1}
+    priority = {".mdb": 0, ".zip": 1, ".rar": 2}
     files = files.loc[files["suffix"].isin(priority)].copy()
     if files.empty:
         return None
