@@ -6,15 +6,21 @@ import warnings
 import pandas as pd
 import pytest
 
+import geolife.model.home_office as home_office_module
 from geolife.model.home_office import (
     HomeOfficeConfig,
     build_semantic_locations,
     infer_home_office,
+    resolve_stay_timezones,
 )
 
 
 BEIJING_LAT = 39.9042
 BEIJING_LON = 116.4074
+TOKYO_LAT = 35.6762
+TOKYO_LON = 139.6503
+NEW_YORK_LAT = 40.7128
+NEW_YORK_LON = -74.0060
 
 
 def _utc(local_timestamp: str) -> pd.Timestamp:
@@ -51,55 +57,106 @@ def _stays(
     ]
 
 
-def test_beijing_user_cohort_still_excludes_out_of_region_travel_stays() -> None:
-    rows = []
-    for day in range(1, 5):
-        rows.append(
-            (
-                "eligible",
-                f"2026-01-0{day} 21:00",
-                f"2026-01-0{day} 22:00",
-                BEIJING_LAT,
-                BEIJING_LON,
-            )
-        )
-    rows.append(
-        (
-            "eligible",
-            "2026-01-05 21:00",
-            "2026-01-05 22:00",
-            35.6762,
-            139.6503,
-        )
+def test_all_resolved_stays_are_retained_with_coordinate_timezones() -> None:
+    beijing_arrival = pd.Timestamp(
+        "2026-01-05 21:00",
+        tz="Asia/Shanghai",
+    ).tz_convert("UTC")
+    tokyo_arrival = pd.Timestamp(
+        "2026-01-06 21:00",
+        tz="Asia/Tokyo",
+    ).tz_convert("UTC")
+    frame = pd.DataFrame(
+        [
+            {
+                "user_id": "traveler",
+                "arrival_time_utc": beijing_arrival,
+                "departure_time_utc": beijing_arrival + pd.Timedelta(hours=1),
+                "duration_s": 3600.0,
+                "latitude": BEIJING_LAT,
+                "longitude": BEIJING_LON,
+            },
+            {
+                "user_id": "traveler",
+                "arrival_time_utc": tokyo_arrival,
+                "departure_time_utc": tokyo_arrival + pd.Timedelta(hours=1),
+                "duration_s": 3600.0,
+                "latitude": TOKYO_LAT,
+                "longitude": TOKYO_LON,
+            },
+        ]
     )
 
-    for day in range(1, 4):
-        rows.append(
+    semantic_stays, locations = build_semantic_locations(frame)
+
+    assert len(semantic_stays) == 2
+    assert set(semantic_stays["timezone_id"]) == {
+        "Asia/Shanghai",
+        "Asia/Tokyo",
+    }
+    assert semantic_stays["arrival_time_local"].dt.hour.tolist() == [21, 21]
+    assert len(locations) == 2
+    assert "distance_to_beijing_km" not in semantic_stays.columns
+
+
+def test_timezone_resolution_uses_local_wall_clock_outside_china() -> None:
+    arrival = pd.Timestamp(
+        "2026-01-05 21:30",
+        tz="America/New_York",
+    ).tz_convert("UTC")
+    frame = pd.DataFrame(
+        [
+            {
+                "user_id": "ny",
+                "arrival_time_utc": arrival,
+                "departure_time_utc": arrival + pd.Timedelta(hours=1),
+                "duration_s": 3600.0,
+                "latitude": NEW_YORK_LAT,
+                "longitude": NEW_YORK_LON,
+            }
+        ]
+    )
+
+    resolved = resolve_stay_timezones(frame)
+
+    assert resolved.iloc[0]["timezone_id"] == "America/New_York"
+    assert resolved.iloc[0]["arrival_time_local"] == pd.Timestamp(
+        "2026-01-05 21:30"
+    )
+    assert resolved.iloc[0]["arrival_local_date"].isoformat() == "2026-01-05"
+
+
+def test_unresolved_timezone_stays_are_visible_in_audit_but_not_semantic_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class NeverResolve:
+        def timezone_at(self, *, lng: float, lat: float) -> None:
+            del lng, lat
+            return None
+
+    monkeypatch.setattr(
+        home_office_module,
+        "_timezone_finder",
+        lambda: NeverResolve(),
+    )
+    stays = _stays(
+        [
             (
-                "ineligible",
-                f"2026-01-0{day} 21:00",
-                f"2026-01-0{day} 22:00",
+                "u",
+                "2026-01-05 21:00",
+                "2026-01-05 22:00",
                 BEIJING_LAT,
                 BEIJING_LON,
             )
-        )
-    for day in range(4, 6):
-        rows.append(
-            (
-                "ineligible",
-                f"2026-01-0{day} 21:00",
-                f"2026-01-0{day} 22:00",
-                35.6762,
-                139.6503,
-            )
-        )
+        ]
+    )
 
-    semantic_stays, _ = build_semantic_locations(_stays(rows))
+    resolved = resolve_stay_timezones(stays)
+    semantic_stays, locations = build_semantic_locations(stays)
 
-    assert set(semantic_stays["user_id"]) == {"eligible"}
-    assert len(semantic_stays) == 4
-    assert semantic_stays["distance_to_beijing_km"].max() <= 100.0
-
+    assert resolved["timezone_id"].isna().all()
+    assert semantic_stays.empty
+    assert locations.empty
 
 def test_complete_link_does_not_chain_a_three_point_300m_span_into_one_location() -> None:
     stays = _stays(
@@ -229,6 +286,16 @@ def test_evidence_strength_is_not_reported_as_probability() -> None:
     assert config.office_min_share == 0.30
     assert config.office_min_margin == 0.10
     assert config.support_saturation_dates == 5
+
+
+
+def test_cp2_v2_config_has_no_geography_or_fixed_timezone_gate() -> None:
+    config = HomeOfficeConfig()
+
+    assert not hasattr(config, "beijing_radius_km")
+    assert not hasattr(config, "beijing_min_stay_share")
+    assert not hasattr(config, "beijing_min_dwell_share")
+    assert not hasattr(config, "timezone")
 
 
 
