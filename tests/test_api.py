@@ -104,7 +104,7 @@ def test_home_emits_while_office_abstains() -> None:
     }
 
 
-def test_out_of_scope_geography_is_200_with_explicit_abstention() -> None:
+def test_non_beijing_stays_are_processed_without_geography_abstention() -> None:
     stays = [
         _stay(
             "2026-01-05 21:00",
@@ -128,7 +128,7 @@ def test_out_of_scope_geography_is_200_with_explicit_abstention() -> None:
         assert results[label] == {
             "label": label,
             "status": "abstained",
-            "reason": "out_of_scope_geography",
+            "reason": "insufficient_semantic_evidence",
         }
 
 
