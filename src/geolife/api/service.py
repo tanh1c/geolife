@@ -117,7 +117,7 @@ def infer_request(request: InferRequest) -> InferResponse:
     semantic_stays, locations = build_semantic_locations(stays)
 
     if semantic_stays.empty:
-        reason = AbstentionReason.OUT_OF_SCOPE_GEOGRAPHY
+        reason = AbstentionReason.INSUFFICIENT_SEMANTIC_EVIDENCE
         results: list[SemanticResult] = [_abstained(label, reason) for label in LABELS]
         return InferResponse(user_id=request.user_id, results=results)
 
@@ -178,7 +178,7 @@ def classify_raw_request(user_id: str, request: ClassifyRequest) -> ClassifyResp
             user_id=normalized_user_id,
             locations=[],
             abstentions=_classification_abstentions(
-                AbstentionReason.OUT_OF_SCOPE_GEOGRAPHY
+                AbstentionReason.INSUFFICIENT_SEMANTIC_EVIDENCE
             ),
         )
 
