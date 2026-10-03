@@ -9,10 +9,12 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import zipfile
 from functools import lru_cache
 from importlib.metadata import PackageNotFoundError, version
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -22,11 +24,20 @@ import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
 from geolife.geo.distance import haversine_m
-from analysis.cp2_v1_frozen_comparator import (
-    FrozenV1HomeOfficeConfig,
-    build_frozen_v1_semantic_locations,
+_FROZEN_V1_SPEC = spec_from_file_location(
+    "cp2_v1_frozen_comparator",
+    Path(__file__).resolve().with_name("cp2_v1_frozen_comparator.py"),
 )
+if _FROZEN_V1_SPEC is None or _FROZEN_V1_SPEC.loader is None:
+    raise RuntimeError("cannot load frozen CP2-v1 comparator helper")
+_FROZEN_V1 = module_from_spec(_FROZEN_V1_SPEC)
+sys.modules.setdefault(_FROZEN_V1_SPEC.name, _FROZEN_V1)
+_FROZEN_V1_SPEC.loader.exec_module(_FROZEN_V1)
 
+FrozenV1HomeOfficeConfig = _FROZEN_V1.FrozenV1HomeOfficeConfig
+build_frozen_v1_semantic_locations = (
+    _FROZEN_V1.build_frozen_v1_semantic_locations
+)
 HomeOfficeConfig = FrozenV1HomeOfficeConfig
 from geolife.staypoints import clean_trajectory_with_audit, detect_staypoints
 
