@@ -198,6 +198,26 @@ def summarize_figshare_metadata(
     )
 
 
+def _normalise_doi(value: Any) -> str:
+    text = _as_text(value).lower()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if text.startswith(prefix):
+            text = text[len(prefix):]
+    return text.strip()
+
+
+def figshare_identity_matches(metadata: dict[str, Any]) -> bool:
+    article_id = pd.to_numeric(
+        pd.Series([metadata.get("id")]), errors="coerce"
+    ).iloc[0]
+    doi = _normalise_doi(metadata.get("doi"))
+    return (
+        not pd.isna(article_id)
+        and int(article_id) == FIGSHARE_ARTICLE_ID
+        and doi.startswith(FIGSHARE_DOI.lower())
+    )
+
+
 def evaluate_acquisition_gates(
     metadata: dict[str, Any] | None,
     *,
@@ -210,19 +230,41 @@ def evaluate_acquisition_gates(
     files = figshare_files(metadata)
     license_name, license_url = _normalise_license(metadata)
 
-    metadata_ok = http_status == 200 and bool(metadata)
-    metadata_access = "pass_public_metadata" if metadata_ok else "blocked_metadata_access"
+    metadata_ok = (
+        http_status == 200
+        and bool(metadata)
+        and figshare_identity_matches(metadata)
+    )
+    metadata_access = (
+        "pass_public_metadata_identity"
+        if metadata_ok
+        else "blocked_metadata_access_or_identity"
+    )
 
-    downloadable = (
-        files.loc[files["download_url"].astype(bool)].copy()
+    direct_downloadable = (
+        files.loc[
+            files["download_url"].astype(bool)
+            & ~files["is_link_only"].fillna(False).astype(bool)
+        ].copy()
         if not files.empty
         else files
     )
+    link_only_downloadable = (
+        files.loc[
+            files["download_url"].astype(bool)
+            & files["is_link_only"].fillna(False).astype(bool)
+        ].copy()
+        if not files.empty
+        else files
+    )
+    downloadable = direct_downloadable
     local_candidates = [str(value) for value in local_candidate_files if str(value)]
     if not downloadable.empty:
         file_access = "pass_public_file"
     elif local_candidates:
         file_access = "pass_manual_or_cached_file"
+    elif not link_only_downloadable.empty:
+        file_access = "blocked_link_only_not_corpus_file"
     else:
         file_access = "blocked_no_file_available"
 
@@ -297,7 +339,10 @@ def select_public_download_candidate(metadata: dict[str, Any]) -> dict[str, Any]
     files = figshare_files(metadata)
     if files.empty:
         return None
-    files = files.loc[files["download_url"].astype(bool)].copy()
+    files = files.loc[
+        files["download_url"].astype(bool)
+        & ~files["is_link_only"].fillna(False).astype(bool)
+    ].copy()
     if files.empty:
         return None
 
