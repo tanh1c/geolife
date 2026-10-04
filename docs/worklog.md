@@ -2426,3 +2426,54 @@ Follow-up correctness patch prepared:
 - Stage 07c BCL-2008 source-gate metadata is synchronized with the completed Stage-07f audit (public file, CC BY 4.0, FileGDB EPSG:4326, ready for normalization).
 
 Decision: Stage 07c CP2-v2 refresh is complete. Run Stage 07d only with the eligibility-aware patch; expected OSM target is 296 anchors while CLCD target remains 298.
+
+
+## 2026-10-04 — Stage 07d CP2 v2 refresh
+
+Stage 07d completed successfully on the CP2-v2 production-aligned recurring non-HOME universe.
+
+Universe:
+
+- 298 anchors / 29 users;
+- namespace: `production_complete_link_200m_all_resolved_timezone_v2`;
+- ohsome eligible: 296;
+- pre-ohsome ineligible: 2.
+
+CLCD exact-year physical context:
+
+- known point class: 275 / 298 = 92.28%;
+- unknown: 23 / 298 = 7.72%;
+- impervious: 256 / 298 = 85.91%;
+- point = 3x3 mode: 294 / 298 = 98.66%;
+- point = 5x5 mode: 290 / 298 = 97.32%;
+- impervious among known classes: 256 / 275 = 93.09%.
+
+Corrected Beijing-v1 comparison was 198 anchors, 100% known class, 96.46% impervious, 99.49% point-vs-3x3 agreement and 98.48% point-vs-5x5 agreement.
+
+Historical OSM / ohsome:
+
+- target: 296 eligible anchors;
+- completed: 296 / 296 = 100%;
+- cached: 287;
+- newly fetched: 9;
+- rate-limited: 0;
+- deferred: 0;
+- request errors: 0;
+- parse errors: 0.
+
+OSM context among eligible anchors:
+
+- semantic context found: 89 / 296 = 30.07%, 20 users;
+- broad work-compatible context: 61 / 296 = 20.61%, 18 users;
+- residential context: 13 / 296 = 4.39%, 5 users.
+
+Corrected Beijing-v1 OSM context was 31.82% semantic, 23.74% work-compatible and 3.03% residential. The expanded CP2-v2 universe therefore preserves a similar ~30% historical semantic-context rate while slightly reducing the work-compatible share.
+
+Interpretation:
+
+- the broader all-resolved cohort is less uniformly impervious than the old Beijing-focused cohort;
+- local CLCD spatial agreement remains extremely high;
+- historical OSM proportions remain source-bounded mapping evidence, not semantic truth;
+- two pre-2007-10-08 anchors are temporally ineligible for ohsome and must not be counted as no-context negatives.
+
+Decision: Stage 07d CP2-v2 refresh is complete. Proceed to Stage 07e only after making OSM-distance metrics and peer comparisons eligibility-aware.
