@@ -2,6 +2,20 @@
 import numpy as np
 import pandas as pd
 
+
+def _local_wall_series(values: pd.Series) -> pd.Series:
+    """Normalize mixed tz-aware timestamps to naive per-stay local wall clock."""
+    normalized = []
+    for value in values:
+        ts = pd.Timestamp(value)
+        if pd.isna(ts):
+            normalized.append(pd.NaT)
+        elif ts.tzinfo is not None:
+            normalized.append(ts.tz_localize(None))
+        else:
+            normalized.append(ts)
+    return pd.Series(normalized, index=values.index, dtype="datetime64[ns]")
+
 EVIDENCE_METRICS = (
     "weekday_weekend_visit_contrast",
     "home_pair_transition_day_share",
@@ -80,8 +94,8 @@ def _transition_days(user, home_id):
 def build_anchor_metrics(semantic_stays, stable_cohort, min_active_days=3, min_recurring_stays=2):
     stays = semantic_stays.copy()
     stays["user_id"] = stays["user_id"].astype(str)
-    stays["arrival_time_local"] = pd.to_datetime(stays["arrival_time_local"])
-    stays["departure_time_local"] = pd.to_datetime(stays["departure_time_local"])
+    stays["arrival_time_local"] = _local_wall_series(stays["arrival_time_local"])
+    stays["departure_time_local"] = _local_wall_series(stays["departure_time_local"])
     stays["local_date"] = stays["arrival_time_local"].dt.date
     stays["weekday"] = stays["arrival_time_local"].dt.weekday
     stays["arrival_hour"] = stays["arrival_time_local"].dt.hour + stays["arrival_time_local"].dt.minute / 60
