@@ -2266,3 +2266,59 @@ Decision:
 - keep stable_secondary_anchor descriptive rather than semantic OFFICE;
 - Stage 05b CP2-v2 refresh is complete;
 - proceed to Stage 05c independent evidence on the unchanged 9-user stable-secondary subset.
+
+
+## 2026-10-04 — Stage 05c CP2 v2 refresh
+
+Stage 05c reran successfully on the CP2-v2 semantic representation and Stage-05b artifacts.
+
+Cohort:
+
+- stable-secondary users: 9;
+- historical Beijing-v1 stable-secondary users: 9;
+- CP2-v2 delta: 0;
+- users with a fair >=3-active-day same-user recurring peer comparator: 7.
+
+Primary independent evidence:
+
+- weekday-weekend visit contrast: 5/7 top-1, median candidate-minus-peer-median +0.188;
+- HOME-pair transition-day share: 3/7 top-1, median +0.102;
+- arrival-hour concentration: 0/7 top-1, median -0.168;
+- dwell regularity: 0/7 top-1, median -0.057.
+
+Convergence:
+
+- 0 users with >=3 top-1 evidence axes;
+- 1 user with exactly 2;
+- 6 users with 0-1.
+
+Paired-bootstrap 95% intervals all crossed zero:
+
+- weekday contrast [-0.083, +0.261];
+- HOME-pair transition [-0.083, +0.333];
+- arrival concentration [-0.341, +0.178];
+- dwell regularity [-0.231, +0.059].
+
+Peer-support sensitivity:
+
+- >=2 active days: 9 users, 0 with >=3 top axes;
+- >=3 active days: 7 users, 0 with >=3 top axes;
+- >=5 active days: 3 users, 1 with >=3 top axes.
+
+Static semantic comparison among the seven fair-comparator users:
+
+- fixed-window OFFICE match: 3 / 7;
+- HoWDe-style OFFICE match: 2 / 7;
+- recurrence OFFICE match: 6 / 7;
+- baseline-emitted OFFICE match: 3 / 7.
+
+No static-match stratum has >=3-axis top-rank convergence.
+
+Interpretation:
+
+- the CP2-v2 upstream expansion does not change the stable-secondary cohort;
+- independent WORK-like evidence remains mixed;
+- small numerical shifts in peer-relative medians do not change qualitative direction;
+- semantic WORK/OFFICE expansion remains closed.
+
+Decision: retain stable_secondary_anchor as descriptive only. Stage 05c CP2-v2 refresh is complete. Proceed to Stage 07b factorized work-regime profiles using the refreshed CP2-v2 05b/05c artifacts while reusing the already-valid 03a and 06 behavior/routine artifacts.
