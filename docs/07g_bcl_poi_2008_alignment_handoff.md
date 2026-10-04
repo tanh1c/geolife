@@ -137,3 +137,35 @@ The measured first extraction already succeeded with 4,884 deduplicated POIs. Th
 This avoids both cross-container visibility timing and cross-pandas-version pickle incompatibility.
 
 After updating to the fixed `main`, restart the kernel and Run All from the beginning.
+
+
+## Final measured handoff — 2026-10-04
+
+Stage 07g executed successfully on commit `9778b66`.
+
+Final measured scope:
+
+- 259 BCL-eligible anchors / 23 users;
+- 118 spatial extraction tiles;
+- 4,884 deduplicated neighborhood POIs;
+- 966 exact <=100 m anchor-POI pairs.
+
+Coverage:
+
+- any POI <=100 m: 140 / 259;
+- any lexical signal <=100 m: 97 / 259;
+- broad work-compatible lexical signal <=100 m: 87 / 259.
+
+Stable-secondary comparison:
+
+- 9 users have paired BCL-eligible candidate/peer evidence;
+- composite candidate-minus-peer differences are +0.199 / +0.171 / +0.021 at 25 / 50 / 100 m;
+- all composite bootstrap 95% intervals cross zero;
+- business-name context is 0 / 9 at the exact stable-secondary candidate at every threshold.
+
+Decision:
+
+- BCL is useful independent historical lexical context;
+- it does not validate a stable-secondary => WORK/OFFICE semantic mapping;
+- do not tune mobility rules to BCL;
+- preserve the saved private and aggregate Stage-07g artifacts for any future triangulation work.
