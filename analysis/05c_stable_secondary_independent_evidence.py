@@ -8,7 +8,7 @@ EVIDENCE_METRICS = (
     "arrival_hour_concentration",
     "dwell_regularity_score",
 )
-EXPECTED_PRIMARY_STABLE_USERS = 9
+HISTORICAL_BEIJING_V1_STABLE_USERS = 9
 
 
 def _circ(hours):
