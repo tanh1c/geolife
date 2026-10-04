@@ -68,7 +68,7 @@ Response:
   "status": "ok",
   "service": "geolife-home-office-api",
   "api_version": "v1",
-  "model_contract": "cp2-v1"
+  "model_contract": "cp2-v2"
 }
 ```
 
@@ -118,7 +118,7 @@ The response always contains results for both semantic labels:
 ```json
 {
   "user_id": "042",
-  "model_contract": "cp2-v1",
+  "model_contract": "cp2-v2",
   "results": [
     {
       "label": "HOME",

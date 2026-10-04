@@ -2021,3 +2021,94 @@ Final gates:
 
 Decision: close Stage 07f successfully. Stage 07g may perform deterministic Beijing-only extraction and normalization from the validated FileGDB, while preserving raw POI names and avoiding direct WORK/OFFICE semantics.
 
+
+
+## 2026-10-03 — CP2 v2 production timezone migration prepared
+
+The previously audited Notebook-03 all-resolved timezone contract has been promoted into a production migration branch.
+
+Implemented on `cp2-v2-timezone-production`:
+
+- removed the Beijing-radius and 80/80 Asia/Shanghai eligibility rules from `HomeOfficeConfig`;
+- resolve every stay coordinate to an IANA `timezone_id` with `timezonefinder==9.0.0`;
+- convert arrival/departure timestamps per stay with `ZoneInfo(timezone_id)`;
+- retain all timezone-resolved stays, including travel stays;
+- keep complete-link 200 m as the production recurring-location representation;
+- make mixed-timezone clustering deterministic from UTC observation order;
+- make local active-date counting robust to mixed timezone-aware timestamp objects;
+- construct HOME/OFFICE local windows from local calendar components so DST transitions use real elapsed overlap;
+- promote `timezonefinder` to a runtime dependency;
+- add regression coverage for all-resolved retention, coordinate-to-timezone mapping, travel-stay local time, no Beijing gate, DST overlap, and complete-link compactness;
+- add `analysis/03_cp2_v2_parity.py` for the 5,821-stay production/reference parity and refreeze check.
+
+Refreeze status:
+
+- code migration: complete on branch;
+- private full-release 5,821-stay execution: pending;
+- exact Notebook-03 semantic/location/HOME/OFFICE parity: pending;
+- CP2 v2 namespace refreeze: blocked until those parity checks pass.
+
+Historical CP2 v1 counts (27 HOME / 16 OFFICE) remain a comparison baseline only and are not asserted as CP2 v2 output.
+
+
+## 2026-10-03 — CP2 v2 migration CI green
+
+PR #27 CI run 384 completed successfully after two migration-specific regressions were corrected:
+
+- API abstention no longer reports `out_of_scope_geography` for valid non-Beijing stays under the all-resolved timezone contract;
+- behavioral interval overlap is computed in UTC after local-window construction, preventing DST spring-forward wall-clock subtraction from overcounting elapsed dwell.
+
+Final CI status on head `b0530318`:
+
+- package install: pass;
+- Python compile: pass;
+- full pytest suite: pass;
+- notebook JSON validation: pass;
+- EDA / CP1 / CP2 / API imports: pass.
+
+PR #27 remains draft intentionally. The only remaining CP2-v2 refreeze gate is the private full-release 5,821-stay production-vs-Notebook-03 parity run.
+
+
+## 2026-10-04 — CP2 v2 full-release parity passed
+
+The focused `03d_cp2_v2_production_parity.ipynb` notebook was executed against the frozen private CP1 stay cache.
+
+Measured scope:
+
+- frozen CP1 stays: 5,821;
+- CP1 stay-bearing users: 136;
+- timezone-resolved stays: 5,821 / 5,821;
+- semantic locations: 2,015;
+- recurring locations: 716;
+- recurring-location users: 104;
+- HOME emitted: 27;
+- OFFICE emitted: 16;
+- unique emitted users: 37.
+
+Production-v2 matched the independently reconstructed Notebook-03 reference exactly on:
+
+- semantic stay inventory;
+- per-stay IANA timezone id;
+- arrival local wall time;
+- departure local wall time;
+- complete-link cluster membership;
+- HOME/OFFICE selected semantic cluster membership;
+- aggregate semantic/recurrence/emission counts.
+
+Mismatch counts were all zero:
+
+- production-only semantic stays: 0;
+- reference-only semantic stays: 0;
+- production-only clusters: 0;
+- reference-only clusters: 0;
+- production-only labels: 0;
+- reference-only labels: 0.
+
+`all_parity_checks_pass = true`.
+
+Decision:
+
+- CP2 v2 production migration is validated;
+- the production model contract is promoted from `cp2-v1` to `cp2-v2`;
+- PR #27 can move out of draft once CI passes on the refreeze/version patch;
+- downstream reruns should be limited to the production-dependent lineage, not the already timezone-v2 behavior lineage.

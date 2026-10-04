@@ -76,7 +76,7 @@ def test_health_contract() -> None:
         "status": "ok",
         "service": "geolife-home-office-api",
         "api_version": "v1",
-        "model_contract": "cp2-v1",
+        "model_contract": "cp2-v2",
     }
 
 
@@ -92,7 +92,7 @@ def test_home_emits_while_office_abstains() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["user_id"] == "u-home"
-    assert body["model_contract"] == "cp2-v1"
+    assert body["model_contract"] == "cp2-v2"
 
     results = _result_by_label(body)
     assert results["HOME"]["status"] == "emitted"
@@ -104,7 +104,7 @@ def test_home_emits_while_office_abstains() -> None:
     }
 
 
-def test_out_of_scope_geography_is_200_with_explicit_abstention() -> None:
+def test_non_beijing_stays_are_processed_without_geography_abstention() -> None:
     stays = [
         _stay(
             "2026-01-05 21:00",
@@ -128,7 +128,7 @@ def test_out_of_scope_geography_is_200_with_explicit_abstention() -> None:
         assert results[label] == {
             "label": label,
             "status": "abstained",
-            "reason": "out_of_scope_geography",
+            "reason": "insufficient_semantic_evidence",
         }
 
 

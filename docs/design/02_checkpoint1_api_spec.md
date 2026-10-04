@@ -95,7 +95,7 @@ Example:
 {
   "user_id": "042",
   "api_version": "v1",
-  "model_contract": "cp2-v1",
+  "model_contract": "cp2-v2",
   "locations": [
     {
       "label": "HOME",
