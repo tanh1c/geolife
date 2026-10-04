@@ -240,3 +240,92 @@ Those integer ids are not interchangeable. Therefore the previous 225-anchor CLC
 
 Corrected Stage 07c now rebuilds the recurring non-HOME universe from production `build_semantic_locations(... complete_link, 200m)` and carries an explicit location-namespace marker. Stage 07d must be rerun on that corrected universe before any further interpretation.
 
+
+
+## CP2-v2 Stage 07d refresh — 2026-10-04
+
+Stage 07d was rerun on the CP2-v2 production-aligned recurring non-HOME universe.
+
+The older 225-anchor result remains superseded. The relevant historical comparison is the corrected Beijing-v1 production-location run on 198 anchors.
+
+### Universe
+
+- full recurring non-HOME anchors: 298;
+- users: 29;
+- location namespace: `production_complete_link_200m_all_resolved_timezone_v2`;
+- ohsome-eligible anchors: 296;
+- pre-ohsome anchors: 2.
+
+The two ineligible anchors predate the ohsome history boundary of 2007-10-08. They remain in the full historical-context / CLCD universe but are not OSM failures or missing-cache cases.
+
+### CLCD exact-year physical context
+
+Coverage:
+
+- point class known: 275 / 298 = 92.28%;
+- point class unknown: 23 / 298 = 7.72%;
+- impervious: 256 / 298 = 85.91%;
+- point = 3x3 local mode: 294 / 298 = 98.66%;
+- point = 5x5 local mode: 290 / 298 = 97.32%.
+
+Among anchors with a known CLCD point class, 256 / 275 = 93.09% are impervious.
+
+Relative to the corrected Beijing-v1 run:
+
+| metric | corrected Beijing-v1 | CP2-v2 |
+|---|---:|---:|
+| anchors | 198 | 298 |
+| known CLCD point class | 100% | 92.28% |
+| impervious / all anchors | 96.46% | 85.91% |
+| point = 3x3 mode | 99.49% | 98.66% |
+| point = 5x5 mode | 98.48% | 97.32% |
+
+Interpretation:
+
+- the broader CP2-v2 universe is less uniformly impervious than the old Beijing-focused universe;
+- nevertheless, among anchors with known land-cover class, impervious remains dominant;
+- point-vs-local-window agreement remains extremely high, so the physical-context result is not driven by fragile single-pixel sampling.
+
+CLCD remains physical land-cover evidence only. Impervious is not OFFICE, WORK, residential, school, healthcare, or occupation semantics.
+
+### Historical OSM / ohsome
+
+The eligibility-aware run completed every queryable anchor:
+
+- target: 296;
+- completed: 296 / 296 = 100%;
+- cached before this run: 287;
+- newly fetched this run: 9;
+- rate-limited: 0;
+- deferred by request budget: 0;
+- request errors: 0;
+- parse errors: 0.
+
+Completed OSM context:
+
+- semantic context found: 89 / 296 = 30.07%, 20 users;
+- broad work-compatible context: 61 / 296 = 20.61%, 18 users;
+- residential context: 13 / 296 = 4.39%, 5 users.
+
+Corrected Beijing-v1 comparison:
+
+| OSM metric | corrected Beijing-v1 | CP2-v2 |
+|---|---:|---:|
+| eligible/completed anchors | 198 | 296 |
+| semantic context found | 31.82% | 30.07% |
+| work-compatible context | 23.74% | 20.61% |
+| residential context | 3.03% | 4.39% |
+
+The semantic-context proportion is therefore broadly stable near 30% even after the candidate universe expands by 100 anchors. Work-compatible mapped context becomes slightly less common, while residential mapped context remains uncommon.
+
+These are historical mapping-context proportions, not ground-truth facility labels. Missing OSM context still means missing mapped evidence, not real-world absence.
+
+### Stage 07d decision
+
+1. Stage 07d CP2-v2 enrichment is complete.
+2. Preserve all 298 anchors for CLCD/full historical context.
+3. Treat only 296 anchors as eligible for historical OSM evidence.
+4. Do not count the two pre-ohsome anchors as negative/no-context OSM observations.
+5. The broader CP2-v2 universe remains predominantly built-up where CLCD class is known, but less uniformly impervious than the prior Beijing-focused universe.
+6. Historical OSM context prevalence remains broadly similar to the corrected Beijing-v1 result and still does not justify WORK/OFFICE semantics.
+7. Proceed to Stage 07e only with eligibility-aware denominators and within-user comparisons.
