@@ -50,10 +50,10 @@ SOURCES: tuple[HistoricalSource, ...] = (
         spatial_resolution="individual POI",
         semantic_resolution="coordinates + place names; no category field",
         provenance_status="verified_scraped_in_2008_snapshot_2008",
-        access_status="dataset page + DOI metadata; direct file availability must be checked at runtime",
-        license_status="unverified_for_dataset_file",
-        crs_status="unverified_for_dataset_file",
-        automatic_runner_status="blocked_pending_access_license_crs",
+        access_status="verified_public_figshare_file_28667492",
+        license_status="CC_BY_4_0_verified",
+        crs_status="FileGDB_EPSG_4326_verified",
+        automatic_runner_status="ready_for_normalization",
         official_url="https://www.beijingcitylab.org/data/data-011/index.html",
         notes=(
             "Primary early semantic candidate. Exact for 2008; may be used only "
@@ -360,7 +360,7 @@ def build_temporal_source_plan(
                     "source_year": 2008,
                     "temporal_offset_years": 2008 - int(year),
                     "evidence_role": "historical_semantic_candidate",
-                    "use_status": "blocked_pending_access_license_crs",
+                    "use_status": "ready_for_normalization_exact_or_proxy",
                 }
             )
 
@@ -504,7 +504,7 @@ def summarize_year_coverage(plan: pd.DataFrame) -> pd.DataFrame:
 def source_gate_summary() -> pd.DataFrame:
     registry = source_registry()
     registry["runner_ready_now"] = registry["automatic_runner_status"].isin(
-        {"ready_for_crosscheck", "ready_for_local_analysis_after_license_ack"}
+        {"ready_for_crosscheck", "ready_for_local_analysis_after_license_ack", "ready_for_normalization"}
     )
     return registry[
         [
@@ -539,7 +539,7 @@ def synthetic_self_check() -> dict[str, object]:
     assert "ohsome_historical_osm" in set(plan["source_id"])
     bcl = plan.loc[plan["source_id"].eq("bcl_poi_2008")].iloc[0]
     assert bcl["alignment_type"] == "exact_year"
-    assert bcl["use_status"].startswith("blocked_")
+    assert bcl["use_status"] == "ready_for_normalization_exact_or_proxy"
     return {
         "status": "ok",
         "sources": int(len(SOURCES)),
