@@ -47,3 +47,93 @@ Stage-07d priority should be:
 
 BCL POI 2008 must still distinguish exact 2008 evidence from 2009 proxy evidence. The 2009 proxy is not historical ground truth.
 
+
+
+## CP2-v2 Stage 07c refresh — 2026-10-04
+
+Stage 07c was rerun after the CP2-v2 HOME/context expansion and factorized-profile refresh.
+
+The earlier 2026-10-02 measurements remain historical Beijing-v1 evidence. The current production namespace is:
+
+`production_complete_link_200m_all_resolved_timezone_v2`.
+
+### Namespace validation
+
+The CP2-v2 production location universe validated cleanly:
+
+- production semantic-location users: 136;
+- production semantic locations: 2,015;
+- supported HOME ids checked: 29;
+- supported HOME ids missing: 0;
+- Stage-05b dominant secondary ids checked: 15;
+- dominant secondary ids missing: 0.
+
+### Recurring non-HOME candidate universe
+
+The support-qualified candidate universe expands materially:
+
+| metric | corrected Beijing-v1 | CP2-v2 |
+|---|---:|---:|
+| users | 25 | 29 |
+| recurring non-HOME anchors | 198 | 298 |
+
+The expansion is therefore +4 users and +100 anchors.
+
+### Median observation year
+
+| year | anchors | users |
+|---|---:|---:|
+| 2007 | 2 | 2 |
+| 2008 | 93 | 16 |
+| 2009 | 164 | 15 |
+| 2010 | 6 | 3 |
+| 2011 | 23 | 6 |
+| 2012 | 10 | 3 |
+
+The historical corrected Beijing-v1 universe had no median-year 2007 or 2010 anchors and was concentrated in 2008–2009 (65 / 120 anchors respectively).
+
+Under CP2-v2:
+
+- 257 / 298 anchors (86.2%) are in 2008–2009;
+- 259 / 298 anchors (86.9%) are temporally relevant to BCL POI 2008 if explicit ±1-year proxies are allowed:
+  - 93 exact-year 2008 anchors;
+  - 164 2009 one-year proxies;
+  - 2 2007 one-year proxies.
+
+### Source leverage
+
+Current temporal coverage:
+
+- CLCD exact-year physical context: 298 / 298 anchors, 29 users;
+- historical OSM / ohsome: 296 / 298 anchors, 29 users;
+- BCL POI 2008 exact/+1-year candidate: 259 / 298 anchors, 23 users;
+- Gaode 2010 candidate: 6 anchors / 3 users;
+- 2011 source candidates: 23 anchors / 6 users;
+- Baidu 2012 candidate: 10 anchors / 3 users.
+
+The two OSM-ineligible anchors have median observation dates before the ohsome history boundary of 2007-10-08. They remain valid members of the full 298-anchor historical-context universe and are still eligible for CLCD, but must not be treated as missing OSM-cache failures.
+
+### Source-gate metadata correction
+
+The executed notebook still displayed the historical pre-07f BCL-2008 gate as `blocked_pending_access_license_crs`.
+
+That gate is superseded by the completed Stage-07f audit, which established:
+
+- public Figshare article 28667492;
+- DOI `10.6084/m9.figshare.28667492.v1`;
+- CC BY 4.0;
+- official `Points of interest of China in 2008.rar`;
+- FileGDB container `POI2008All.gdb`;
+- layer `POI2008CN`;
+- EPSG:4326.
+
+The Stage-07c source registry is therefore updated to `ready_for_normalization` for BCL-2008. This metadata correction does not change the 07c anchor universe and does not require another 07c measurement rerun.
+
+## CP2-v2 Stage 07c decision
+
+1. Accept the 29-user / 298-anchor CP2-v2 recurring non-HOME universe.
+2. Preserve the production namespace `production_complete_link_200m_all_resolved_timezone_v2`.
+3. Keep CLCD as all-anchor physical context only.
+4. Query historical OSM only for the 296 temporally eligible anchors; do not classify the two pre-2007-10-08 anchors as failed/missing OSM observations.
+5. BCL-2008 remains the highest-leverage historical semantic source, now with access/licence/CRS already cleared by Stage 07f.
+6. Proceed to Stage 07d only after its OSM fetch path is eligibility-aware.
