@@ -84,7 +84,7 @@ class InferResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     user_id: str
-    model_contract: Literal["cp2-v1"] = "cp2-v1"
+    model_contract: Literal["cp2-v2"] = "cp2-v2"
     results: list[SemanticResult] = Field(min_length=2, max_length=2)
 
 
@@ -175,7 +175,7 @@ class ClassifyResponse(BaseModel):
 
     user_id: str
     api_version: Literal["v1"] = "v1"
-    model_contract: Literal["cp2-v1"] = "cp2-v1"
+    model_contract: Literal["cp2-v2"] = "cp2-v2"
     locations: list[ClassifiedLocation]
     abstentions: list[ClassificationAbstention]
 
@@ -186,4 +186,4 @@ class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     service: Literal["geolife-home-office-api"] = "geolife-home-office-api"
     api_version: Literal["v1"] = "v1"
-    model_contract: Literal["cp2-v1"] = "cp2-v1"
+    model_contract: Literal["cp2-v2"] = "cp2-v2"
