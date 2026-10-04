@@ -2112,3 +2112,28 @@ Decision:
 - the production model contract is promoted from `cp2-v1` to `cp2-v2`;
 - PR #27 can move out of draft once CI passes on the refreeze/version patch;
 - downstream reruns should be limited to the production-dependent lineage, not the already timezone-v2 behavior lineage.
+
+
+## 2026-10-04 — CP2 v2 downstream refresh prepared
+
+After CP2 v2 merged to `main` at `f1bbca4`, the production-dependent downstream lineage was isolated for rerun.
+
+Prepared branch: `cp2-v2-downstream-refresh`.
+
+Changes:
+
+- Stage 05/05b/05c outputs are namespaced under `cache/cp2_v2/`;
+- Stage 05/05b/05c analysis helpers now normalize mixed per-stay timezone-aware timestamps to naive local wall-clock series before calendar/hour operations;
+- the historical 9-user Stage-05c stable-secondary count is retained as Beijing-v1 reference only, not as a rerun assertion;
+- Stage 07b consumes CP2-v2 05b/05c artifacts while reusing unchanged 03a/06 behavior artifacts;
+- Stage 07c production namespace is now `production_complete_link_200m_all_resolved_timezone_v2`;
+- Stage 07c/07d/07e no longer pin old EDA branches and instead resolve the requested branch, defaulting to `main`;
+- Stage 07d consumes only CP2-v2 Stage-07c anchors, but reuses the existing content-addressed historical OSM raw cache so already-fetched requests are not repeated;
+- Stage 07e consumes only CP2-v2 downstream artifacts and the shared historical OSM raw cache;
+- Stage 06/06b/06c/06d and the Stage-07f BCL source audit remain out of scope for rerun.
+
+Required measured rerun order remains:
+
+`05 -> 05b -> 05c -> 07b -> 07c -> 07d -> 07e`.
+
+No new downstream measured result is frozen yet.
