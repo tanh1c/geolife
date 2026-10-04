@@ -125,3 +125,98 @@ At >=5 days the sample collapses to three users and one reaches >=3 axes; this i
 Independent evidence remains mixed and does not converge strongly enough to relabel persistent secondary anchors as OFFICE/WORK.
 
 Close semantic WORK expansion. Keep stable_secondary_anchor as a descriptive mobility state. A future track may study routines or behavioral change without requiring workplace semantics.
+
+
+## CP2-v2 Stage 05c refresh — 2026-10-04
+
+Stage 05c was rerun after the CP2-v2 Stage-05b refresh.
+
+The 2026-10-01 section above remains historical Beijing-v1 evidence. The current CP2-v2 production-dependent measurements are below.
+
+### Cohort and comparator support
+
+The stable-secondary cohort is unchanged:
+
+- stable-secondary users: 9;
+- historical Beijing-v1 stable-secondary users: 9;
+- CP2-v2 delta: 0.
+
+Under the primary peer rule (>=3 active days, >=2 stays):
+
+- 7 / 9 stable-secondary users have at least one fair recurring non-HOME peer;
+- median comparator anchors: 4.
+
+This exactly preserves the primary comparator-support size from the historical run.
+
+### Independent evidence axes
+
+| metric | top-1 users | top-1 share | beats peer median | median candidate - peer median |
+|---|---:|---:|---:|---:|
+| weekday-weekend visit contrast | 5/7 | 71.4% | 5/7 | +0.188 |
+| HOME-pair transition-day share | 3/7 | 42.9% | 5/7 | +0.102 |
+| arrival-hour concentration | 0/7 | 0% | 3/7 | -0.168 |
+| dwell-duration regularity | 0/7 | 0% | 3/7 | -0.057 |
+
+Relative to the historical Beijing-v1 run, the directional pattern is unchanged:
+
+- weekday/transition evidence is modestly positive;
+- arrival-time and dwell-regularity evidence do not support stable-secondary anchors as uniquely regular WORK-like places.
+
+The median differences shift slightly because the CP2-v2 semantic location universe changes the same-user peer set for some users, but no evidence axis changes qualitative direction.
+
+### Multi-axis convergence
+
+Primary >=3-active-day comparator:
+
+- 0 / 7 users are top-1 on >=3 evidence axes;
+- 1 / 7 is top-1 on exactly 2 axes;
+- 6 / 7 are top-1 on only 0-1 axes.
+
+The absence of strong top-rank multi-axis convergence is identical to the historical result.
+
+### Paired bootstrap
+
+All candidate-minus-peer-median 95% bootstrap intervals still cross zero:
+
+- weekday contrast: median +0.188, CI [-0.083, +0.261];
+- HOME-pair transition share: +0.102, CI [-0.083, +0.333];
+- arrival concentration: -0.168, CI [-0.341, +0.178];
+- dwell regularity: -0.057, CI [-0.231, +0.059].
+
+The strongest directional signals remain weekday contrast and HOME-pair transition share, but the seven-user sample does not support a strong semantic conclusion.
+
+### Peer-support sensitivity
+
+The support-sensitivity pattern is unchanged:
+
+- >=2 active days: 9 comparable users, median 5 peers, 0 with >=3 top axes;
+- >=3 active days: 7 comparable users, median 4 peers, 0 with >=3 top axes;
+- >=5 active days: 3 comparable users, median 1 peer, 1 with >=3 top axes.
+
+The >=5-day result remains too small to overturn the primary result.
+
+### Relationship to static OFFICE candidates
+
+Among the 7 users with fair comparators:
+
+- adaptive dominant secondary matches fixed-window OFFICE for 3 users and differs for 4;
+- matches HoWDe-style OFFICE for 2 and differs for 5;
+- matches recurrence OFFICE for 6 and differs for 1;
+- matches baseline-emitted OFFICE for 3 and differs for 4.
+
+For every static-match stratum, the median top-1 evidence-axis count remains 1 and no stratum contains a user with >=3 top axes.
+
+Thus agreement with a static OFFICE candidate does not rescue the weak independent multi-axis evidence.
+
+## CP2-v2 Stage 05c decision
+
+The Stage-05c decision is unchanged:
+
+1. Independent evidence remains mixed.
+2. Persistent secondary anchors do not show strong enough multi-axis convergence to justify WORK/OFFICE semantics.
+3. Close semantic WORK/OFFICE expansion.
+4. Keep stable_secondary_anchor as a descriptive mobility state.
+5. Preserve the 9-user cohort and private comparison artifacts for downstream factorized profiling.
+6. Proceed to Stage 07b factorized work-regime profiles, reusing Stage-03a behavior features, Stage-06 routine summaries, CP2-v2 Stage-05b artifacts, and the refreshed Stage-05c comparison artifact.
+
+The CP2-v2 refresh therefore strengthens the robustness of the negative semantic conclusion: despite a broader all-resolved location universe upstream, the stable-secondary cohort and its lack of strong independent WORK-like convergence remain essentially unchanged.
