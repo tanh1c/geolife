@@ -27,6 +27,15 @@ def _local_wall_series(values: pd.Series) -> pd.Series:
             normalized.append(ts)
     return pd.Series(normalized, index=values.index, dtype="datetime64[ns]")
 
+
+def _shift_local_series(values: pd.Series, delta: pd.Timedelta) -> pd.Series:
+    """Shift each local timestamp while preserving its per-row timezone."""
+    shifted = []
+    for value in values:
+        ts = pd.Timestamp(value)
+        shifted.append(pd.NaT if pd.isna(ts) else ts + delta)
+    return pd.Series(shifted, index=values.index, dtype="object")
+
 from geolife.model import HomeOfficeConfig, infer_home_office
 from geolife.model import home_office as home_office_model
 
@@ -770,11 +779,11 @@ def time_shift_stress(
     reference = infer_assignments(stays, config=cfg)
     shifted = stays.copy()
     delta = pd.Timedelta(hours=hours)
-    shifted["arrival_time_local"] = (
-        _local_wall_series(shifted["arrival_time_local"]) + delta
+    shifted["arrival_time_local"] = _shift_local_series(
+        shifted["arrival_time_local"], delta
     )
-    shifted["departure_time_local"] = (
-        _local_wall_series(shifted["departure_time_local"]) + delta
+    shifted["departure_time_local"] = _shift_local_series(
+        shifted["departure_time_local"], delta
     )
     shifted_assignments = infer_assignments(shifted, config=cfg)
     detail = reference.merge(
