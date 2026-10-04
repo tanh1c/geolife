@@ -13,6 +13,20 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
+
+def _local_wall_series(values: pd.Series) -> pd.Series:
+    """Normalize mixed tz-aware timestamps to naive per-stay local wall clock."""
+    normalized = []
+    for value in values:
+        ts = pd.Timestamp(value)
+        if pd.isna(ts):
+            normalized.append(pd.NaT)
+        elif ts.tzinfo is not None:
+            normalized.append(ts.tz_localize(None))
+        else:
+            normalized.append(ts)
+    return pd.Series(normalized, index=values.index, dtype="datetime64[ns]")
+
 from geolife.model import HomeOfficeConfig, infer_home_office
 from geolife.model import home_office as home_office_model
 
@@ -75,7 +89,7 @@ def summarize_locations(stays: pd.DataFrame) -> pd.DataFrame:
         )
 
     frame = stays.copy()
-    frame["arrival_time_local"] = pd.to_datetime(frame["arrival_time_local"])
+    frame["arrival_time_local"] = _local_wall_series(frame["arrival_time_local"])
     rows = []
     for (user_id, location_id), group in frame.groupby(
         ["user_id", "location_id"], sort=True
@@ -328,7 +342,7 @@ def _recurrence_assignments(stays: pd.DataFrame) -> pd.DataFrame:
     if stays.empty:
         return _empty_assignments()
     frame = stays.copy()
-    frame["arrival_time_local"] = pd.to_datetime(frame["arrival_time_local"])
+    frame["arrival_time_local"] = _local_wall_series(frame["arrival_time_local"])
     frame["local_date"] = frame["arrival_time_local"].dt.date
     frame["weekday"] = frame["arrival_time_local"].dt.weekday
     stats = (
@@ -487,7 +501,7 @@ def cross_method_agreement(assignments: pd.DataFrame) -> pd.DataFrame:
 
 
 def _date_split_mask(stays: pd.DataFrame, kind: str) -> pd.Series:
-    dates = pd.to_datetime(stays["arrival_time_local"]).dt.date
+    dates = _local_wall_series(stays["arrival_time_local"]).dt.date
     mask = pd.Series(False, index=stays.index)
     temp = stays[["user_id"]].copy()
     temp["local_date"] = dates
@@ -584,7 +598,7 @@ def _holdout_location_metrics(stays: pd.DataFrame) -> pd.DataFrame:
     if stays.empty:
         return pd.DataFrame()
     frame = stays.copy()
-    frame["arrival_time_local"] = pd.to_datetime(frame["arrival_time_local"])
+    frame["arrival_time_local"] = _local_wall_series(frame["arrival_time_local"])
     frame["local_date"] = frame["arrival_time_local"].dt.date
     frame["weekday"] = frame["arrival_time_local"].dt.weekday
     stats = (
@@ -757,10 +771,10 @@ def time_shift_stress(
     shifted = stays.copy()
     delta = pd.Timedelta(hours=hours)
     shifted["arrival_time_local"] = (
-        pd.to_datetime(shifted["arrival_time_local"]) + delta
+        _local_wall_series(shifted["arrival_time_local"]) + delta
     )
     shifted["departure_time_local"] = (
-        pd.to_datetime(shifted["departure_time_local"]) + delta
+        _local_wall_series(shifted["departure_time_local"]) + delta
     )
     shifted_assignments = infer_assignments(shifted, config=cfg)
     detail = reference.merge(
