@@ -343,3 +343,47 @@ def test_stage07d_notebook_uses_production_location_coordinates():
     assert "RAW_CACHE=V/'cache'/'07d_historical_context_enrichment'/'ohsome_raw'" in code
     assert "cluster_behavior_locations(resolved,200.0)" not in code
 
+
+
+def test_ohsome_eligibility_respects_history_start():
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "median_observation_date": "2007-09-01",
+            },
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "median_observation_date": "2007-10-08",
+            },
+            {
+                "user_id": "u1",
+                "location_id": 3,
+                "median_observation_date": "2008-01-01",
+            },
+        ]
+    )
+
+    eligible = module.ohsome_eligible_anchors(anchors)
+
+    assert eligible["location_id"].tolist() == [2, 3]
+    assert module.OHSOME_START_DATE.isoformat() == "2007-10-08"
+
+
+def test_ohsome_request_rejects_pre_history_date():
+    module = _module()
+    anchor = {
+        "latitude": 39.9,
+        "longitude": 116.4,
+        "median_observation_date": "2007-09-01",
+    }
+
+    try:
+        module.build_ohsome_request(anchor, radius_m=100)
+    except ValueError as exc:
+        assert "predates ohsome history boundary" in str(exc)
+    else:
+        raise AssertionError("pre-ohsome anchor must not produce a request")

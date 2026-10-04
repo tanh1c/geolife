@@ -2377,3 +2377,52 @@ Interpretation:
 - the stable-secondary subset remains 9 users and remains embedded in broader recurring-anchor structure.
 
 Decision: Stage 07b CP2-v2 refresh is complete. Proceed to Stage 07c using the new production location namespace `production_complete_link_200m_all_resolved_timezone_v2` and CP2-v2 05b/05c artifacts.
+
+
+## 2026-10-04 — Stage 07c CP2 v2 refresh
+
+Stage 07c reran successfully in the CP2-v2 production namespace.
+
+Namespace validation:
+
+- location namespace: `production_complete_link_200m_all_resolved_timezone_v2`;
+- production semantic-location users: 136;
+- production semantic locations: 2,015;
+- supported HOME ids checked: 29 / missing 0;
+- dominant Stage-05b secondary ids checked: 15 / missing 0.
+
+Candidate recurring non-HOME universe:
+
+- 29 users;
+- 298 anchors.
+
+Historical corrected Beijing-v1 universe was 25 users / 198 anchors.
+
+Median observation-year distribution:
+
+- 2007: 2 anchors / 2 users;
+- 2008: 93 / 16;
+- 2009: 164 / 15;
+- 2010: 6 / 3;
+- 2011: 23 / 6;
+- 2012: 10 / 3.
+
+Source leverage:
+
+- CLCD exact-year physical context: 298 / 298 anchors;
+- ohsome historical OSM temporal eligibility: 296 / 298 anchors;
+- BCL POI 2008 exact/+1-year relevance: 259 anchors / 23 users;
+- Gaode 2010: 6 anchors / 3 users;
+- 2011 candidates: 23 anchors / 6 users;
+- Baidu 2012: 10 anchors / 3 users.
+
+Two anchors have median observation dates before the ohsome history boundary (2007-10-08). They remain in the full anchor universe but must be excluded from OSM fetch/cache-completeness requirements.
+
+Follow-up correctness patch prepared:
+
+- Stage 07d now filters OSM requests to temporally eligible anchors;
+- Stage 07e validates complete raw OSM cache only over the eligible subset while retaining all anchors in final joined metrics;
+- regression tests cover pre-ohsome anchors;
+- Stage 07c BCL-2008 source-gate metadata is synchronized with the completed Stage-07f audit (public file, CC BY 4.0, FileGDB EPSG:4326, ready for normalization).
+
+Decision: Stage 07c CP2-v2 refresh is complete. Run Stage 07d only with the eligibility-aware patch; expected OSM target is 296 anchors while CLCD target remains 298.

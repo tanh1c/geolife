@@ -543,3 +543,28 @@ def test_align_mobility_roles_rejects_old_location_namespace():
     else:
         raise AssertionError("old behavior-location ids must be rejected")
 
+
+
+def test_validate_full_cache_ignores_pre_ohsome_anchor(tmp_path):
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            _cache_anchor("u1", 1, 39.90, 116.40, "2007-09-01"),
+            _cache_anchor("u1", 2, 39.91, 116.41, "2008-01-01"),
+        ]
+    )
+
+    eligible = anchors.iloc[1]
+    body = module.STAGE07D.build_ohsome_request(eligible)
+    key = module.STAGE07D._ohsome_cache_key(body)
+    (tmp_path / f"{key}.parquet").write_bytes(b"x")
+
+    mapping = module.validate_full_ohsome_cache(
+        anchors,
+        pd.DataFrame(),
+        tmp_path,
+    )
+
+    assert len(mapping) == 1
+    assert mapping.iloc[0]["location_id"] == 2
+    assert Path(mapping.iloc[0]["cache_path"]).exists()
