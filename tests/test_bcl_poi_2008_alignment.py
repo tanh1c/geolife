@@ -248,12 +248,13 @@ def test_stage07g_notebook_contract():
         "bcl_eligible_anchors",
         "extract_bcl_neighborhoods",
         "ogr2ogr",
-        "POI2008CN",
+        "EXPECTED_LAYER",
         "classify_poi_names",
         "assign_pois_to_anchors",
         "build_stable_secondary_lexical_comparisons",
         "bcl_neighborhood_pois_classified_private.pkl",
         "stable_secondary_bcl_summary.csv",
+        "stable_secondary_bcl_category_summary.csv",
     ]
     for snippet in required:
         assert snippet in code
