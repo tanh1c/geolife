@@ -84,6 +84,34 @@ def _normalise_anchor_keys(frame: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _with_ohsome_eligibility(frame: pd.DataFrame) -> pd.DataFrame:
+    """Attach temporal eligibility for historical OSM evidence.
+
+    Older synthetic/unit-test frames may omit median_observation_date; those
+    are treated as eligible for backward-compatible helper testing.
+    """
+    out = frame.copy()
+    if "ohsome_eligible" in out.columns:
+        out["ohsome_eligible"] = out["ohsome_eligible"].fillna(False).astype(bool)
+        return out
+    if "median_observation_date" not in out.columns:
+        out["ohsome_eligible"] = True
+        return out
+    dates = pd.to_datetime(
+        out["median_observation_date"],
+        errors="raise",
+    ).dt.date
+    out["ohsome_eligible"] = dates.ge(STAGE07D.OHSOME_START_DATE)
+    return out
+
+
+def _eligible_context_rows(frame: pd.DataFrame) -> pd.DataFrame:
+    """Return only anchors for which historical OSM evidence is queryable."""
+    return _with_ohsome_eligibility(frame).loc[
+        lambda value: value["ohsome_eligible"]
+    ].copy()
+
+
 def validate_full_ohsome_cache(
     anchors: pd.DataFrame,
     request_log: pd.DataFrame | None,
@@ -401,7 +429,7 @@ def build_anchor_semantic_metrics(
     counted as within-100 m evidence.
     """
     anchors = _normalise_anchor_keys(anchors)
-    out = anchors.copy()
+    out = _with_ohsome_eligibility(anchors)
     nearest = _nearest_by_category(features)
 
     rename = {
@@ -457,6 +485,13 @@ def build_anchor_semantic_metrics(
         .clip(upper=censor_threshold)
         .fillna(censor_threshold)
     )
+    out.loc[
+        ~out["ohsome_eligible"],
+        [
+            "work_compatible_censored_distance_100m",
+            "semantic_censored_distance_100m",
+        ],
+    ] = np.nan
 
     nearest_work = pd.to_numeric(
         out["nearest_work_compatible_m"], errors="coerce"
@@ -470,6 +505,7 @@ def build_anchor_semantic_metrics(
         ["0_25", "25_50", "50_100"],
         default="none_within_100",
     )
+    out.loc[~out["ohsome_eligible"], "work_distance_bucket"] = "not_eligible"
     return out
 
 
@@ -553,8 +589,9 @@ def align_mobility_roles(
 
 
 def summarize_distance_buckets(aligned: pd.DataFrame) -> pd.DataFrame:
+    eligible = _eligible_context_rows(aligned)
     counts = (
-        aligned.groupby("work_distance_bucket", as_index=False)
+        eligible.groupby("work_distance_bucket", as_index=False)
         .agg(
             anchors=("location_id", "size"),
             users=("user_id", "nunique"),
@@ -562,7 +599,7 @@ def summarize_distance_buckets(aligned: pd.DataFrame) -> pd.DataFrame:
     )
     order = {name: idx for idx, name in enumerate(DISTANCE_BUCKETS)}
     counts["_order"] = counts["work_distance_bucket"].map(order)
-    counts["anchor_share"] = counts["anchors"] / max(len(aligned), 1)
+    counts["anchor_share"] = counts["anchors"] / max(len(eligible), 1)
     return counts.sort_values("_order").drop(columns="_order").reset_index(
         drop=True
     )
@@ -573,6 +610,7 @@ def summarize_category_thresholds(
     *,
     thresholds_m: Iterable[float] = DISTANCE_THRESHOLDS_M,
 ) -> pd.DataFrame:
+    aligned = _eligible_context_rows(aligned)
     rows = []
     for category in CONTEXT_CATEGORIES:
         for threshold in thresholds_m:
@@ -597,7 +635,8 @@ def build_stable_secondary_user_comparisons(
 ) -> pd.DataFrame:
     """Compare stable-secondary candidate to same-user recurring peers."""
     rows = []
-    stable = aligned.loc[aligned["stable_secondary_user"]].copy()
+    stable = _eligible_context_rows(aligned)
+    stable = stable.loc[stable["stable_secondary_user"]].copy()
 
     for user_id, group in stable.groupby("user_id", sort=True):
         candidates = group.loc[group["stable_secondary_anchor"]]
@@ -660,7 +699,8 @@ def summarize_stable_secondary_categories(
     thresholds_m: Iterable[float] = DISTANCE_THRESHOLDS_M,
 ) -> pd.DataFrame:
     """Category-specific candidate-vs-peer differences within stable users."""
-    stable = aligned.loc[aligned["stable_secondary_user"]].copy()
+    stable = _eligible_context_rows(aligned)
+    stable = stable.loc[stable["stable_secondary_user"]].copy()
     per_user_rows = []
 
     for user_id, group in stable.groupby("user_id", sort=True):
@@ -794,6 +834,7 @@ def summarize_profile_axis_context(
     threshold_m: float = 100.0,
 ) -> pd.DataFrame:
     """User-level descriptive context by factorized mobility axis."""
+    aligned = _eligible_context_rows(aligned)
     context_column = _threshold_name("work_compatible", threshold_m)
     per_user = (
         aligned.groupby("user_id", as_index=False)
@@ -849,6 +890,7 @@ def summarize_profile_axis_categories(
     threshold_m: float = 100.0,
 ) -> pd.DataFrame:
     """User-level category coverage for each Stage-07b factorized axis."""
+    aligned = _eligible_context_rows(aligned)
     rows = []
     profile_columns = ["user_id"] + [
         axis for axis in PROFILE_AXES if axis in aligned.columns
