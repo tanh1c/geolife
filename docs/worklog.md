@@ -2753,3 +2753,58 @@ Expected frozen input checks in the notebook:
 - 07g BCL comparison users: 9.
 
 Next action: run Stage 07h and inspect aggregate convergence signatures before deciding whether the external semantic-source track should close.
+
+
+## 2026-10-04 — Stage 07h measured result and semantic-source closure
+
+Stage 07h ran successfully on commit `ff79fdd` with no traceback.
+
+Input gates:
+
+- Stage-05b stable-secondary cohort: 9 users;
+- Stage-05c fair-comparator evidence: 7 users;
+- Stage-07e OSM paired evidence: 9 users;
+- Stage-07g BCL paired evidence: 9 users;
+- candidate location identity: PASS across available sources.
+
+Source coverage:
+
+- behavior 7 / 9;
+- OSM 9 / 9;
+- BCL 9 / 9;
+- all three sources 7 / 9.
+
+External direction:
+
+- 25 m: both-positive 1, both-negative 2, no direct positive/negative disagreement;
+- 50 m: both-positive 1, both-negative 3, no direct positive/negative disagreement;
+- 100 m: both-positive 1, both-negative 3, directly opposite 3.
+
+Exact-candidate context overlap at 100 m:
+
+- both OSM + BCL: 1 / 9;
+- OSM only: 1 / 9;
+- BCL only: 3 / 9;
+- neither: 4 / 9.
+
+Behavior:
+
+- strict Stage-05c support: 0 users;
+- weaker directional-majority support: 3 users.
+
+Final convergence:
+
+- external OSM+BCL both-positive at 100 m: 1 user;
+- strict three-way convergence: 0 users;
+- weaker directional three-way convergence: 0 users.
+
+The one user positive in both external sources belongs to the weak behavioral band. No directional-majority behavioral user is positive in both external sources.
+
+Decision:
+
+- no multi-source semantic convergence;
+- no stable-secondary => WORK/OFFICE promotion;
+- no threshold retuning;
+- close the current semantic-source track.
+
+Any future attempt to validate WORK/OFFICE semantics should rely on qualitatively better supervision/ground truth, not additional opportunistic external-source mining on the same nine-user cohort.
