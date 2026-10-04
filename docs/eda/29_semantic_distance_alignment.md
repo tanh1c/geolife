@@ -255,3 +255,128 @@ Therefore Stage 07e should close as a null/mixed independent-evidence result. Do
 
 The next semantic-source priority remains BCL POI 2008, now relevant to 185 / 198 corrected anchors across 19 users, after access/license/CRS resolution.
 
+
+
+## CP2-v2 final Stage 07e result — 2026-10-04
+
+Stage 07e was rerun after the CP2-v2 production-location refresh, the ohsome temporal-eligibility correction, the notebook-bootstrap fix, and the Stage-07b profile-axis merge correction.
+
+The earlier 198-anchor Beijing-v1 result remains the corrected historical baseline. The measurements below are the final CP2-v2 result.
+
+### Execution and coverage
+
+The final notebook executed on repository commit `6804925` without traceback and saved all Stage-07e artifacts successfully.
+
+Universe:
+
+- full recurring non-HOME anchors: 298;
+- users: 29;
+- location namespace: `production_complete_link_200m_all_resolved_timezone_v2`;
+- ohsome-eligible anchors: 296;
+- pre-ohsome anchors retained as not eligible: 2;
+- raw historical-OSM cache validated: 296 / 296 eligible anchors.
+
+The two anchors before 2007-10-08 remain in the full anchor artifact but are excluded from historical-OSM absence/distance denominators.
+
+### Exact radial historical-OSM context
+
+Among the 296 OSM-eligible anchors:
+
+- any semantic feature within 100 m: 86 / 296 = 29.05%;
+- broad work-compatible feature within 100 m: 59 / 296 = 19.93%.
+
+Corrected Beijing-v1 comparison:
+
+| metric | corrected Beijing-v1 | CP2-v2 |
+|---|---:|---:|
+| OSM-eligible anchors | 198 | 296 |
+| semantic <=100 m | 61 / 198 = 30.81% | 86 / 296 = 29.05% |
+| work-compatible <=100 m | 46 / 198 = 23.23% | 59 / 296 = 19.93% |
+
+The broader CP2-v2 universe therefore preserves a similar overall historical-semantic-context rate while slightly reducing the broad work-compatible share.
+
+Work-compatible distance buckets among eligible anchors:
+
+| bucket | anchors | users | share |
+|---|---:|---:|---:|
+| 0–25 m | 36 | 11 | 12.16% |
+| 25–50 m | 8 | 8 | 2.70% |
+| 50–100 m | 15 | 10 | 5.07% |
+| none within 100 m | 237 | 29 | 80.07% |
+
+Category coverage within 100 m:
+
+- education: 33 anchors;
+- recreation/tourism: 25;
+- retail/service: 17;
+- residential: 13;
+- transport: 13;
+- office/commercial: 4;
+- healthcare: 1;
+- industrial: 1;
+- civic/institutional: 0.
+
+Relative to the corrected Beijing-v1 result, the larger universe adds mapped recreation/tourism, residential, transport and retail/service context, while education remains exactly 33 anchors. Fine functional categories remain sparse.
+
+### Stable-secondary within-user comparison
+
+The exact Stage-05b stable-secondary candidate is represented for all 9 stable-secondary users:
+
+- stable-secondary users represented: 9;
+- exact stable-secondary anchors: 9;
+- within-user comparison rows: 9.
+
+Composite work-compatible context:
+
+| threshold | candidate-context users | mean peer context share | mean candidate - peer share | bootstrap 95% interval |
+|---|---:|---:|---:|---:|
+| 25 m | 2 / 9 | 0.100 | +0.123 | [-0.108, +0.399] |
+| 50 m | 2 / 9 | 0.134 | +0.088 | [-0.147, +0.349] |
+| 100 m | 2 / 9 | 0.187 | +0.036 | [-0.201, +0.303] |
+
+These values remain extremely close to the corrected Beijing-v1 comparison (+0.115 / +0.081 / +0.019), and all composite intervals still cross zero.
+
+Category decomposition:
+
+- both candidate-context cases are education;
+- 0 / 9 stable-secondary candidates have office/commercial within 100 m;
+- 0 / 9 have healthcare, industrial, retail/service, transport, civic/institutional, residential or recreation/tourism within 100 m.
+
+At 100 m, retail/service remains more common among same-user peer anchors than stable-secondary candidates:
+
+- mean candidate - peer share: -0.074;
+- bootstrap 95% interval: [-0.125, -0.026].
+
+This is a descriptive tiny-cohort contrast, not evidence that stable-secondary anchors avoid retail/service locations.
+
+### Factorized mobility axes x mapped work-compatible context
+
+After fixing the Stage-07c/Stage-07b profile-column merge collision, Stage-07b profile axes are read authoritatively.
+
+Within the 29-user HOME-supported / recurring-non-HOME analysis universe:
+
+| axis | users | users with any work-compatible context <=100m | share |
+|---|---:|---:|---:|
+| site_stable_secondary | 9 | 7 | 77.8% |
+| site_multiple_recurring | 28 | 18 | 64.3% |
+| site_adaptive_multi_anchor | 3 | 3 | 100% |
+| route_repeated | 12 | 9 | 75.0% |
+| schedule_shifted_evidence | 0 | 0 | n/a |
+| mobile_complexity_evidence | 7 | 7 | 100% |
+| independent_secondary_evidence_available | 7 | 5 | 71.4% |
+
+These are descriptive user-level overlaps inside the Stage-07e analysis subset. They do not imply semantic WORK validity for any axis and must not be compared directly to whole-population Stage-07b axis prevalence without conditioning on the same 29-user subset.
+
+### Final Stage 07e decision
+
+The CP2-v2 expansion does not change the Stage-07e semantic conclusion.
+
+1. Historical OSM remains incomplete mapping evidence, not ground truth.
+2. Stable-secondary candidates are not consistently closer to work-compatible mapped context than same-user recurring peers.
+3. All composite candidate-minus-peer bootstrap intervals cross zero.
+4. Candidate-side mapped context remains driven entirely by education; no stable-secondary candidate has office/commercial context within 100 m.
+5. Do not tune mobility thresholds against the external semantic source.
+6. Do not promote stable-secondary geometry to WORK/OFFICE semantics.
+7. Close the CP2-v2 production-dependent downstream refresh through Stage 07e.
+
+The main robustness result is that the null/mixed independent semantic conclusion survives the expansion from the corrected 198-anchor Beijing-v1 universe to the 298-anchor CP2-v2 universe.
