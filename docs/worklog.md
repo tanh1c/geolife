@@ -2067,3 +2067,48 @@ Final CI status on head `b0530318`:
 - EDA / CP1 / CP2 / API imports: pass.
 
 PR #27 remains draft intentionally. The only remaining CP2-v2 refreeze gate is the private full-release 5,821-stay production-vs-Notebook-03 parity run.
+
+
+## 2026-10-04 — CP2 v2 full-release parity passed
+
+The focused `03d_cp2_v2_production_parity.ipynb` notebook was executed against the frozen private CP1 stay cache.
+
+Measured scope:
+
+- frozen CP1 stays: 5,821;
+- CP1 stay-bearing users: 136;
+- timezone-resolved stays: 5,821 / 5,821;
+- semantic locations: 2,015;
+- recurring locations: 716;
+- recurring-location users: 104;
+- HOME emitted: 27;
+- OFFICE emitted: 16;
+- unique emitted users: 37.
+
+Production-v2 matched the independently reconstructed Notebook-03 reference exactly on:
+
+- semantic stay inventory;
+- per-stay IANA timezone id;
+- arrival local wall time;
+- departure local wall time;
+- complete-link cluster membership;
+- HOME/OFFICE selected semantic cluster membership;
+- aggregate semantic/recurrence/emission counts.
+
+Mismatch counts were all zero:
+
+- production-only semantic stays: 0;
+- reference-only semantic stays: 0;
+- production-only clusters: 0;
+- reference-only clusters: 0;
+- production-only labels: 0;
+- reference-only labels: 0.
+
+`all_parity_checks_pass = true`.
+
+Decision:
+
+- CP2 v2 production migration is validated;
+- the production model contract is promoted from `cp2-v1` to `cp2-v2`;
+- PR #27 can move out of draft once CI passes on the refreeze/version patch;
+- downstream reruns should be limited to the production-dependent lineage, not the already timezone-v2 behavior lineage.
