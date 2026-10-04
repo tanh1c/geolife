@@ -62,6 +62,7 @@ WORK_COMPATIBLE_CATEGORIES = (
 )
 
 OHSOME_API_DEFAULT = "https://api.heigit.org/ohsome-api/v2-rc"
+OHSOME_START_DATE = pd.Timestamp("2007-10-08").date()
 
 EDUCATION_AMENITIES = {
     "school", "university", "college", "kindergarten",
@@ -466,6 +467,19 @@ def ohsome_semantic_filter() -> str:
         "public_transport=* or highway=bus_stop or tourism=* or leisure=* or "
         "industrial=* or man_made=works"
     )
+
+
+def ohsome_eligible_anchors(anchors: pd.DataFrame) -> pd.DataFrame:
+    """Return anchors whose median observation date is queryable by ohsome."""
+    required = {"median_observation_date"}
+    missing = required.difference(anchors.columns)
+    if missing:
+        raise ValueError(f"anchors missing columns: {sorted(missing)}")
+    dates = pd.to_datetime(
+        anchors["median_observation_date"],
+        errors="raise",
+    ).dt.date
+    return anchors.loc[dates.ge(OHSOME_START_DATE)].copy()
 
 
 def build_ohsome_request(
