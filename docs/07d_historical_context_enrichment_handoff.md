@@ -127,3 +127,32 @@ HOME consensus and Stage-05b dominant secondary ids live in the production seman
 
 If the namespace marker is absent or different, rerun corrected Stage 07c first.
 
+
+
+## CP2-v2 measured handoff — 2026-10-04
+
+Current production-aligned universe:
+
+- 298 recurring non-HOME anchors / 29 users;
+- namespace `production_complete_link_200m_all_resolved_timezone_v2`.
+
+CLCD:
+
+- 298 / 298 processed;
+- 275 known point classes;
+- 256 impervious;
+- 294 point-vs-3x3 agreements;
+- 290 point-vs-5x5 agreements.
+
+Historical OSM:
+
+- 296 anchors are temporally eligible;
+- 2 anchors predate 2007-10-08 and are ineligible, not failed;
+- 296 / 296 eligible anchors completed;
+- 89 have semantic mapped context;
+- 61 have broad work-compatible mapped context;
+- 13 have residential mapped context.
+
+BCL POI 2008 is no longer blocked on access/licence/CRS: Stage 07f verified the official Figshare file, CC BY 4.0, FileGDB container and EPSG:4326. Its current status is ready for normalization.
+
+Stage 07e must use OSM eligibility-aware denominators. It must retain the two pre-ohsome anchors in the full anchor artifact while excluding them from OSM-distance absence/comparison denominators.
