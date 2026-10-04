@@ -36,3 +36,26 @@ def test_downstream_helpers_accept_mixed_per_stay_timezones(module_path: Path) -
     assert str(result.dtype) == "datetime64[ns]"
     assert result.iloc[0] == pd.Timestamp("2026-01-01 20:00:00")
     assert result.iloc[1] == pd.Timestamp("2026-01-01 21:00:00")
+
+
+def test_stage05_time_shift_preserves_per_row_timezone() -> None:
+    module_path = ROOT / "analysis" / "05_home_office_reliability.py"
+    spec = importlib.util.spec_from_file_location("stage05_shift", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    values = pd.Series(
+        [
+            pd.Timestamp("2026-01-01T20:00:00+08:00"),
+            pd.Timestamp("2026-01-01T21:00:00+09:00"),
+        ],
+        dtype="object",
+    )
+    shifted = module._shift_local_series(values, pd.Timedelta(hours=12))
+
+    assert shifted.iloc[0].utcoffset() == values.iloc[0].utcoffset()
+    assert shifted.iloc[1].utcoffset() == values.iloc[1].utcoffset()
+    assert shifted.iloc[0].hour == 8
+    assert shifted.iloc[1].hour == 9
