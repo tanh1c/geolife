@@ -2564,3 +2564,58 @@ Decision:
 - do not tune mobility thresholds to OSM;
 - Stage 07e CP2-v2 refresh is complete;
 - the production-dependent rerun lineage `05 -> 05b -> 05c -> 07b -> 07c -> 07d -> 07e` is now fully refreshed.
+
+
+## 2026-10-04 — Stage 07g BCL POI 2008 alignment started
+
+The CP2-v2 production-dependent rerun through Stage 07e is complete. Historical OSM remained null/mixed independent semantic evidence, so the next external semantic-source track moves to the already-audited BCL POI 2008 source.
+
+Stage 07f source facts already frozen:
+
+- Figshare article 28667492;
+- DOI `10.6084/m9.figshare.28667492.v1`;
+- CC BY 4.0;
+- official RAR size 120,023,687 bytes;
+- extracted FileGDB `POI2008All.gdb`;
+- layer `POI2008CN`;
+- 6,039,158 point features;
+- EPSG:4326;
+- fields `PNAME`, `X`, `Y`;
+- runner status `ready_for_normalization`.
+
+Current CP2-v2 Stage-07c relevance:
+
+- 298 recurring non-HOME anchors / 29 users total;
+- 259 BCL-eligible anchors / 23 users under explicit 2007–2009 exact/+1-year policy;
+- 2 anchors from 2007;
+- 93 exact-year 2008 anchors;
+- 164 one-year 2009 proxies.
+
+Stage 07g design:
+
+- do not re-download BCL;
+- validate the Stage-07f manifest and cached source SHA-256;
+- do not reintroduce a Beijing-only geofence;
+- spatially extract FileGDB POIs only around the 259 temporally relevant CP2-v2 anchors;
+- use deterministic padded GDAL tiles, then exact Haversine <=100 m matching;
+- preserve raw `PNAME` privately;
+- derive only predeclared lexical name signals with explicit unknown / multi-signal ambiguity;
+- compare exact Stage-05b stable-secondary anchors to same-user BCL-eligible peers at 25 / 50 / 100 m;
+- decompose composite lexical evidence by category;
+- keep all WORK/OFFICE/HOME and occupation claims disabled.
+
+New files:
+
+- `analysis/07g_bcl_poi_2008_alignment.py`;
+- `notebooks/07g_bcl_poi_2008_alignment.ipynb`;
+- `tests/test_bcl_poi_2008_alignment.py`;
+- `docs/eda/31_bcl_poi_2008_alignment.md`;
+- `docs/07g_bcl_poi_2008_alignment_handoff.md`.
+
+Reproducibility cleanup included:
+
+- Stage 07f namespace guard now uses the CP2-v2 production namespace;
+- Stage 07f notebook defaults to current `main`;
+- Stage 07f notebook reads the explicit CP2-v2 Stage-07c anchor artifact instead of globbing the first historical anchor cache.
+
+No Stage-07f rerun is required for the current 07g run because the source manifest / raw archive / extracted FileGDB are source-level artifacts and already passed acquisition, licence, format and CRS gates.
