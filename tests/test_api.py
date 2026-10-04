@@ -76,7 +76,7 @@ def test_health_contract() -> None:
         "status": "ok",
         "service": "geolife-home-office-api",
         "api_version": "v1",
-        "model_contract": "cp2-v1",
+        "model_contract": "cp2-v2",
     }
 
 
@@ -92,7 +92,7 @@ def test_home_emits_while_office_abstains() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["user_id"] == "u-home"
-    assert body["model_contract"] == "cp2-v1"
+    assert body["model_contract"] == "cp2-v2"
 
     results = _result_by_label(body)
     assert results["HOME"]["status"] == "emitted"
