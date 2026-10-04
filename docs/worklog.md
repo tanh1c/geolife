@@ -2322,3 +2322,58 @@ Interpretation:
 - semantic WORK/OFFICE expansion remains closed.
 
 Decision: retain stable_secondary_anchor as descriptive only. Stage 05c CP2-v2 refresh is complete. Proceed to Stage 07b factorized work-regime profiles using the refreshed CP2-v2 05b/05c artifacts while reusing the already-valid 03a and 06 behavior/routine artifacts.
+
+
+## 2026-10-04 — Stage 07b CP2 v2 refresh
+
+Stage 07b reran successfully using:
+
+- unchanged Stage-03a behavior features;
+- refreshed CP2-v2 Stage-05b HOME/adaptive-work artifacts;
+- refreshed CP2-v2 Stage-05c independent-evidence artifact;
+- unchanged Stage-06 routine summary.
+
+Support:
+
+- behavior users: 182;
+- adaptive work-pattern users: 29 (historical 25);
+- routine users: 107;
+- HOME-context users: 29 (historical 25);
+- independent secondary-evidence users: 7.
+
+Axis prevalence:
+
+- site_multiple_recurring: 72;
+- home_context_supported: 29;
+- mobile_complexity_evidence: 23;
+- route_repeated: 23;
+- site_stable_secondary: 9;
+- independent_secondary_evidence_available: 7;
+- site_adaptive_multi_anchor: 3;
+- schedule_shifted_evidence: 2;
+- site_unstable: 1.
+
+Key overlaps are unchanged:
+
+- stable-secondary + multiple-recurring: 9;
+- stable-secondary + repeated-route: 7;
+- multiple-recurring + repeated-route: 22;
+- shifted + repeated-route: 2.
+
+Representation signatures are exactly unchanged from the historical run:
+
+- abstain: 110;
+- anchor_set: 48;
+- anchor_set + route_region: 13;
+- single_anchor + anchor_set + route_region: 7;
+- single_anchor + anchor_set: 2;
+- anchor_set + route_region + schedule_agnostic: 2.
+
+Interpretation:
+
+- CP2-v2 expands HOME-context support by four users but leaves all mobility geometry / route / schedule representation counts unchanged;
+- factorization remains the correct abstraction;
+- HOME support is contextual rather than geometry-defining;
+- the stable-secondary subset remains 9 users and remains embedded in broader recurring-anchor structure.
+
+Decision: Stage 07b CP2-v2 refresh is complete. Proceed to Stage 07c using the new production location namespace `production_complete_link_200m_all_resolved_timezone_v2` and CP2-v2 05b/05c artifacts.
