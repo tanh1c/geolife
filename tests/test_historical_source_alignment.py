@@ -235,9 +235,10 @@ def test_stage07c_notebook_uses_production_location_namespace():
         if cell.get("cell_type") == "code"
     )
 
-    assert "BRANCH='eda/07e-semantic-distance-alignment'" in code
+    assert "BRANCH=os.environ.get('GEOLIFE_REPO_BRANCH','main')" in code
     assert "build_semantic_locations(stays,config=cfg)" in code
     assert "validate_location_namespace(locations,home,work)" in code
     assert "anchors['location_namespace']=s07c.PRODUCTION_LOCATION_NAMESPACE" in code
+    assert "cache'/'cp2_v2'/'07c_historical_source_alignment" in code
     assert "cluster_behavior_locations(resolved,200.0)" not in code
 
