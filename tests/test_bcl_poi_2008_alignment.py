@@ -260,3 +260,24 @@ def test_stage07g_notebook_contract():
         assert snippet in code
 
     assert "production_complete_link_200m_beijing_policy_v1" not in code
+
+
+def test_stage07g_notebook_reloads_volume_before_reading_worker_output():
+    notebook_path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07g_bcl_poi_2008_alignment.ipynb"
+    )
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    code = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    )
+
+    reload_pos = code.find("data_volume.reload()")
+    read_pos = code.find("pd.read_pickle(POI_PRIVATE)")
+
+    assert reload_pos >= 0
+    assert read_pos > reload_pos
+    assert "Worker reported success but committed file is not visible after volume reload" in code
