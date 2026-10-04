@@ -75,3 +75,83 @@ Primary Stage-07c scope:
 
 The external layer must not alter the factorized mobility axes.
 
+
+
+## CP2-v2 Stage 07b refresh — 2026-10-04
+
+Stage 07b was rerun after the CP2-v2 Stage-05b/05c refresh while reusing the already-valid Stage-03a behavior features and Stage-06 routine summary.
+
+The 2026-10-02 section above remains historical Beijing-v1 evidence. The current CP2-v2 production-dependent measurements are below.
+
+### Upstream support
+
+| support axis | historical Beijing-v1 | CP2-v2 |
+|---|---:|---:|
+| behavior evidence available | 182 | 182 |
+| adaptive work-pattern observed | 25 | 29 |
+| routine evidence available | 107 | 107 |
+| HOME context supported | 25 | 29 |
+| independent secondary evidence available | 7 | 7 |
+
+The only material support expansion is the four additional HIGH/MEDIUM HOME-context users inherited from Stage 05b.
+
+### Factorized axis prevalence
+
+| axis | users | population share |
+|---|---:|---:|
+| site_multiple_recurring | 72 | 39.6% |
+| home_context_supported | 29 | 15.9% |
+| mobile_complexity_evidence | 23 | 12.6% |
+| route_repeated | 23 | 12.6% |
+| site_stable_secondary | 9 | 4.9% |
+| independent_secondary_evidence_available | 7 | 3.8% |
+| site_adaptive_multi_anchor | 3 | 1.6% |
+| schedule_shifted_evidence | 2 | 1.1% |
+| site_unstable | 1 | 0.5% |
+
+All mobility-side axes except HOME context are unchanged from the historical run.
+
+### Key overlap
+
+The primary overlap structure is exactly preserved:
+
+- stable secondary AND multiple recurring: 9 users;
+- stable secondary AND repeated route: 7 users;
+- multiple recurring AND repeated route: 22 users;
+- shifted schedule AND repeated route: 2 users.
+
+Additional CP2-v2 overlap:
+
+- 28 / 29 HOME-supported users are also multiple-recurring users;
+- all 9 stable-secondary users still have supported HOME context;
+- all 7 users with independent secondary evidence remain inside the stable-secondary subset.
+
+### Representation signatures
+
+The representation-level counts are unchanged from the historical run:
+
+| representation signature | users | share |
+|---|---:|---:|
+| abstain | 110 | 60.4% |
+| anchor_set | 48 | 26.4% |
+| anchor_set + route_region | 13 | 7.1% |
+| single_anchor + anchor_set + route_region | 7 | 3.8% |
+| single_anchor + anchor_set | 2 | 1.1% |
+| anchor_set + route_region + schedule_agnostic | 2 | 1.1% |
+
+No user has a standalone single-anchor representation. Every stable-secondary user still participates in broader recurring-anchor structure.
+
+This is the key CP2-v2 Stage-07b result:
+
+> expanding HOME-context support from 25 to 29 users does not alter the factorized mobility geometry.
+
+The four additional HOME-supported users change context/evidence signatures but do not change the selected mobility representation categories.
+
+## CP2-v2 Stage 07b decision
+
+1. Keep the factorized representation unchanged.
+2. Do not collapse site, route, schedule and complexity axes into a mutually exclusive work-regime class.
+3. Treat HOME support as contextual evidence, not as a geometry-defining axis.
+4. The stability of representation counts across CP2-v1 -> CP2-v2 strengthens confidence that the mobility-side abstraction is not an artifact of the former Beijing semantic cohort.
+5. Proceed to Stage 07c using the CP2-v2 production location namespace and the expanded 29-user HOME-supported cohort.
+6. External semantic context remains an independent axis and must not rewrite the Stage-07b mobility profile.
