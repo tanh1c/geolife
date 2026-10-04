@@ -2210,3 +2210,59 @@ Interpretation:
 - conservative emission/abstention remains justified.
 
 Decision: Stage 05 CP2-v2 refresh is complete. Proceed to Stage 05b HOME consensus tiers + adaptive WORK audit using the new `cache/cp2_v2/05_home_office_reliability_validation` artifacts.
+
+
+## 2026-10-04 — Stage 05b CP2 v2 refresh
+
+Stage 05b reran successfully on the CP2-v2 Stage-05 artifacts.
+
+HOME consensus:
+
+- 97 unique HOME vote winners;
+- 23 HIGH;
+- 6 MEDIUM;
+- 68 UNCERTAIN;
+- 29 HIGH/MEDIUM users total;
+- 24 HIGH/MEDIUM users already baseline-emitted HOME;
+- 5 HIGH/MEDIUM non-emitted candidates;
+- all 5 non-emitted HIGH/MEDIUM cases are fixed-window candidates that failed the final production gate;
+- no HIGH/MEDIUM expansion case comes from the broad recurrence-only / outside-fixed-candidate population.
+
+Historical Beijing-v1 Stage 05b had 67 winners / 21 HIGH / 4 MEDIUM / 42 UNCERTAIN and only 2 HIGH/MEDIUM non-emitted candidates.
+
+Primary adaptive secondary-anchor audit (42d windows / 14d step / 0.70 stability):
+
+- eligible HIGH/MEDIUM HOME users: 29;
+- stable_secondary_anchor: 9;
+- multi_anchor: 3;
+- unstable: 1;
+- insufficient: 16;
+- sufficient users: 13.
+
+Historical Beijing-v1 had 25 eligible users with 9 stable / 3 multi-anchor / 1 unstable / 12 insufficient.
+
+Interpretation: all four additional CP2-v2 HOME-consensus users are added as insufficient-support cases. The stable-secondary WORK-like subset does not expand.
+
+Window sensitivity at threshold 0.70:
+
+- 28d: 10 sufficient / 6 stable / 3 multi-anchor / 1 unstable;
+- 42d: 13 sufficient / 9 stable / 3 multi-anchor / 1 unstable;
+- 56d: 14 sufficient / 10 stable / 4 multi-anchor / 0 unstable.
+
+Stable counts remain 6 / 9 / 10 across 28d / 42d / 56d, identical to the historical run.
+
+At 42d, increasing stability threshold 0.70 -> 0.80 leaves the stable count unchanged at 9.
+
+Fixed-window OFFICE comparison at 42d remains limited:
+
+- comparable users: 10;
+- dominant adaptive anchor matches fixed OFFICE: 40.0%.
+
+Decision:
+
+- keep production HOME/OFFICE unchanged;
+- retain 5 HIGH/MEDIUM non-emitted HOME cases for targeted review only;
+- do not promote recurrence-only HOME candidates;
+- keep stable_secondary_anchor descriptive rather than semantic OFFICE;
+- Stage 05b CP2-v2 refresh is complete;
+- proceed to Stage 05c independent evidence on the unchanged 9-user stable-secondary subset.
