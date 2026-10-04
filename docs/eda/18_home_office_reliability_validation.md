@@ -175,7 +175,7 @@ Modal orchestration notebook:
 
 Private Modal outputs should remain under:
 
-- /mnt/geolife-data/cache/05_home_office_reliability_validation/
+- /mnt/geolife-data/cache/cp2_v2/05_home_office_reliability_validation/
 
 No precise HOME/OFFICE coordinates or raw user-level reliability details should be committed.
 
@@ -279,3 +279,131 @@ This is expected schedule dependence for clock-window methods and must not be in
 3. OFFICE does not: recurrence-based OFFICE coverage is method-dependent and should not be promoted.
 4. The next semantic experiment should build privacy-safe HOME reliability tiers and a sliding-window/adaptive WORK audit.
 5. GeoLife still lacks semantic ground truth, so all conclusions remain reliability/behavioral evidence rather than accuracy claims.
+
+
+## CP2-v2 reliability refresh — 2026-10-04
+
+Stage 05 was rerun after the production Home/Office implementation was migrated from the historical Beijing-focused CP2-v1 contract to the all-resolved per-stay timezone CP2-v2 contract.
+
+The earlier 2026-10-01 section above is retained as historical Beijing-v1 evidence. The figures below are the current production-dependent reliability measurements.
+
+### Scope and semantic representation
+
+The frozen CP1 stay input is unchanged:
+
+- 5,821 stays;
+- 136 users with at least one stay.
+
+Under CP2-v2, every timezone-resolved stay is retained and the semantic representation expands materially:
+
+| metric | historical Beijing-v1 | CP2-v2 |
+|---|---:|---:|
+| semantic users | 97 | 136 |
+| semantic locations | 1,111 | 2,015 |
+| recurring locations | 486 | 716 |
+| recurring-anchor users | 73 | 104 |
+| HOME emitted | 27 | 27 |
+| OFFICE emitted | 16 | 16 |
+
+The production emission counts remain exactly 27 HOME / 16 OFFICE even though the recurring-place universe expands substantially.
+
+Interpretation: the broader all-resolved timezone path discovers additional recurring structure, but the frozen semantic emission gates do not automatically promote that structure into additional HOME/OFFICE labels.
+
+### Candidate coverage
+
+| method | label | candidate users | production emitted |
+|---|---|---:|---:|
+| fixed_window | HOME | 42 | 27 |
+| fixed_window | OFFICE | 30 | 16 |
+| howde_style | HOME | 26 | n/a |
+| howde_style | OFFICE | 27 | n/a |
+| recurrence | HOME | 104 | n/a |
+| recurrence | OFFICE | 38 | n/a |
+
+Relative to the historical run, candidate coverage increases across every method. The strongest structural increase is recurrence HOME, from 73 to 104 users, matching the expansion in recurring-anchor users.
+
+This reinforces the earlier interpretation that 27/16 is a conservative semantic-emission outcome rather than the ceiling of recurring-location evidence.
+
+### Cross-method convergence
+
+HOME remains substantially more convergent than OFFICE:
+
+| label | comparison | overlap | same location | agreement |
+|---|---|---:|---:|---:|
+| HOME | fixed_window ↔ howde_style | 23 | 19 | 82.6% |
+| HOME | fixed_window ↔ recurrence | 42 | 35 | 83.3% |
+| HOME | howde_style ↔ recurrence | 26 | 20 | 76.9% |
+| OFFICE | fixed_window ↔ howde_style | 19 | 16 | 84.2% |
+| OFFICE | fixed_window ↔ recurrence | 25 | 6 | 24.0% |
+| OFFICE | howde_style ↔ recurrence | 24 | 3 | 12.5% |
+
+The fixed-window vs recurrence HOME agreement is effectively unchanged from the historical run (82.9% -> 83.3%), despite the broader cohort.
+
+For OFFICE, schedule-aware fixed-window and HoWDe-style candidates still agree strongly with each other, but recurrence-based alternate-location ranking agrees poorly with either. This strengthens the earlier decision not to interpret recurring alternate locations as semantic OFFICE without additional evidence.
+
+### Split-half test-retest
+
+Same-location agreement among users where both halves produced a candidate:
+
+| split | method | HOME | OFFICE |
+|---|---|---:|---:|
+| first vs second half | fixed_window | 68.4% (13/19) | 50.0% (5/10) |
+| first vs second half | howde_style | 20.0% (1/5) | 40.0% (2/5) |
+| first vs second half | recurrence | 41.0% (32/78) | 21.4% (3/14) |
+| odd vs even week | fixed_window | 81.3% (13/16) | 80.0% (8/10) |
+| odd vs even week | howde_style | 37.5% (3/8) | 66.7% (4/6) |
+| odd vs even week | recurrence | 53.5% (38/71) | 35.3% (6/17) |
+
+The broader cohort does not improve temporal reliability uniformly. Several first-vs-second-half measures weaken relative to the Beijing-v1 run, especially for HoWDe-style HOME and recurrence.
+
+The small HoWDe overlap counts remain a major limitation and prevent strong population-level conclusions from those percentages alone.
+
+### Held-out predictive persistence
+
+Using the first 60% of observed dates for candidate inference and the last 40% for evaluation:
+
+| method | label | train candidates | seen in holdout | held-out top-1 |
+|---|---|---:|---:|---:|
+| fixed_window | HOME | 28 | 85.7% | 50.0% |
+| fixed_window | OFFICE | 19 | 63.2% | 42.1% |
+| howde_style | HOME | 11 | 72.7% | 45.5% |
+| howde_style | OFFICE | 15 | 40.0% | 26.7% |
+| recurrence | HOME | 90 | 57.8% | 37.8% |
+| recurrence | OFFICE | 26 | 69.2% | 38.5% |
+
+Persistence is generally slightly weaker than in the historical Beijing-v1 cohort. This is consistent with the broader all-resolved cohort containing recurring structures that are real but less temporally stable.
+
+### Missing-data robustness
+
+At 30% random stay dropout, candidate retention is:
+
+- fixed_window: HOME 81.7%, OFFICE 78.9%;
+- howde_style: HOME 69.2%, OFFICE 56.8%;
+- recurrence: HOME 81.7%, OFFICE 65.8%.
+
+The qualitative conclusion is unchanged: fixed-window HOME remains comparatively robust, while HoWDe-style evidence is more support-sensitive.
+
+### +12 h schedule stress
+
+Candidate retention after preserving physical locations and shifting local time by +12 h:
+
+- fixed_window: HOME 31.0%, OFFICE 13.3%;
+- howde_style: HOME 19.2%, OFFICE 11.1%;
+- recurrence: HOME 100.0%, OFFICE 68.4%.
+
+This remains a schedule-dependence diagnostic rather than an accuracy ranking. Recurrence HOME is invariant by construction; clock-window methods are expected to change under a 12-hour shift.
+
+## CP2-v2 Stage 05 decision
+
+The direction of the Stage-05 decision does not change:
+
+1. Keep the production HOME/OFFICE gate conservative; do not expand emissions merely because recurring-location coverage increased.
+2. HOME still shows substantially stronger cross-method convergence than OFFICE.
+3. Recurrence-only OFFICE expansion remains unsupported and is now even more clearly method-dependent.
+4. The broader CP2-v2 cohort adds recurring-place coverage but does not add proportional semantic certainty; several temporal-stability metrics weaken.
+5. Proceed to candidate-level HOME consensus tiers and adaptive/sliding-window WORK analysis in Stage 05b.
+6. Continue to describe all results as behavioral reliability/persistence evidence rather than semantic accuracy.
+
+The key new CP2-v2 finding is therefore:
+
+> broader recurring-place coverage does not translate directly into broader reliable HOME/OFFICE semantics; abstention and conservative semantic gates remain justified.
