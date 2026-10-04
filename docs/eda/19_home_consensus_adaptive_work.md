@@ -16,7 +16,7 @@ Stage 05b therefore does not tune another global OFFICE window and does not modi
 Do not reopen in this stage:
 
 - CP1 cleaning and stay detection;
-- frozen Beijing semantic cohort;
+- refrozen CP2-v2 all-resolved per-stay timezone semantic representation (the 2026-10-01 Beijing-v1 measurement below is retained as historical evidence);
 - complete-link 200 m locations;
 - Stage-05 method definitions;
 - 27 HOME / 16 OFFICE production parity.
@@ -165,3 +165,110 @@ The result is therefore support-limited more than threshold-fragile, but the sam
 3. Do not expand HOME using recurrence-only candidates.
 4. Do not convert stable_secondary_anchor to OFFICE.
 5. If Stage 05 continues, the next narrow experiment should add independent transition and weekday/arrival regularity evidence for the stable-secondary subset, rather than search another global threshold.
+
+
+## CP2-v2 Stage 05b refresh — 2026-10-04
+
+Stage 05b was rerun after the CP2-v2 Stage-05 reliability refresh.
+
+The 2026-10-01 section above is retained as historical Beijing-v1 evidence. The measurements below are the current CP2-v2 production-dependent result.
+
+### HOME consensus: broader candidate universe, still narrow reliable expansion
+
+The CP2-v2 run produced 97 unique HOME vote winners:
+
+- 23 HIGH;
+- 6 MEDIUM;
+- 68 UNCERTAIN.
+
+Historical Beijing-v1 had 67 unique winners:
+
+- 21 HIGH;
+- 4 MEDIUM;
+- 42 UNCERTAIN.
+
+Among the current HIGH/MEDIUM winners:
+
+- HIGH: 21 baseline-emitted + 2 fixed candidates not emitted;
+- MEDIUM: 3 baseline-emitted + 3 fixed candidates not emitted.
+
+Therefore:
+
+- 29 users have HIGH/MEDIUM HOME consensus;
+- 24 of those are already baseline-emitted HOME;
+- 5 HIGH/MEDIUM candidates lie outside production HOME;
+- all 5 are already fixed-window candidates that failed the final production emission gate;
+- no HIGH/MEDIUM expansion candidate comes from the broad recurrence-only / outside-fixed-candidate population.
+
+Historical Beijing-v1 had only 2 such HIGH/MEDIUM expansion candidates. CP2-v2 therefore increases the targeted-review set from 2 to 5, but it still does not support broad HOME expansion toward the full recurring-anchor universe.
+
+The uncertain tier also expands strongly:
+
+- 7 fixed candidates not emitted;
+- 61 outside-fixed-candidate winners.
+
+This is consistent with Stage 05: broader recurring-place coverage creates more candidate structure than semantic certainty.
+
+### Adaptive secondary-anchor audit: stable WORK-like subset does not expand
+
+Primary setting:
+
+- 42-day windows;
+- 14-day step;
+- stability threshold 0.70.
+
+Among the 29 HIGH/MEDIUM HOME users:
+
+- stable_secondary_anchor: 9;
+- multi_anchor: 3;
+- unstable: 1;
+- insufficient: 16.
+
+Historical Beijing-v1 used 25 HIGH/MEDIUM HOME users and produced:
+
+- stable_secondary_anchor: 9;
+- multi_anchor: 3;
+- unstable: 1;
+- insufficient: 12.
+
+The four additional CP2-v2 HOME-consensus users therefore enter the primary adaptive audit entirely as additional insufficient-support cases. The stable, multi-anchor and unstable counts are unchanged.
+
+This is the central Stage-05b CP2-v2 result:
+
+> broadening the HOME-consensus cohort does not broaden the stable-secondary WORK-like cohort.
+
+The primary sufficient subset remains 13 users.
+
+For the 42-day sensitivity row, fixed-window OFFICE is comparable for 10 users and the adaptive dominant anchor matches it for 40.0%, unchanged from the historical result.
+
+The rerun notebook does not print refreshed aggregate HoWDe-style or recurrence-OFFICE agreement tables, so no new values are claimed for those comparisons here.
+
+### Window sensitivity
+
+At stability threshold 0.70:
+
+- 28d: 10 sufficient, 6 stable, 3 multi-anchor, 1 unstable;
+- 42d: 13 sufficient, 9 stable, 3 multi-anchor, 1 unstable;
+- 56d: 14 sufficient, 10 stable, 4 multi-anchor, 0 unstable.
+
+The stable-secondary counts at 28d / 42d / 56d remain exactly 6 / 9 / 10, matching the historical run.
+
+At 42d:
+
+- threshold 0.60 -> 10 stable, 2 multi-anchor, 1 unstable;
+- threshold 0.70 -> 9 stable, 3 multi-anchor, 1 unstable;
+- threshold 0.80 -> 9 stable, 3 multi-anchor, 1 unstable.
+
+Thus the primary stable count remains insensitive to moving the threshold from 0.70 to 0.80.
+
+At 56d, the sufficient-user count remains 14 and the stable count remains 10. The non-stable remainder shifts from the historical 3 multi-anchor / 1 unstable split to 4 multi-anchor / 0 unstable, without changing the main stable-secondary conclusion.
+
+### CP2-v2 Stage 05b decision
+
+1. Keep production HOME/OFFICE unchanged.
+2. Retain the 5 non-emitted HIGH/MEDIUM HOME candidates as a small targeted-review set only; do not promote them automatically.
+3. Do not expand HOME from recurrence-only candidates.
+4. Do not convert stable_secondary_anchor to OFFICE.
+5. The stable-secondary subset remains 9 users despite the broader CP2-v2 HOME-consensus cohort.
+6. Proceed to Stage 05c independent evidence for those stable-secondary users rather than tuning another global WORK threshold.
+7. Continue treating all tiers and adaptive states as behavioral evidence, not semantic ground truth.
