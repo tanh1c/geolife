@@ -82,3 +82,41 @@ OSM/BCL signs remain same-user candidate-minus-peer context differences.
 Do not convert a triangulation signature into WORK/OFFICE.
 
 Do not retune any mobility or semantic threshold after seeing the result.
+
+
+## Final measured handoff — 2026-10-04
+
+Stage 07h completed successfully on commit `ff79fdd`.
+
+Measured decision snapshot:
+
+```text
+stable_secondary_users                       9
+behavior_available_users                     7
+behavior_strict_support_users                0
+behavior_directional_majority_users          3
+both_external_sources_users                  9
+all_three_sources_users                      7
+external_both_positive_100m_users            1
+strict_three_way_convergence_100m_users      0
+directional_three_way_convergence_100m_users 0
+candidate_context_both_sources_100m_users    1
+```
+
+At 100 m:
+
+- OSM and BCL are both positive for only 1 / 9 users;
+- both negative for 3 / 9;
+- directly opposite in sign for 3 / 9;
+- exact-candidate context occurs in both sources for only 1 / 9.
+
+The single user positive in both external sources has weak Stage-05c behavioral evidence.
+
+Final decision:
+
+- no strict or directional three-way convergence;
+- no WORK/OFFICE semantic promotion;
+- no threshold retuning;
+- the semantic-source track is closed.
+
+The saved Stage-07h private panel can support future audit/review, but no further source-mining stage is recommended on this cohort without stronger ground truth.

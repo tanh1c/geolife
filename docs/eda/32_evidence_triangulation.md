@@ -247,3 +247,119 @@ If strict convergence is zero, the correct result is that no user satisfies the 
 If one or more users show directional convergence, that remains descriptive unless the primary behavioral criterion and independent semantic evidence are jointly compelling.
 
 No upstream threshold may be tuned after seeing the 07h result.
+
+
+## Measured result — 2026-10-04
+
+Stage 07h executed successfully on repository commit `ff79fdd`.
+
+There was no traceback. The candidate-location identity gate passed across all available Stage-05c, Stage-07e, and Stage-07g evidence, and the aggregate/private outputs were saved under:
+
+`/mnt/geolife-data/cache/cp2_v2/07h_evidence_triangulation/`.
+
+### Source coverage
+
+The frozen cohort remains 9 Stage-05b stable-secondary users.
+
+| source | users available | share |
+|---|---:|---:|
+| Stage 05c behavior | 7 / 9 | 77.8% |
+| Stage 07e OSM | 9 / 9 | 100% |
+| Stage 07g BCL | 9 / 9 | 100% |
+| OSM + BCL | 9 / 9 | 100% |
+| behavior + OSM + BCL | 7 / 9 | 77.8% |
+
+The two users without Stage-05c fair comparators remain in the frozen cohort; they are evidence-unavailable, not negative behavioral cases.
+
+### External-source directional agreement
+
+Candidate-minus-peer direction by shared radius:
+
+| threshold | both positive | both negative | same direction incl. neutral | opposite positive/negative | OSM positive | BCL positive |
+|---|---:|---:|---:|---:|---:|---:|
+| 25 m | 1 | 2 | 6 | 0 | 2 | 2 |
+| 50 m | 1 | 3 | 5 | 0 | 2 | 3 |
+| 100 m | 1 | 3 | 4 | 3 | 2 | 4 |
+
+At 25–50 m, OSM and BCL often share the same direction, but only one user is positive in both sources.
+
+At the primary 100 m radius, the external sources become more heterogeneous:
+
+- 1 user positive in both;
+- 3 users negative in both;
+- 3 users have directly opposite positive/negative directions;
+- only 4 / 9 have the same sign when neutral is included.
+
+Therefore the external sources do not converge toward a common stable-secondary-favoring pattern.
+
+### Exact-candidate context overlap at 100 m
+
+| pattern | users | share |
+|---|---:|---:|
+| both OSM and BCL context | 1 | 11.1% |
+| OSM only | 1 | 11.1% |
+| BCL only | 3 | 33.3% |
+| neither | 4 | 44.4% |
+
+Only 1 / 9 exact stable-secondary candidates carries context in both external sources.
+
+This is consistent with the different source coverage/semantics already observed in 07e and 07g; BCL identifies more candidate-side context than historical OSM.
+
+### Behavior bands and external evidence
+
+The measured behavioral bands contain:
+
+- 0 strict users;
+- 1 partial user;
+- 6 weak users;
+- 2 behavior-unavailable users.
+
+This preserves the Stage-05c primary result: no stable-secondary user is top-1 on at least 3 / 4 independent behavioral axes.
+
+There are 3 users with the weaker `behavior_directional_majority` criterion (`beats_peer_median_axes >= 3`).
+
+However:
+
+- the single user with both OSM and BCL positive at 100 m is in the **weak** behavioral band;
+- no behavior-directional-majority user is simultaneously positive in both external sources.
+
+The partial behavior user has zero positive external sources at 100 m despite beating the peer median on all 4 behavioral axes.
+
+### Decision snapshot
+
+Final counts:
+
+| field | users |
+|---|---:|
+| stable-secondary users | 9 |
+| behavior available | 7 |
+| behavior strict support | 0 |
+| behavior directional majority | 3 |
+| both external sources available | 9 |
+| all three sources available | 7 |
+| OSM + BCL both positive at 100 m | 1 |
+| strict three-way convergence at 100 m | 0 |
+| directional three-way convergence at 100 m | 0 |
+| exact candidate has context in both external sources at 100 m | 1 |
+
+The strongest predeclared result is therefore:
+
+`strict_three_way_convergence_100m_users = 0`.
+
+Even after relaxing behavior from the primary `top1 >= 3` rule to the weaker directional-majority criterion, convergence remains:
+
+`directional_three_way_convergence_100m_users = 0`.
+
+## Stage 07h decision
+
+1. No stable-secondary user satisfies the predeclared strict three-source convergence requirement.
+2. No user satisfies even the weaker directional three-source convergence requirement.
+3. The only user positive in both external sources at 100 m has weak behavioral evidence.
+4. OSM and BCL frequently disagree at the user level by 100 m, so combining them into a single semantic score would hide meaningful source disagreement.
+5. The evidence does not support promotion of stable-secondary anchors to WORK/OFFICE.
+6. Do not tune mobility or semantic thresholds after this result.
+7. Close the current semantic-source track.
+
+Further progress on semantic WORK/OFFICE validity should require qualitatively better supervision or ground truth rather than additional post-hoc source hunting on the same nine-user cohort.
+
+The stable-secondary pattern remains a valid descriptive mobility structure. The correct project-level claim is that its behavioral recurrence is real, while the available independent semantic evidence does not establish a general WORK/OFFICE interpretation.
