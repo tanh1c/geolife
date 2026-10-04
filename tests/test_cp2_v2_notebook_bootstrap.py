@@ -60,3 +60,23 @@ def test_cp2_v2_semantic_notebooks_preflight_timezonefinder(filename: str) -> No
 
     assert "from timezonefinder import TimezoneFinder" in all_code
     assert "tz_localize(None)" not in all_code
+
+
+def test_stage07e_bootstraps_pandas_and_analysis_helper() -> None:
+    first_code, all_code = _code(
+        ROOT / "notebooks" / "07e_semantic_distance_alignment.ipynb"
+    )
+
+    assert "import pandas as pd" in first_code
+    assert "spec_from_file_location('s07e'" in first_code
+    assert "spec.loader.exec_module(s07e)" in first_code
+
+    first_pd_use = all_code.find("pd.read_pickle")
+    first_s07e_use = all_code.find("s07e.STAGE07D")
+    pd_import = all_code.find("import pandas as pd")
+    helper_load = all_code.find("spec.loader.exec_module(s07e)")
+
+    assert pd_import >= 0
+    assert helper_load >= 0
+    assert first_pd_use > pd_import
+    assert first_s07e_use > helper_load
