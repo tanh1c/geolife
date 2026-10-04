@@ -491,6 +491,11 @@ def build_ohsome_request(
     lat = float(row["latitude"])
     lon = float(row["longitude"])
     timestamp = pd.Timestamp(row["median_observation_date"])
+    if timestamp.date() < OHSOME_START_DATE:
+        raise ValueError(
+            "anchor median_observation_date predates ohsome history boundary "
+            f"{OHSOME_START_DATE.isoformat()}: {timestamp.date().isoformat()}"
+        )
     if timestamp.tzinfo is None:
         timestamp = timestamp.tz_localize("UTC")
     else:
@@ -678,6 +683,7 @@ def fetch_ohsome_context_with_fetcher(
     - cached anchors are still parsed;
     - partial context + request log are returned instead of failing the stage.
     """
+    anchors = ohsome_eligible_anchors(anchors)
     cache_dir.mkdir(parents=True, exist_ok=True)
     rows = []
     logs = []
