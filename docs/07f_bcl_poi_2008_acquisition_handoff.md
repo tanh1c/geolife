@@ -226,3 +226,18 @@ The actual Figshare attachment is an ArcGIS File Geodatabase, not an MDB.
 
 Stage 07g can now focus on deterministic normalization / Beijing-only extraction. It should not repeat provenance/download work except to validate the existing manifest/hash and source path.
 
+
+
+## CP2-v2 downstream note — 2026-10-04
+
+The source-level Stage-07f result remains valid, but the old handoff counts and Beijing-only 07g wording were tied to the historical CP2-v1 anchor universe.
+
+Current CP2-v2 downstream scope is:
+
+- 298 recurring non-HOME anchors / 29 users;
+- 259 BCL-2008 exact/+1-year eligible anchors / 23 users;
+- production namespace `production_complete_link_200m_all_resolved_timezone_v2`.
+
+Stage 07g therefore uses anchor-neighborhood extraction rather than a hard-coded Beijing-only crop.
+
+No Stage-07f rerun is required for the current downstream run. If 07f is rerun later, its notebook now defaults to `main` and reads the explicit CP2-v2 Stage-07c anchor artifact.

@@ -31,7 +31,7 @@ BCL_OFFICIAL_URL = "https://www.beijingcitylab.org/data/data-011/index.html"
 FIGSHARE_DOI = "10.6084/m9.figshare.28667492"
 FIGSHARE_ARTICLE_ID = 28667492
 FIGSHARE_API_URL = f"https://api.figshare.com/v2/articles/{FIGSHARE_ARTICLE_ID}"
-EXPECTED_LOCATION_NAMESPACE = "production_complete_link_200m_beijing_policy_v1"
+EXPECTED_LOCATION_NAMESPACE = "production_complete_link_200m_all_resolved_timezone_v2"
 
 ALLOWED_ARCHIVE_SUFFIXES = {".mdb", ".zip", ".rar"}
 RECOGNIZED_REUSE_LICENSE_TOKENS = (
