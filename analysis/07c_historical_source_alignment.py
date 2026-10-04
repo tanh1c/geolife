@@ -568,7 +568,7 @@ def _supported_home_rows(home_evidence: pd.DataFrame) -> pd.DataFrame:
     return home[keep].rename(columns={"location_id": "home_location_id"})
 
 
-PRODUCTION_LOCATION_NAMESPACE = "production_complete_link_200m_beijing_policy_v1"
+PRODUCTION_LOCATION_NAMESPACE = "production_complete_link_200m_all_resolved_timezone_v2"
 
 
 def validate_location_namespace(
