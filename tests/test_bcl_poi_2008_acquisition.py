@@ -484,3 +484,25 @@ def test_stage07f_notebook_contract_inventories_alternate_containers():
     assert "container_kind" in code
     assert "endswith('.gdb')" in code
     assert "no supported spatial container found after acquisition" in code
+
+
+def test_stage07f_notebook_uses_cp2_v2_main_anchor_artifact():
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07f_bcl_poi_2008_acquisition.ipynb"
+    )
+    notebook = json.loads(path.read_text(encoding="utf-8"))
+    code = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    )
+
+    assert "GEOLIFE_REPO_BRANCH" in code
+    assert "'main'" in code
+    assert (
+        "cache'/'cp2_v2'/'07c_historical_source_alignment'"
+        in code
+    )
+    assert "eda/07f-bcl-poi-2008-acquisition" not in code
