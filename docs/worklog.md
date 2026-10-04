@@ -2619,3 +2619,32 @@ Reproducibility cleanup included:
 - Stage 07f notebook reads the explicit CP2-v2 Stage-07c anchor artifact instead of globbing the first historical anchor cache.
 
 No Stage-07f rerun is required for the current 07g run because the source manifest / raw archive / extracted FileGDB are source-level artifacts and already passed acquisition, licence, format and CRS gates.
+
+
+## 2026-10-04 — Stage 07g runtime handoff fix
+
+The first Stage-07g runtime extracted the BCL neighborhood successfully:
+
+- 118 GDAL query tiles;
+- 5,071 raw tile rows;
+- 4,884 deduplicated neighborhood POIs;
+- worker status `ok = True`.
+
+Two notebook/worker handoff issues were then observed:
+
+1. `modal.Volume.reload()` cannot be called from the notebook process; Modal restricts it to a running function.
+2. The worker-written pandas pickle was visible on the next attempt but could not be unpickled by the notebook kernel because the worker and notebook pandas runtimes used incompatible pickle internals.
+
+These were execution-environment issues, not BCL/GDAL extraction failures.
+
+Fix:
+
+- remove notebook-side Volume reload;
+- stop using a pandas pickle as the cross-container handoff;
+- worker persists the precise neighborhood POIs as private CSV for audit/reuse;
+- worker also returns the ~4.9k deduplicated POI rows through Modal result serialization;
+- notebook reconstructs the DataFrame directly from the serialized records;
+- assert returned row count equals the worker's deduplicated count before lexical analysis;
+- regression test forbids `data_volume.reload()` and `pd.read_pickle(POI_PRIVATE)` in this handoff.
+
+No Stage-07g semantic rule or spatial extraction logic changed.
