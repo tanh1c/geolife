@@ -2707,3 +2707,49 @@ Interpretation:
 - no WORK/OFFICE promotion is justified.
 
 Decision: keep `stable_secondary_anchor` descriptive only; do not tune mobility thresholds to BCL; Stage 07g closes as independent external evidence consistent with the null/mixed Stage-05c/07e semantic conclusion.
+
+
+## 2026-10-04 — Stage 07h evidence triangulation added
+
+Stage 07g closed as independent historical lexical evidence consistent with the null/mixed Stage-05c and Stage-07e conclusions.
+
+Stage 07h was added to test cross-source convergence at the individual stable-secondary-user level without creating a new semantic score.
+
+Frozen cohort:
+
+- 9 Stage-05b stable-secondary users;
+- exact candidate = Stage-05b `dominant_location_id`.
+
+Inputs:
+
+- Stage 05c behavioral candidate-vs-peer comparison: 7 users with fair comparators;
+- Stage 07e historical OSM candidate-vs-peer comparison: 9 users;
+- Stage 07g BCL lexical candidate-vs-peer comparison: 9 users.
+
+Method:
+
+- candidate location ids must match across every available source;
+- preserve Stage-05c primary criterion `top1_evidence_axes >= 3`;
+- retain weaker `beats_peer_median_axes >= 3` only as descriptive directional majority;
+- preserve OSM/BCL candidate-minus-peer differences at 25 / 50 / 100 m;
+- use 100 m as the shared primary cross-source radius;
+- summarize external sign agreement, exact-candidate context overlap, behavior/external signatures, and strict/directional three-way convergence;
+- user-level evidence panel remains private;
+- no weighted WORK/OFFICE probability or semantic classifier is created.
+
+New files:
+
+- `analysis/07h_evidence_triangulation.py`;
+- `notebooks/07h_evidence_triangulation.ipynb`;
+- `tests/test_evidence_triangulation.py`;
+- `docs/eda/32_evidence_triangulation.md`;
+- `docs/07h_evidence_triangulation_handoff.md`.
+
+Expected frozen input checks in the notebook:
+
+- 05b stable-secondary rows: 9;
+- 05c fair-comparator users: 7;
+- 07e OSM comparison users: 9;
+- 07g BCL comparison users: 9.
+
+Next action: run Stage 07h and inspect aggregate convergence signatures before deciding whether the external semantic-source track should close.
