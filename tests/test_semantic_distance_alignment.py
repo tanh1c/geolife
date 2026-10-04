@@ -568,3 +568,93 @@ def test_validate_full_cache_ignores_pre_ohsome_anchor(tmp_path):
     assert len(mapping) == 1
     assert mapping.iloc[0]["location_id"] == 2
     assert Path(mapping.iloc[0]["cache_path"]).exists()
+
+
+def test_pre_ohsome_anchor_is_not_treated_as_no_context():
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "median_observation_date": "2007-09-01",
+            },
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "median_observation_date": "2008-01-01",
+            },
+        ]
+    )
+    features = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "category": "office_commercial",
+                "distance_m": 20.0,
+            }
+        ]
+    )
+
+    result = module.build_anchor_semantic_metrics(anchors, features).set_index("location_id")
+
+    assert not bool(result.loc[1, "ohsome_eligible"])
+    assert pd.isna(result.loc[1, "work_compatible_censored_distance_100m"])
+    assert result.loc[1, "work_distance_bucket"] == "not_eligible"
+
+    assert bool(result.loc[2, "ohsome_eligible"])
+    assert result.loc[2, "work_distance_bucket"] == "0_25"
+
+    summary = module.summarize_distance_buckets(result.reset_index())
+    assert int(summary["anchors"].sum()) == 1
+
+
+def test_stable_secondary_comparison_excludes_ineligible_peer():
+    module = _module()
+    aligned = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 1,
+                "median_observation_date": "2008-01-01",
+                "stable_secondary_user": True,
+                "stable_secondary_anchor": True,
+                "stable_secondary_peer_anchor": False,
+                "work_compatible_censored_distance_100m": 20.0,
+                "work_compatible_within_25m": True,
+                "work_compatible_within_50m": True,
+                "work_compatible_within_100m": True,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 2,
+                "median_observation_date": "2007-09-01",
+                "stable_secondary_user": True,
+                "stable_secondary_anchor": False,
+                "stable_secondary_peer_anchor": True,
+                "work_compatible_censored_distance_100m": np.nan,
+                "work_compatible_within_25m": False,
+                "work_compatible_within_50m": False,
+                "work_compatible_within_100m": False,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 3,
+                "median_observation_date": "2008-02-01",
+                "stable_secondary_user": True,
+                "stable_secondary_anchor": False,
+                "stable_secondary_peer_anchor": True,
+                "work_compatible_censored_distance_100m": 100.0,
+                "work_compatible_within_25m": False,
+                "work_compatible_within_50m": False,
+                "work_compatible_within_100m": False,
+            },
+        ]
+    )
+
+    result = module.build_stable_secondary_user_comparisons(aligned)
+
+    assert len(result) == 1
+    assert int(result.iloc[0]["peer_anchor_count"]) == 1
+    assert result.iloc[0]["candidate_minus_peer_share_100m"] == 1.0
