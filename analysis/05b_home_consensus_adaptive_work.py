@@ -23,6 +23,20 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
+
+def _local_wall_series(values: pd.Series) -> pd.Series:
+    """Normalize mixed tz-aware timestamps to naive per-stay local wall clock."""
+    normalized = []
+    for value in values:
+        ts = pd.Timestamp(value)
+        if pd.isna(ts):
+            normalized.append(pd.NaT)
+        elif ts.tzinfo is not None:
+            normalized.append(ts.tz_localize(None))
+        else:
+            normalized.append(ts)
+    return pd.Series(normalized, index=values.index, dtype="datetime64[ns]")
+
 METHOD_FIXED = "fixed_window"
 METHOD_HOWDE = "howde_style"
 METHOD_RECURRENCE = "recurrence"
@@ -422,7 +436,7 @@ def _location_window_stats(
         return pd.DataFrame()
 
     work = frame.copy()
-    work["arrival_time_local"] = pd.to_datetime(work["arrival_time_local"])
+    work["arrival_time_local"] = _local_wall_series(work["arrival_time_local"])
     work["local_date"] = work["arrival_time_local"].dt.date
     work["arrival_hour"] = (
         work["arrival_time_local"].dt.hour
@@ -486,7 +500,7 @@ def build_adaptive_work_windows(
 
     stays = semantic_stays.copy()
     stays["user_id"] = stays["user_id"].astype(str)
-    stays["arrival_time_local"] = pd.to_datetime(stays["arrival_time_local"])
+    stays["arrival_time_local"] = _local_wall_series(stays["arrival_time_local"])
     stays["local_date"] = stays["arrival_time_local"].dt.date
 
     rows = []
