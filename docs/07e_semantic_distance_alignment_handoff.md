@@ -125,3 +125,43 @@ Decision: close Stage 07e as null/mixed independent semantic evidence. Do not cr
 
 Next source priority: BCL POI 2008 acquisition / reuse-rights / CRS audit for the 185 / 198 corrected anchors that are temporally eligible.
 
+
+
+## CP2-v2 final measured handoff — 2026-10-04
+
+Final Stage-07e universe:
+
+- 298 recurring non-HOME anchors / 29 users;
+- production namespace `production_complete_link_200m_all_resolved_timezone_v2`;
+- 296 historical-OSM-eligible anchors;
+- 2 pre-ohsome anchors retained but excluded from OSM evidence denominators;
+- 296 / 296 raw OSM cache entries validated.
+
+Exact radial <=100 m:
+
+- 86 / 296 eligible anchors have semantic mapped context;
+- 59 / 296 have broad work-compatible mapped context.
+
+Stable-secondary comparison:
+
+- 9 users;
+- 9 exact candidates;
+- candidate-context users = 2 / 9 at 25, 50 and 100 m;
+- mean candidate-minus-peer share = +0.123 / +0.088 / +0.036;
+- all composite bootstrap intervals cross zero;
+- both positive candidate cases are education;
+- 0 / 9 exact stable-secondary candidates have office/commercial within 100 m.
+
+The profile-axis merge was corrected before this final run. Within the 29-user analysis subset:
+
+- stable-secondary 9;
+- multiple-recurring 28;
+- adaptive multi-anchor 3;
+- repeated-route 12;
+- shifted-schedule 0;
+- mobile-complexity 7;
+- independent-secondary-evidence available 7.
+
+Decision: Stage 07e closes as null/mixed independent semantic evidence. No production Home/Office change and no WORK semantic promotion is justified.
+
+The CP2-v2 production-dependent downstream refresh is complete through Stage 07e.
