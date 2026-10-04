@@ -102,6 +102,7 @@ def validate_full_ohsome_cache(
     request_log is retained only as optional audit metadata.
     """
     anchors = _normalise_anchor_keys(anchors)
+    anchors = STAGE07D.ohsome_eligible_anchors(anchors)
 
     required = {"latitude", "longitude", "median_observation_date"}
     missing = required.difference(anchors.columns)
@@ -316,13 +317,14 @@ def build_feature_distance_table(
     raw_cache_dir: Path,
 ) -> pd.DataFrame:
     anchors = _normalise_anchor_keys(anchors)
+    eligible_anchors = STAGE07D.ohsome_eligible_anchors(anchors)
     required = {"latitude", "longitude"}
     missing = required.difference(anchors.columns)
     if missing:
         raise ValueError(f"anchors missing coordinates: {sorted(missing)}")
 
-    mapping = validate_full_ohsome_cache(anchors, request_log, raw_cache_dir)
-    lookup = anchors.merge(
+    mapping = validate_full_ohsome_cache(eligible_anchors, request_log, raw_cache_dir)
+    lookup = eligible_anchors.merge(
         mapping[["user_id", "location_id", "cache_path"]],
         on=["user_id", "location_id"],
         how="inner",
