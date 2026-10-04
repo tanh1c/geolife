@@ -2648,3 +2648,62 @@ Fix:
 - regression test forbids `data_volume.reload()` and `pd.read_pickle(POI_PRIVATE)` in this handoff.
 
 No Stage-07g semantic rule or spatial extraction logic changed.
+
+
+## 2026-10-04 — Stage 07g measured result
+
+Stage 07g completed successfully on commit `9778b66` after the Modal worker-handoff correction.
+
+Source / scope:
+
+- Stage-07f manifest gate: pass;
+- 298 candidate anchors / 29 users;
+- 259 BCL-eligible anchors / 23 users;
+- 93 exact 2008 anchors;
+- 2 proxy-2007 anchors;
+- 164 proxy-2009 anchors.
+
+Extraction:
+
+- 118 GDAL tiles;
+- 5,071 raw tile rows;
+- 4,884 deduplicated neighborhood POIs;
+- 966 exact anchor-POI pairs <=100 m.
+
+Coverage:
+
+- any POI <=100 m: 140 / 259;
+- any declared lexical signal <=100 m: 97 / 259;
+- broad work-compatible lexical signal <=100 m: 87 / 259.
+
+Lexical status among extracted POIs:
+
+- unknown 3,769 / 4,884 = 77.17%;
+- single-signal 1,081 = 22.13%;
+- ambiguous multi-signal 34 = 0.70%.
+
+Stable-secondary paired comparison, n=9:
+
+- 25 m: 2/9 candidate-context, candidate-peer +0.199, CI [-0.041, +0.537];
+- 50 m: 3/9, +0.171, CI [-0.099, +0.494];
+- 100 m: 4/9, +0.021, CI [-0.360, +0.395].
+
+All broad-composite intervals cross zero.
+
+Category decomposition:
+
+- education candidates: 1/9 at 25 m, 2/9 at 50 m, 3/9 at 100 m; positive contrasts cross zero;
+- retail/service candidates: 2/9 at all thresholds; positive contrasts cross zero;
+- business-name candidates: 0/9 at all thresholds;
+- business-name is peer-favored at 50 m (-0.053, CI [-0.104, -0.009]) and 100 m (-0.162, CI [-0.232, -0.090]);
+- recreation/tourism is peer-favored at 25 / 50 / 100 m with intervals below zero;
+- civic/institutional is peer-favored at 100 m.
+
+Interpretation:
+
+- BCL provides broader external historical name context than OSM;
+- the exact stable-secondary candidate still does not beat same-user recurring peers reliably;
+- there is no business-name support at any exact stable-secondary candidate;
+- no WORK/OFFICE promotion is justified.
+
+Decision: keep `stable_secondary_anchor` descriptive only; do not tune mobility thresholds to BCL; Stage 07g closes as independent external evidence consistent with the null/mixed Stage-05c/07e semantic conclusion.

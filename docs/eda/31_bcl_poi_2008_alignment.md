@@ -158,7 +158,7 @@ Category-specific candidate-vs-peer summaries are also produced so a positive co
 
 Private:
 
-- `bcl_neighborhood_pois_private.pkl`;
+- `bcl_neighborhood_pois_private.csv`;
 - `bcl_neighborhood_pois_classified_private.pkl`;
 - `anchor_poi_matches_private.pkl`;
 - `anchor_bcl_lexical_metrics_private.pkl`;
@@ -205,3 +205,151 @@ A useful positive signal for stable-secondary geometry would require:
 - uncertainty that supports the directional claim.
 
 A null/mixed result remains a valid negative result and must not trigger mobility-threshold tuning.
+
+
+## Measured CP2-v2 result — 2026-10-04
+
+Stage 07g completed successfully on repository commit `9778b66` after the worker-handoff fix.
+
+There was no traceback in the final run, and all Stage-07g artifacts were saved under:
+
+`/mnt/geolife-data/cache/cp2_v2/07g_bcl_poi_2008_alignment/`.
+
+### Source and extraction integrity
+
+The Stage-07f manifest gate passed:
+
+- source: `bcl_poi_2008`;
+- runner status: `ready_for_normalization`;
+- container kind: `gdb`;
+- EPSG:4326;
+- gate notes: `ok`.
+
+Frozen CP2-v2 temporal scope:
+
+- candidate anchors: 298;
+- candidate users: 29;
+- BCL-eligible anchors: 259;
+- BCL-eligible users: 23;
+- exact-year 2008 anchors: 93;
+- 2007 one-year proxies: 2;
+- 2009 one-year proxies: 164.
+
+Spatial extraction:
+
+- deterministic query tiles: 118;
+- raw tile rows: 5,071;
+- deduplicated neighborhood POIs: 4,884;
+- exact anchor-POI pairs within 100 m: 966.
+
+Coverage among the 259 BCL-eligible anchors:
+
+- any BCL POI within 100 m: 140 / 259 = 54.05%;
+- any declared lexical signal within 100 m: 97 / 259 = 37.45%;
+- broad work-compatible lexical signal within 100 m: 87 / 259 = 33.59%.
+
+### Lexical coverage quality
+
+Among the 4,884 extracted neighborhood POIs:
+
+- unknown: 3,769 = 77.17%;
+- single-signal: 1,081 = 22.13%;
+- ambiguous multi-signal: 34 = 0.70%.
+
+This high unknown share is expected under the intentionally conservative lexical rules and is preferable to forcing names into unsupported categories.
+
+Category coverage at 100 m:
+
+| lexical category | anchors | users | anchor share |
+|---|---:|---:|---:|
+| education | 43 | 17 | 16.60% |
+| business_name | 26 | 11 | 10.04% |
+| retail_service | 24 | 12 | 9.27% |
+| recreation_tourism | 24 | 13 | 9.27% |
+| residential | 15 | 9 | 5.79% |
+| healthcare | 10 | 7 | 3.86% |
+| civic_institutional | 9 | 9 | 3.47% |
+| industrial | 7 | 5 | 2.70% |
+| transport | 1 | 1 | 0.39% |
+
+These are name-string cues only. They are not trusted BCL category labels.
+
+### Stable-secondary candidate versus same-user peers
+
+All 9 stable-secondary users have a valid BCL paired comparison.
+
+Broad work-compatible lexical composite:
+
+| threshold | candidate-context users | mean peer context share | mean candidate - peer share | bootstrap 95% CI |
+|---|---:|---:|---:|---:|
+| 25 m | 2 / 9 | 0.023 | +0.199 | [-0.041, +0.537] |
+| 50 m | 3 / 9 | 0.162 | +0.171 | [-0.099, +0.494] |
+| 100 m | 4 / 9 | 0.423 | +0.021 | [-0.360, +0.395] |
+
+All three composite intervals cross zero.
+
+The apparent candidate advantage at 25–50 m therefore does not establish stable-secondary-specific lexical evidence, and by 100 m the mean contrast is essentially null.
+
+### Category decomposition
+
+The broad composite hides materially different lexical families.
+
+Candidate-positive families:
+
+- education: 1 / 9 candidates at 25 m, 2 / 9 at 50 m, 3 / 9 at 100 m;
+- retail/service: 2 / 9 candidates at 25, 50 and 100 m;
+- residential: 1 / 9 candidate at 50 and 100 m.
+
+However, the positive education and retail/service candidate-minus-peer intervals all cross zero.
+
+Business-name evidence is notably absent from the exact stable-secondary candidates:
+
+- 0 / 9 at 25 m;
+- 0 / 9 at 50 m;
+- 0 / 9 at 100 m.
+
+Peers are more likely than candidates to have business-name lexical context:
+
+- 50 m mean candidate-minus-peer share: -0.053, 95% CI [-0.104, -0.009];
+- 100 m: -0.162, 95% CI [-0.232, -0.090].
+
+Civic/institutional at 100 m is also peer-favored:
+
+- mean candidate-minus-peer share: -0.059;
+- 95% CI [-0.125, -0.009].
+
+Recreation/tourism is peer-favored at all three thresholds:
+
+- 25 m: -0.050, CI [-0.088, -0.017];
+- 50 m: -0.083, CI [-0.138, -0.038];
+- 100 m: -0.154, CI [-0.223, -0.091].
+
+These negative contrasts should not be overinterpreted as real-world absence. They only show that, within this small 9-user paired sample, exact stable-secondary anchors are not uniquely associated with those name cues.
+
+### Factorized-axis overlap inside the BCL-eligible subset
+
+Within the 23-user BCL-eligible analysis subset:
+
+| axis | users | users with any broad work-compatible lexical context | share |
+|---|---:|---:|---:|
+| site_stable_secondary | 9 | 9 | 100% |
+| site_multiple_recurring | 23 | 20 | 87.0% |
+| site_adaptive_multi_anchor | 3 | 3 | 100% |
+| route_repeated | 12 | 12 | 100% |
+| schedule_shifted_evidence | 0 | 0 | n/a |
+| mobile_complexity_evidence | 7 | 7 | 100% |
+| independent_secondary_evidence_available | 7 | 7 | 100% |
+
+This is user-level "any anchor" coverage inside a selected 23-user subset. It does not imply the exact candidate anchor carries that context and must not be read as semantic validation of the mobility axes.
+
+## Stage 07g decision
+
+1. BCL-2008 provides materially broader historical POI-name coverage than the sparse OSM context, but most extracted names remain outside the deliberately narrow lexical rule set.
+2. Stable-secondary candidates do not show a reliable broad lexical advantage over same-user peers at 25 / 50 / 100 m.
+3. The exact candidates have no business-name lexical signal in any of the 9 users.
+4. Positive candidate-side cues are mainly education and retail/service, and their paired uncertainty crosses zero.
+5. The BCL result therefore does not justify promoting `stable_secondary_anchor` to WORK/OFFICE.
+6. Do not tune mobility thresholds to BCL.
+7. Keep BCL as independent historical lexical context only.
+
+The Stage-07g result is consistent with Stage 05c and Stage 07e: repeated secondary-anchor geometry is behaviorally real, but independent evidence does not support a broad semantic WORK/OFFICE claim.
