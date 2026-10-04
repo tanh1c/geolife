@@ -371,3 +371,19 @@ def test_ohsome_eligibility_respects_history_start():
 
     assert eligible["location_id"].tolist() == [2, 3]
     assert module.OHSOME_START_DATE.isoformat() == "2007-10-08"
+
+
+def test_ohsome_request_rejects_pre_history_date():
+    module = _module()
+    anchor = {
+        "latitude": 39.9,
+        "longitude": 116.4,
+        "median_observation_date": "2007-09-01",
+    }
+
+    try:
+        module.build_ohsome_request(anchor, radius_m=100)
+    except ValueError as exc:
+        assert "predates ohsome history boundary" in str(exc)
+    else:
+        raise AssertionError("pre-ohsome anchor must not produce a request")
