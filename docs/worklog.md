@@ -2137,3 +2137,76 @@ Required measured rerun order remains:
 `05 -> 05b -> 05c -> 07b -> 07c -> 07d -> 07e`.
 
 No new downstream measured result is frozen yet.
+
+
+## 2026-10-04 — Stage 05 CP2 v2 reliability refresh
+
+Stage 05 was rerun on the refrozen CP2-v2 all-resolved per-stay timezone production representation.
+
+Measured scope:
+
+- CP1 stays: 5,821;
+- CP1 stay users: 136;
+- semantic users: 136;
+- semantic locations: 2,015;
+- recurring locations: 716;
+- recurring-anchor users: 104;
+- production HOME emitted: 27;
+- production OFFICE emitted: 16.
+
+Historical Beijing-v1 Stage-05 scope was 97 semantic users / 1,111 locations / 486 recurring locations / 73 recurring-anchor users. The old section remains historical evidence and is not overwritten.
+
+Candidate coverage under CP2-v2:
+
+- fixed-window: 42 HOME / 30 OFFICE;
+- HoWDe-style: 26 HOME / 27 OFFICE;
+- recurrence: 104 HOME / 38 OFFICE.
+
+Cross-method same-location agreement:
+
+- HOME fixed vs HoWDe: 19/23 = 82.6%;
+- HOME fixed vs recurrence: 35/42 = 83.3%;
+- HOME HoWDe vs recurrence: 20/26 = 76.9%;
+- OFFICE fixed vs HoWDe: 16/19 = 84.2%;
+- OFFICE fixed vs recurrence: 6/25 = 24.0%;
+- OFFICE HoWDe vs recurrence: 3/24 = 12.5%.
+
+First-vs-second-half agreement:
+
+- fixed HOME 68.4%, OFFICE 50.0%;
+- HoWDe HOME 20.0%, OFFICE 40.0%;
+- recurrence HOME 41.0%, OFFICE 21.4%.
+
+Odd-vs-even-week agreement:
+
+- fixed HOME 81.3%, OFFICE 80.0%;
+- HoWDe HOME 37.5%, OFFICE 66.7%;
+- recurrence HOME 53.5%, OFFICE 35.3%.
+
+Held-out top-1 persistence:
+
+- fixed HOME 50.0%, OFFICE 42.1%;
+- HoWDe HOME 45.5%, OFFICE 26.7%;
+- recurrence HOME 37.8%, OFFICE 38.5%.
+
+At 30% stay dropout, candidate retention was:
+
+- fixed HOME/OFFICE 81.7% / 78.9%;
+- HoWDe HOME/OFFICE 69.2% / 56.8%;
+- recurrence HOME/OFFICE 81.7% / 65.8%.
+
+Under +12 h local-time stress:
+
+- fixed HOME/OFFICE 31.0% / 13.3%;
+- HoWDe HOME/OFFICE 19.2% / 11.1%;
+- recurrence HOME/OFFICE 100.0% / 68.4%.
+
+Interpretation:
+
+- CP2-v2 materially broadens recurring-place coverage without increasing frozen HOME/OFFICE emissions;
+- HOME cross-method convergence remains substantially stronger than recurrence-based OFFICE evidence;
+- the broader cohort does not improve temporal reliability uniformly and several persistence measures weaken;
+- additional recurring structure must not be treated as additional semantic certainty;
+- conservative emission/abstention remains justified.
+
+Decision: Stage 05 CP2-v2 refresh is complete. Proceed to Stage 05b HOME consensus tiers + adaptive WORK audit using the new `cache/cp2_v2/05_home_office_reliability_validation` artifacts.
