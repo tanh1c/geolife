@@ -277,6 +277,10 @@ def build_user_evidence_panel(
             BEHAVIOR_STRICT_TOP1_AXES
         )
     )
+    panel["behavior_directional_majority"] = (
+        panel["behavior_available"]
+        & panel["behavior_beats_peer_median_axes"].ge(3)
+    )
     panel["behavior_band"] = panel.apply(_behavior_band, axis=1)
 
     for prefix in ("osm", "bcl"):
@@ -339,6 +343,10 @@ def build_user_evidence_panel(
     )
     panel["strict_three_way_convergence_100m"] = (
         panel["behavior_primary_support"]
+        & panel["external_both_positive_100m"]
+    )
+    panel["directional_three_way_convergence_100m"] = (
+        panel["behavior_directional_majority"]
         & panel["external_both_positive_100m"]
     )
     panel["triangulation_signature_100m"] = (
@@ -526,6 +534,9 @@ def decision_snapshot(panel: pd.DataFrame) -> pd.DataFrame:
                 "behavior_strict_support_users": int(
                     panel["behavior_primary_support"].sum()
                 ),
+                "behavior_directional_majority_users": int(
+                    panel["behavior_directional_majority"].sum()
+                ),
                 "both_external_sources_users": int(both_external.sum()),
                 "all_three_sources_users": int(all_three.sum()),
                 "external_both_positive_100m_users": int(
@@ -533,6 +544,9 @@ def decision_snapshot(panel: pd.DataFrame) -> pd.DataFrame:
                 ),
                 "strict_three_way_convergence_100m_users": int(
                     panel["strict_three_way_convergence_100m"].sum()
+                ),
+                "directional_three_way_convergence_100m_users": int(
+                    panel["directional_three_way_convergence_100m"].sum()
                 ),
                 "candidate_context_both_sources_100m_users": int(
                     panel["candidate_context_pattern_100m"].eq("both").sum()
@@ -603,6 +617,7 @@ def synthetic_self_check() -> dict[str, object]:
     assert panel.loc[0, "osm_positive_thresholds"] == 2
     assert panel.loc[0, "bcl_positive_thresholds"] == 2
     assert not bool(panel.loc[0, "behavior_primary_support"])
+    assert bool(panel.loc[0, "behavior_directional_majority"])
     return {
         "status": "ok",
         "users": 1,
