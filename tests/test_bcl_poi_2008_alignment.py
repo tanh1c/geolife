@@ -262,7 +262,7 @@ def test_stage07g_notebook_contract():
     assert "production_complete_link_200m_beijing_policy_v1" not in code
 
 
-def test_stage07g_notebook_reloads_volume_before_reading_worker_output():
+def test_stage07g_notebook_uses_serialized_worker_handoff_not_cross_version_pickle():
     notebook_path = (
         Path(__file__).resolve().parents[1]
         / "notebooks"
@@ -275,9 +275,9 @@ def test_stage07g_notebook_reloads_volume_before_reading_worker_output():
         if cell.get("cell_type") == "code"
     )
 
-    reload_pos = code.find("data_volume.reload()")
-    read_pos = code.find("pd.read_pickle(POI_PRIVATE)")
-
-    assert reload_pos >= 0
-    assert read_pos > reload_pos
-    assert "Worker reported success but committed file is not visible after volume reload" in code
+    assert "poi_records" in code
+    assert "pd.DataFrame.from_records" in code
+    assert "pois.to_csv(output,index=False)" in code
+    assert "bcl_neighborhood_pois_private.csv" in code
+    assert "data_volume.reload()" not in code
+    assert "pd.read_pickle(POI_PRIVATE)" not in code
