@@ -350,7 +350,7 @@ Branch `cp2-v2-timezone-production` ports the audited final Notebook-03 timezone
 - regression coverage includes all-resolved retention, travel-stay timezone handling, no Beijing gate, DST/local-interval behavior, and the existing complete-link compactness contract;
 - `analysis/03_cp2_v2_parity.py` is the release-level parity/refreeze harness for the private 5,821-stay cache.
 
-This branch is **migration-complete but not yet refrozen**. CP2 v2 becomes the frozen production namespace only after the private full-release parity run confirms the expected Notebook-03 reference at the semantic-stay, user/location, HOME, and OFFICE levels. Until that run passes, historical CP2 v1 counts remain historical evidence rather than v2 expectations.
+CP2 v2 is now **validated for refreeze**. The private full-release parity run on the frozen 5,821-stay cache passed every required check against the independently reconstructed Notebook-03 reference: stay scope, per-stay timezone, local wall time, complete-link cluster membership, and selected HOME/OFFICE semantic clusters.
 
 ### Open follow-up: DBSCAN MinPts sensitivity
 
@@ -375,3 +375,36 @@ across representative epsilon values. Required diagnostics should include:
 
 No MinPts value is frozen or claimed optimal yet. A higher value may reduce permissive chaining/noise retention but can also reduce coverage for sparsely observed users.
 
+
+
+## CP2 v2 full-release parity — 2026-10-04
+
+The focused `03d_cp2_v2_production_parity.ipynb` run completed on the frozen private CP1 cache.
+
+Measured reference and production-v2 outputs matched exactly:
+
+- CP1 / timezone-resolved stays: `5,821 / 5,821`;
+- semantic users: `136`;
+- semantic locations: `2,015`;
+- recurring locations: `716`;
+- users with recurring locations: `104`;
+- HOME emitted: `27`;
+- OFFICE emitted: `16`;
+- unique users with at least one HOME/OFFICE emission: `37`.
+
+Exact parity gates:
+
+- semantic stay inventory: pass;
+- timezone id per stay: pass;
+- arrival local wall time: pass;
+- departure local wall time: pass;
+- complete-link cluster membership: pass;
+- HOME/OFFICE selected semantic cluster membership: pass;
+- production-only clusters: `0`;
+- reference-only clusters: `0`;
+- production-only labels: `0`;
+- reference-only labels: `0`.
+
+Raw integer `location_id` values are not used as cross-implementation parity keys because the audited Notebook-03 sklearn labels and production deterministic relabeling can assign different integers to the same cluster. Exact stay membership defines semantic-cluster identity for this migration check.
+
+Decision: the Notebook-03 all-resolved timezone contract is now production-validated and may be frozen as **CP2 v2**. Historical Beijing-focused CP2 v1 remains a reproducibility reference only.
