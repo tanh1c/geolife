@@ -122,3 +122,18 @@ Therefore:
 - no WORK/OFFICE/HOME or occupation label is emitted.
 
 The decision hinges on same-user candidate-vs-peer evidence, not on the raw percentage of anchors near named POIs.
+
+
+## Runtime handoff correction
+
+Do not expect the notebook to call `Volume.reload()` or read the worker's POI cache with pandas pickle.
+
+The measured first extraction already succeeded with 4,884 deduplicated POIs. The corrected notebook now:
+
+- receives those neighborhood POI rows directly from the Modal worker result;
+- reconstructs the pandas DataFrame in the notebook kernel;
+- keeps a private CSV copy on the Modal Volume.
+
+This avoids both cross-container visibility timing and cross-pandas-version pickle incompatibility.
+
+After updating to the fixed `main`, restart the kernel and Run All from the beginning.
