@@ -28,7 +28,7 @@ import pandas as pd
 
 DISTANCE_THRESHOLDS_M = (25.0, 50.0, 100.0)
 DISTANCE_BUCKETS = ("0_25", "25_50", "50_100", "none_within_100")
-EXPECTED_LOCATION_NAMESPACE = "production_complete_link_200m_beijing_policy_v1"
+EXPECTED_LOCATION_NAMESPACE = "production_complete_link_200m_all_resolved_timezone_v2"
 
 PROFILE_AXES = (
     "site_stable_secondary",

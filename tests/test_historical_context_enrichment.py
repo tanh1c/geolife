@@ -335,9 +335,11 @@ def test_stage07d_notebook_uses_production_location_coordinates():
         if cell.get("cell_type") == "code"
     )
 
-    assert "BRANCH='eda/07e-semantic-distance-alignment'" in code
+    assert "BRANCH=os.environ.get('GEOLIFE_REPO_BRANCH','main')" in code
     assert "build_semantic_locations(stays,config=cfg)" in code
     assert "attach_anchor_coordinates_from_locations(anchors,locations)" in code
-    assert "production_complete_link_200m_beijing_policy_v1" in code
+    assert "production_complete_link_200m_all_resolved_timezone_v2" in code
+    assert "cache'/'cp2_v2'/'07d_historical_context_enrichment" in code
+    assert "RAW_CACHE=V/'cache'/'07d_historical_context_enrichment'/'ohsome_raw'" in code
     assert "cluster_behavior_locations(resolved,200.0)" not in code
 
