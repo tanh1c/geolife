@@ -692,6 +692,80 @@ def build_stable_secondary_lexical_comparisons(
     return pd.DataFrame(rows)
 
 
+def summarize_stable_secondary_categories(
+    aligned: pd.DataFrame,
+    *,
+    thresholds_m: Iterable[float] = DISTANCE_THRESHOLDS_M,
+) -> pd.DataFrame:
+    """Category-specific stable-secondary candidate-vs-peer lexical evidence."""
+    stable = aligned.loc[
+        aligned["stable_secondary_user"].fillna(False).astype(bool)
+    ].copy()
+    per_user_rows: list[dict[str, object]] = []
+
+    for user_id, group in stable.groupby("user_id", sort=True):
+        candidates = group.loc[
+            group["stable_secondary_anchor"].fillna(False).astype(bool)
+        ]
+        peers = group.loc[
+            group["stable_secondary_peer_anchor"].fillna(False).astype(bool)
+        ]
+        if len(candidates) != 1 or peers.empty:
+            continue
+        candidate = candidates.iloc[0]
+        for category in LEXICAL_CATEGORIES:
+            for threshold in thresholds_m:
+                column = _threshold_name(category, float(threshold))
+                candidate_value = float(bool(candidate[column]))
+                peer_share = float(
+                    peers[column].fillna(False).astype(bool).mean()
+                )
+                per_user_rows.append(
+                    {
+                        "user_id": str(user_id),
+                        "category": category,
+                        "threshold_m": float(threshold),
+                        "candidate_context": bool(candidate_value),
+                        "peer_context_share": peer_share,
+                        "candidate_minus_peer_share": (
+                            candidate_value - peer_share
+                        ),
+                    }
+                )
+
+    per_user = pd.DataFrame(per_user_rows)
+    if per_user.empty:
+        return pd.DataFrame()
+
+    rows = []
+    for (category, threshold), group in per_user.groupby(
+        ["category", "threshold_m"], sort=True
+    ):
+        mean, low, high = _bootstrap_mean_ci(
+            group["candidate_minus_peer_share"]
+        )
+        rows.append(
+            {
+                "category": str(category),
+                "threshold_m": float(threshold),
+                "users": int(group["user_id"].nunique()),
+                "candidate_context_users": int(
+                    group["candidate_context"].sum()
+                ),
+                "mean_peer_context_share": float(
+                    group["peer_context_share"].mean()
+                ),
+                "mean_candidate_minus_peer_share": mean,
+                "bootstrap_95_low": low,
+                "bootstrap_95_high": high,
+                "candidate_beats_peer_share_users": int(
+                    group["candidate_minus_peer_share"].gt(0).sum()
+                ),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def _bootstrap_mean_ci(
     values: pd.Series,
     *,
