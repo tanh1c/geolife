@@ -569,9 +569,21 @@ def align_mobility_roles(
 
     profile = profiles.copy()
     profile["user_id"] = profile["user_id"].astype(str)
+    if profile["user_id"].duplicated().any():
+        raise ValueError("factorized profiles must contain one row per user")
     keep = ["user_id"] + [
         axis for axis in PROFILE_AXES if axis in profile.columns
     ]
+
+    # Stage 07c intentionally carries selected profile/context columns forward
+    # with the anchor universe. Re-merging the authoritative Stage-07b profile
+    # without removing those copies creates pandas _x/_y suffixes; the generic
+    # fallback below would then silently replace the missing unsuffixed axis
+    # with False. Always make Stage-07b the source of truth for PROFILE_AXES.
+    out = out.drop(
+        columns=[axis for axis in PROFILE_AXES if axis in out.columns],
+        errors="ignore",
+    )
     out = out.merge(
         profile[keep],
         on="user_id",

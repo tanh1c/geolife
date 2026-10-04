@@ -658,3 +658,52 @@ def test_stable_secondary_comparison_excludes_ineligible_peer():
     assert len(result) == 1
     assert int(result.iloc[0]["peer_anchor_count"]) == 1
     assert result.iloc[0]["candidate_minus_peer_share_100m"] == 1.0
+
+
+def test_align_mobility_roles_profile_axes_override_carried_anchor_columns():
+    module = _module()
+    anchors = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "location_id": 3,
+                "location_namespace": module.EXPECTED_LOCATION_NAMESPACE,
+                # Carried Stage-07c copies must not shadow authoritative 07b.
+                "route_repeated": False,
+                "mobile_complexity_evidence": False,
+            },
+            {
+                "user_id": "u1",
+                "location_id": 7,
+                "location_namespace": module.EXPECTED_LOCATION_NAMESPACE,
+                "route_repeated": False,
+                "mobile_complexity_evidence": False,
+            },
+        ]
+    )
+    work = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "window_pattern": "stable_secondary_anchor",
+                "dominant_location_id": 7,
+            }
+        ]
+    )
+    profiles = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "site_stable_secondary": True,
+                "route_repeated": True,
+                "mobile_complexity_evidence": True,
+            }
+        ]
+    )
+
+    result = module.align_mobility_roles(anchors, work, profiles)
+
+    assert result["route_repeated"].all()
+    assert result["mobile_complexity_evidence"].all()
+    assert "route_repeated_x" not in result.columns
+    assert "route_repeated_y" not in result.columns
