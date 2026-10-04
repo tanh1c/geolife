@@ -2477,3 +2477,90 @@ Interpretation:
 - two pre-2007-10-08 anchors are temporally ineligible for ohsome and must not be counted as no-context negatives.
 
 Decision: Stage 07d CP2-v2 refresh is complete. Proceed to Stage 07e only after making OSM-distance metrics and peer comparisons eligibility-aware.
+
+
+## 2026-10-04 — Stage 07e CP2 v2 final refresh
+
+Stage 07e completed successfully on commit `6804925` after correcting:
+
+- pre-ohsome temporal eligibility;
+- notebook pandas/helper bootstrap;
+- Stage-07c carried-profile vs Stage-07b authoritative-axis merge collisions.
+
+Execution:
+
+- no traceback;
+- outputs saved under `cache/cp2_v2/07e_semantic_distance_alignment`.
+
+Universe:
+
+- 298 recurring non-HOME anchors / 29 users;
+- namespace `production_complete_link_200m_all_resolved_timezone_v2`;
+- 296 OSM-eligible anchors;
+- 2 pre-ohsome anchors retained as not eligible;
+- raw cache validated 296 / 296.
+
+Exact radial <=100 m historical OSM context among eligible anchors:
+
+- semantic: 86 / 296 = 29.05%;
+- work-compatible: 59 / 296 = 19.93%.
+
+Work-compatible distance buckets:
+
+- 0–25 m: 36;
+- 25–50 m: 8;
+- 50–100 m: 15;
+- none within 100 m: 237.
+
+Category <=100 m:
+
+- education 33;
+- recreation/tourism 25;
+- retail/service 17;
+- residential 13;
+- transport 13;
+- office/commercial 4;
+- healthcare 1;
+- industrial 1;
+- civic/institutional 0.
+
+Stable-secondary comparison:
+
+- 9 stable-secondary users / 9 exact candidate anchors / 9 within-user rows;
+- 25 m: 2/9 candidate-context, mean candidate-peer +0.123, CI [-0.108, +0.399];
+- 50 m: 2/9, +0.088, CI [-0.147, +0.349];
+- 100 m: 2/9, +0.036, CI [-0.201, +0.303].
+
+All composite intervals cross zero.
+
+Candidate category decomposition:
+
+- both mapped candidate-context cases are education;
+- 0/9 candidate anchors have office/commercial within 100 m;
+- retail/service at 100 m is more common among peer anchors: mean candidate-peer -0.074, CI [-0.125, -0.026].
+
+Corrected Beijing-v1 comparison was:
+
+- 61/198 semantic <=100 m;
+- 46/198 work-compatible <=100 m;
+- composite candidate-peer differences +0.115 / +0.081 / +0.019, all with intervals crossing zero.
+
+Therefore the CP2-v2 expansion leaves the semantic decision unchanged.
+
+Factorized-axis context inside the current 29-user analysis subset:
+
+- stable-secondary: 9 users, 7 with any work-compatible context;
+- multiple-recurring: 28, 18;
+- adaptive multi-anchor: 3, 3;
+- repeated-route: 12, 9;
+- shifted-schedule: 0;
+- mobile-complexity: 7, 7;
+- independent-secondary-evidence available: 7, 5.
+
+Decision:
+
+- keep stable_secondary_anchor descriptive only;
+- do not promote WORK/OFFICE;
+- do not tune mobility thresholds to OSM;
+- Stage 07e CP2-v2 refresh is complete;
+- the production-dependent rerun lineage `05 -> 05b -> 05c -> 07b -> 07c -> 07d -> 07e` is now fully refreshed.
