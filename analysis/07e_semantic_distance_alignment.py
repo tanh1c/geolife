@@ -699,7 +699,8 @@ def summarize_stable_secondary_categories(
     thresholds_m: Iterable[float] = DISTANCE_THRESHOLDS_M,
 ) -> pd.DataFrame:
     """Category-specific candidate-vs-peer differences within stable users."""
-    stable = aligned.loc[aligned["stable_secondary_user"]].copy()
+    stable = _eligible_context_rows(aligned)
+    stable = stable.loc[stable["stable_secondary_user"]].copy()
     per_user_rows = []
 
     for user_id, group in stable.groupby("user_id", sort=True):
