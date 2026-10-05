@@ -3068,3 +3068,37 @@ New files:
 - `tests/test_historical_imagery_review.py`;
 - `docs/eda/35_historical_imagery_review.md`;
 - `docs/07k_historical_imagery_review_handoff.md`.
+
+
+## 2026-10-05 — Stage 07l imagery unblinding synthesis added
+
+The blinded Stage-07k visual review was completed for all 9 OFFICE near-miss candidates using approximate same-year historical imagery proxies.
+
+Imagery-only review classes:
+
+- office-like: 1;
+- institutional/daytime-compatible: 3;
+- OFFICE-contradictory context: 2;
+- indeterminate: 3.
+
+Stage 07l was added to unblind only after those visual labels were fixed.
+
+Inputs:
+
+- completed 9-row blinded review CSV;
+- Stage-07k private unblinding key;
+- Stage-07j private audit panel.
+
+The stage joins imagery with existing HoWDe, recurrence, split-half, held-out, dropout, HOME and BCL evidence.
+
+No composite score and no automatic OFFICE promotion are introduced.
+
+New files:
+
+- `analysis/07l_imagery_unblinding_synthesis.py`;
+- `notebooks/07l_imagery_unblinding_synthesis.ipynb`;
+- `tests/test_imagery_unblinding_synthesis.py`;
+- `docs/eda/36_imagery_unblinding_synthesis.md`;
+- `docs/07l_imagery_unblinding_handoff.md`.
+
+Next action: upload/copy the completed review CSV into the notebook runtime and run Stage 07l only.
