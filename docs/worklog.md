@@ -3025,3 +3025,46 @@ Decision:
 - proceed to targeted historical-imagery adjudication rather than more global threshold tuning.
 
 Next stage: 07k KML export + fixed manual historical-imagery review rubric.
+
+
+## 2026-10-05 — Stage 07k blinded historical imagery review added
+
+Stage 07j left 9 one-step OFFICE near-miss users in abstention and recommended targeted historical-imagery adjudication.
+
+Stage 07k prepares a blinded manual Google Earth Pro review workflow.
+
+Design:
+
+- rebuild exact CP2-v2 semantic candidate coordinates from frozen CP1 stays;
+- attach observation start / median distinct local date / end;
+- attach HOME reference coordinates;
+- generate 50 / 100 / 150 m rings;
+- use deterministic blinded audit IDs;
+- exclude user id, near-miss family, behavior and BCL evidence from KML/review CSV;
+- keep the unblinding key private until review is complete.
+
+Primary review set:
+
+- 9 near-miss candidates.
+
+Optional reference:
+
+- 16 frozen OFFICE candidates.
+
+Private KML outputs:
+
+- `near_miss_9_blinded_historical_imagery_review_private.kml`;
+- `baseline16_blinded_historical_imagery_reference_private.kml`;
+- `all25_blinded_historical_imagery_review_private.kml`.
+
+Fixed visual context classes cover commercial-like complex, education campus, healthcare/institutional, industrial, residential, transport, mixed urban, construction/vacant, recreation/green, other, and ambiguous.
+
+Historical imagery is contextual evidence only. It does not prove employer, occupation, or OFFICE.
+
+New files:
+
+- `analysis/07k_historical_imagery_review.py`;
+- `notebooks/07k_historical_imagery_review.ipynb`;
+- `tests/test_historical_imagery_review.py`;
+- `docs/eda/35_historical_imagery_review.md`;
+- `docs/07k_historical_imagery_review_handoff.md`.
