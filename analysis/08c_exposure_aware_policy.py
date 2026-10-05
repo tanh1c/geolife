@@ -98,15 +98,21 @@ def sparse_home_support_candidates(
     home["recurrence_location_id"] = home["user_id"].map(recurrence)
     home["production_office_location_id"] = home["user_id"].map(office)
     home["recurrence_matches_raw_top"] = (
-        pd.to_numeric(home["recurrence_location_id"], errors="coerce").astype("Int64")
-        .eq(raw_id.astype("Int64"))
+        (
+            pd.to_numeric(home["recurrence_location_id"], errors="coerce")
+            .astype("Int64")
+            .eq(raw_id.astype("Int64"))
+        )
         & raw_id.notna()
-    )
+    ).fillna(False)
     home["collides_with_production_office"] = (
-        pd.to_numeric(home["production_office_location_id"], errors="coerce").astype("Int64")
-        .eq(raw_id.astype("Int64"))
+        (
+            pd.to_numeric(home["production_office_location_id"], errors="coerce")
+            .astype("Int64")
+            .eq(raw_id.astype("Int64"))
+        )
         & raw_id.notna()
-    )
+    ).fillna(False)
 
     mask = (
         home["home_exposure_regime"].astype(str).eq("SPARSE")
