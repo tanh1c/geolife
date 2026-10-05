@@ -106,6 +106,40 @@ def test_exposure_limited_summary_counts_full_observed_coverage():
     assert int(office["min_dates_blocked_users"]) == 1
 
 
+def test_home_expansion_merge_prefers_profile_exposure_fields_without_suffixes():
+    stage = _module()
+    expansion = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "home_expansion_tier": "HOME_PROBABLE",
+                "external_exact_family_count": 3,
+                "active_local_dates": 99,
+            }
+        ]
+    )
+    profiles = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "home_exposure_regime": "MEDIUM",
+                "home_opportunity_dates": 4,
+                "total_stays": 20,
+                "active_local_dates": 7,
+            }
+        ]
+    )
+
+    out = stage.home_expansion_by_regime(expansion, profiles)
+
+    assert len(out) == 1
+    row = out.iloc[0]
+    assert row["home_expansion_tier"] == "HOME_PROBABLE"
+    assert row["home_exposure_regime"] == "MEDIUM"
+    assert float(row["median_active_dates"]) == 7
+    assert float(row["median_home_opportunity_dates"]) == 4
+
+
 def test_bias_snapshot_does_not_invent_causal_verdict():
     stage = _module()
     regime = pd.DataFrame(

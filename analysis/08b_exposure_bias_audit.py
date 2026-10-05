@@ -618,16 +618,27 @@ def home_expansion_by_regime(
         return pd.DataFrame()
     exp = home_expansion_evidence.copy()
     exp["user_id"] = _canonical_users(exp["user_id"])
+
+    profile_cols = [
+        "user_id",
+        "home_exposure_regime",
+        "home_opportunity_dates",
+        "total_stays",
+        "active_local_dates",
+    ]
+    # Stage 08a evidence already carries some descriptive fields such as
+    # active_local_dates. The Stage 08b exposure profile is authoritative for
+    # these audit fields, so remove overlaps before merging to avoid pandas
+    # suffixes such as active_local_dates_x / active_local_dates_y.
+    overlap = [
+        col
+        for col in profile_cols
+        if col != "user_id" and col in exp.columns
+    ]
+    exp = exp.drop(columns=overlap, errors="ignore")
+
     joined = exp.merge(
-        profiles[
-            [
-                "user_id",
-                "home_exposure_regime",
-                "home_opportunity_dates",
-                "total_stays",
-                "active_local_dates",
-            ]
-        ],
+        profiles[profile_cols],
         on="user_id",
         how="left",
         validate="many_to_one",
