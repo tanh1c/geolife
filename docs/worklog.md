@@ -4107,3 +4107,94 @@ New files:
 - `tests/test_exposure_aware_policy.py`;
 - `docs/eda/43_exposure_aware_policy.md`;
 - `docs/08c_exposure_aware_policy_handoff.md`.
+
+
+## 2026-10-05 — Stage 08c measured exposure-aware policy experiment completed
+
+The executed Stage-08c notebook ran successfully on `main` at `37cb1e8`
+with no traceback.
+
+Frozen inputs reproduced:
+
+- production HOME: 27;
+- production OFFICE: 16;
+- Stage-08a HOME_PROBABLE: 5;
+- Stage-07j OFFICE near misses: 9;
+- Stage-08b diagnostic rows: 272.
+
+Measured candidate funnel:
+
+```text
+HOME_SPARSE_2OF2_RECURRENCE      4
+HOME_DENSE_RELATIVE_DOMINANCE   5
+OFFICE_DENSE_RELATIVE_POOL      7
+OFFICE_DENSE_ROBUST_RELATIVE    3
+```
+
+The four SPARSE HOME candidates all satisfy the intentionally strict rule:
+
+- exactly 2 observed HOME opportunity dates;
+- candidate supported on 2/2 dates;
+- raw top date coverage = 1.0;
+- recurrence selects the same candidate;
+- no production-OFFICE collision;
+- frozen HOME share/margin constraints still pass.
+
+Their raw top HOME shares are approximately 1.00, .833, .872, and 1.00, with
+raw margins approximately 1.00, .833, .872, and 1.00.
+
+All five Stage-08a HOME_PROBABLE candidates pass the DENSE relative-dominance
+rule >= .625. Their measured relative top-2 dominance values are approximately:
+
+```text
+.721
+.650
+.763
+.755
+1.000
+```
+
+This means the concentration-normalized rule fully recovers the existing
+independently corroborated HOME_PROBABLE tier without searching the wider dense
+population.
+
+For OFFICE:
+
+- 7/9 audited near misses enter the relative-dominance pool >= .60;
+- 3/9 survive the stricter robust filter;
+- 4/7 relative-pool users have at least one static comparator match;
+- 1/7 has split support;
+- 2/7 have held-out top-1 support;
+- 4/7 have dropout retention >= .80.
+
+The three robust OFFICE candidates all have dropout retention = 1.0 and at least
+one additional identity corroborator.
+
+Experimental/tiered coverage comparison:
+
+```text
+frozen baseline:
+HOME 27 / OFFICE 16
+
+tiered HOME with 08a + sparse support:
+HOME 36 / OFFICE 16
+
+all Stage-08c experimental branches:
+HOME 36 / OFFICE 19
+```
+
+Production remains unchanged. The additional 9 HOME and 3 OFFICE candidates are
+experimental/tiered emissions, not production labels.
+
+Interpretation:
+
+1. sparse HOME absolute support can be relaxed conservatively for a small,
+   highly concentrated 2-of-2 subset;
+2. relative concentration is a strong explanation for the five already
+   corroborated dense HOME candidates;
+3. OFFICE remains more sensitive: relative dominance alone admits 7/9, while
+   robustness filtering reduces this to 3/9.
+
+Decision: keep production HOME 27 / OFFICE 16 frozen. Preserve Stage-08c
+candidates as separate exposure-aware tiers pending a dedicated robustness /
+stability audit before any production migration.

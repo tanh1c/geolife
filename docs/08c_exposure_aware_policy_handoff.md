@@ -72,3 +72,41 @@ Do not update production thresholds from the candidate count alone.
 
 Stage 08c is designed to compare candidate policies. A positive branch should
 remain tiered until measured robustness is reviewed.
+
+
+## Measured completion
+
+The executed Stage-08c notebook completed successfully on `main` at
+`37cb1e8` with no traceback.
+
+Measured funnel:
+
+```text
+HOME_SPARSE_2OF2_RECURRENCE      4
+HOME_DENSE_RELATIVE_DOMINANCE   5
+OFFICE_DENSE_RELATIVE_POOL      7
+OFFICE_DENSE_ROBUST_RELATIVE    3
+```
+
+Coverage view:
+
+```text
+production:          HOME 27 / OFFICE 16
+tiered HOME:         HOME 36 / OFFICE 16
+all experimental:   HOME 36 / OFFICE 19
+```
+
+Production remains unchanged.
+
+The four new sparse HOME candidates all preserve frozen HOME share/margin,
+cover 2/2 observed HOME opportunity dates, match recurrence exactly, and do not
+collide with production OFFICE.
+
+All five existing HOME_PROBABLE candidates pass dense relative dominance >=
+.625.
+
+Seven of nine OFFICE near misses pass relative dominance >= .60, but only three
+pass the stricter dropout + corroboration filter.
+
+Recommended next step: audit persistence/robustness of the 4 sparse HOME and 3
+robust OFFICE additions before considering any production migration.
