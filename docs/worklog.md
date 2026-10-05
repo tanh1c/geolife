@@ -3146,3 +3146,62 @@ Decision:
 - treat historical imagery as contextual evidence only, not as an override of behavioral robustness.
 
 Stage 07l closes the current OFFICE-expansion investigation as a negative policy result.
+
+
+## 2026-10-05 — Stage 07m Trackintel semantic-only parity added
+
+Stage 07l closed the current OFFICE-expansion investigation with the frozen
+production baseline remaining at 16 users.
+
+The next methodological question is different: whether the production
+HOME/OFFICE candidate identities agree with an independent open-source
+implementation when stay detection and spatial location identity are held
+fixed.
+
+Stage 07m was added as a semantic-only Trackintel comparator.
+
+Frozen input / namespace:
+
+- 5,821 CP1 stays / 136 users;
+- CP2-v2 per-stay IANA timezone handling;
+- complete-link 200 m production location namespace;
+- expected 2,015 semantic locations;
+- expected 716 recurring locations / 104 users;
+- frozen production parity 27 HOME / 16 OFFICE.
+
+Comparator:
+
+- Trackintel pinned at 1.4.2;
+- FREQ;
+- OSNA;
+- native Trackintel pre-filter disabled for the primary comparison so the
+  experiment isolates semantic selection rather than an additional eligibility
+  gate.
+
+Because CP2-v2 allows different IANA timezones per stay, Stage 07m adapts each
+local wall-clock start into a dummy UTC timestamp while preserving true elapsed
+duration. These timestamps are semantic-clock carriers only, not physical UTC
+times. A finish-wall delta diagnostic audits DST-sensitive cases.
+
+Primary outputs:
+
+- production-vs-Trackintel agreement summary;
+- both-same / both-different / production-only / comparator-only status counts;
+- frozen HOME-27 and OFFICE-16 reference agreement;
+- Trackintel FREQ-vs-OSNA internal agreement;
+- optional exact-WORK-candidate comparison for the nine Stage-07j near-miss
+  users when the existing private Stage-07j panel is present.
+
+No comparator outcome changes production thresholds. Trackintel agreement is
+methodological convergence, not semantic ground truth.
+
+New files:
+
+- `analysis/07m_trackintel_semantic_parity.py`;
+- `notebooks/07m_trackintel_semantic_parity.ipynb`;
+- `tests/test_trackintel_semantic_parity.py`;
+- `docs/eda/37_trackintel_semantic_parity.md`;
+- `docs/07m_trackintel_semantic_parity_handoff.md`.
+
+Next action: run Stage 07m on the existing Modal Volume and inspect candidate
+agreement before implementing an end-to-end Trackintel pipeline comparator.
