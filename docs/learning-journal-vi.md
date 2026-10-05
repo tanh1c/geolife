@@ -1204,3 +1204,18 @@ Nếu pipeline hard-code `.mdb`, ta sẽ kết luận sai rằng source bị h�
 
 Bài học: documentation format là provenance clue, không phải runtime truth. Với external data, hãy inspect container thật, schema thật và CRS thật trước khi viết normalization code.
 
+
+
+## 2026-10-05 — Imagery hợp lý không được override behavioral persistence yếu
+
+Stage 07l chỉ unblind review historical imagery của 9 near-miss sau khi toàn bộ visual label đã được cố định.
+
+Case mạnh nhất về hình ảnh là candidate office-like duy nhất và thuộc family margin-near. Case này match HoWDe candidate, nhưng fail recurrence, fail cả hai split test và fail held-out top-1. BCL có thể đánh giá được nhưng không có work-compatible context hay business-name support trong 100/150 m.
+
+Ba case share-near có imagery institutional/daytime-compatible nhìn hứa hẹn hơn về behavior nhưng vẫn không đồng nhất: 2/3 match HoWDe, 1/3 qua cả hai split, 2/3 là held-out top-1, nhưng 0/3 match recurrence. Không case nào có BCL work-compatible hay business-name support.
+
+Trên toàn bộ 9 near-miss, chỉ 1/9 qua cả hai split test và 2/9 giữ exact candidate ở held-out top-1. Có 5/9 perfect dropout retention, nhưng chỉ 2 case BCL-evaluable và 0 case có BCL work-compatible context trong 150 m.
+
+Bài học: visual plausibility là contextual evidence hữu ích, nhưng không thay thế được candidate-identity persistence khi dữ liệu bị perturb theo các cách độc lập. Một location trông rất giống office trên historical imagery vẫn phải abstain nếu recurrence, split stability và held-out persistence không hội tụ.
+
+Hệ quả policy: giữ production OFFICE baseline ở 16 user; không relax global margin gate hoặc OFFICE-share gate dựa trên near-miss audit này.
