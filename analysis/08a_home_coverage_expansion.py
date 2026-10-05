@@ -98,7 +98,17 @@ def attach_location_context(
         if col in loc.columns
     ]
 
-    out = candidates.merge(
+    # Location-table values are authoritative for geometry/descriptive fields.
+    # Drop overlapping non-key columns from cached Stage-05b evidence first so
+    # pandas does not create latitude_x/latitude_y (or similar) suffixes.
+    overlap = [
+        col
+        for col in descriptive
+        if col not in {"user_id", "location_id"} and col in candidates.columns
+    ]
+    base = candidates.drop(columns=overlap, errors="ignore").copy()
+
+    out = base.merge(
         loc[descriptive],
         on=["user_id", "location_id"],
         how="left",

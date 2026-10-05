@@ -61,6 +61,43 @@ def test_select_expansion_candidates_filters_to_high_medium_unique_nonproduction
     assert out.iloc[0]["user_id"] == "a"
 
 
+def test_attach_location_context_replaces_cached_geometry_without_suffixes():
+    stage = _module()
+    candidates = pd.DataFrame(
+        [
+            {
+                "user_id": "u",
+                "location_id": 1,
+                "home_tier": "high",
+                "production_status": "fixed_candidate_not_emitted",
+                "unique_vote_winner": True,
+                "method_votes": 3,
+                "reliability_axes": 3,
+                "latitude": 0.0,
+                "longitude": 0.0,
+            }
+        ]
+    )
+    locations = pd.DataFrame(
+        {
+            "user_id": ["u"],
+            "location_id": [1],
+            "latitude": [39.9],
+            "longitude": [116.4],
+            "stay_count": [5],
+        }
+    )
+    production = pd.DataFrame(columns=["user_id", "label", "location_id"])
+
+    out = stage.attach_location_context(candidates, locations, production)
+
+    assert "latitude" in out.columns
+    assert "longitude" in out.columns
+    assert "latitude_x" not in out.columns
+    assert "latitude_y" not in out.columns
+    assert float(out.iloc[0]["latitude"]) == 39.9
+
+
 def test_probable_requires_two_external_exact_families():
     stage = _module()
     frame = pd.DataFrame(
@@ -152,7 +189,8 @@ def test_notebook_contract():
         "HOME_PROBABLE",
         "HOME_PLAUSIBLE",
         "ABSTAIN",
-        "assert len(expansion_candidates)==2",
+        "historical_stage05b_expected_candidates",
+        "candidate_count_matches_historical",
         "production_HOME_unchanged",
         "08a_home_coverage_expansion",
     ]
