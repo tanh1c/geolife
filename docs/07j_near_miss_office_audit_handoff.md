@@ -112,3 +112,34 @@ Do not promote a user because of one strong metric.
 Do not create a new composite score after seeing the results.
 
 Send the executed notebook after Run All.
+
+
+## Final measured handoff — 2026-10-05
+
+Stage 07j completed successfully on commit `afbfe81`.
+
+Measured groups:
+
+```text
+baseline      16
+margin_near    2
+share_near     7
+```
+
+Near-miss result:
+
+```text
+users                                  9
+HOME collisions                         0
+both static comparators exact-match     0
+both split tests exact-recovery         1
+held-out exact candidate top-1          2
+100% dropout retention                  5
+BCL evaluable                           2
+BCL work context <=150m                 0
+BCL business-name <=150m                0
+```
+
+No global OFFICE threshold change is supported.
+
+The next step is Stage 07k historical-imagery adjudication for all nine near-miss candidates, with the frozen 16-user OFFICE cohort retained only as visual/reference context.
