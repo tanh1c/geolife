@@ -3102,3 +3102,47 @@ New files:
 - `docs/07l_imagery_unblinding_handoff.md`.
 
 Next action: upload/copy the completed review CSV into the notebook runtime and run Stage 07l only.
+
+
+## 2026-10-05 — Stage 07l measured imagery-unblinding result
+
+Stage 07l ran successfully against `main` at `7dde88f`.
+
+Execution gates:
+- review rows: 9;
+- Stage-07k key rows: 25;
+- Stage-07j audit rows: 25;
+- unblinding validation: PASS (9/9 near-miss candidates matched exactly).
+
+Visual context after unblinding:
+- margin-near: 1 indeterminate + 1 office-like;
+- share-near: 2 indeterminate + 3 institutional/daytime-compatible + 2 OFFICE-contradictory;
+- total: 1 office-like, 3 institutional/daytime-compatible, 2 OFFICE-contradictory, 3 indeterminate.
+
+The single office-like imagery case belongs to margin-near. It matches HoWDe, but fails recurrence, both split tests, and held-out top-1. Dropout retention is 0.778. It is BCL-evaluable, with no BCL work-compatible or business-name support within 100/150 m.
+
+The three share-near institutional/daytime-compatible cases show stronger but heterogeneous behavior:
+- HoWDe match: 2/3;
+- recurrence match: 0/3;
+- both split tests: 1/3;
+- held-out top-1: 2/3;
+- median dropout retention: 1.0;
+- BCL evaluable: 1/3;
+- BCL work-compatible or business-name support within 100/150 m: 0/3.
+
+Overall near-miss policy snapshot:
+- 9 near-miss users;
+- both split tests: 1/9;
+- held-out exact-candidate top-1: 2/9;
+- perfect dropout retention: 5/9;
+- BCL evaluable: 2/9;
+- BCL work-compatible context within 150 m: 0/9.
+
+Decision:
+- keep the production OFFICE baseline frozen at 16 users;
+- do not relax the global margin threshold;
+- do not relax the global OFFICE-share threshold;
+- keep all nine one-step near-miss candidates in abstention / research-audit status;
+- treat historical imagery as contextual evidence only, not as an override of behavioral robustness.
+
+Stage 07l closes the current OFFICE-expansion investigation as a negative policy result.
