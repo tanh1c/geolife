@@ -179,3 +179,27 @@ def test_notebook_contract():
     ]
     for token in required:
         assert token in source
+
+
+def test_notebook_bootstrap_installs_before_third_party_imports():
+    import json
+
+    notebook_path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07n_trackintel_end_to_end.ipynb"
+    )
+    notebook = json.loads(notebook_path.read_text())
+    bootstrap = "".join(notebook["cells"][1]["source"])
+
+    repo_install = bootstrap.index("pip','install','-q','-e','.[dev]'")
+    trackintel_install = bootstrap.index("trackintel=={TRACKINTEL_VERSION}")
+    geopandas_import = bootstrap.index("import geopandas as gpd")
+    pandas_import = bootstrap.index("import pandas as pd")
+    numpy_import = bootstrap.index("import numpy as np")
+
+    assert repo_install < geopandas_import
+    assert trackintel_install < geopandas_import
+    assert repo_install < pandas_import
+    assert repo_install < numpy_import
+    assert "geopandas_missing=importlib.util.find_spec('geopandas') is None" in bootstrap
