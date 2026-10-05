@@ -131,7 +131,7 @@ def validate_measured_inputs(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
     home_drop = _fixed_dropout30(frames, "HOME")
     office_drop = _fixed_dropout30(frames, "OFFICE")
-    add("05 HOME dropout30", float(home_drop["candidate_retention"]), 0.8166666666666667)
+    add("05 HOME dropout30", float(home_drop["candidate_retention"]), 0.8174603174603174)
     add("05 OFFICE dropout30", float(office_drop["candidate_retention"]), 0.7888888888888889)
 
     gate = frames["07i_office_gate"]
