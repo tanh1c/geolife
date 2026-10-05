@@ -2978,3 +2978,50 @@ New files:
 - `docs/07j_near_miss_office_audit_handoff.md`.
 
 Decision goal: determine whether either one-step near-miss family is behaviorally comparable to frozen OFFICE on existing reliability diagnostics. No production gate changes occur in Stage 07j.
+
+
+## 2026-10-05 — Stage 07j measured near-miss OFFICE result
+
+Stage 07j ran successfully on commit `afbfe81` with no traceback.
+
+Hard gates:
+
+- baseline OFFICE 16;
+- margin-near 2;
+- share-near 7;
+- 25 unique audit users;
+- full-period candidate identity PASS.
+
+Near-miss aggregate (9 users):
+
+- HOME collision: 0;
+- both static comparators match exact candidate: 0;
+- both split tests recover exact candidate: 1;
+- held-out exact candidate top-1: 2;
+- 100% dropout retention: 5;
+- BCL-evaluable: 2;
+- BCL work-compatible / business-name context at 100 m or 150 m: 0.
+
+Margin-near (2 users):
+
+- HoWDe exact match 2/2;
+- recurrence exact match 0/2;
+- both split tests 0/2;
+- held-out exact-candidate top-1 0/2;
+- median dropout retention .889.
+
+Share-near (7 users):
+
+- HoWDe exact match 3/7;
+- recurrence exact match 1/7;
+- both split tests 1/7;
+- held-out exact-candidate top-1 2/7;
+- median dropout retention 1.0 but mean .841.
+
+Decision:
+
+- do not relax global OFFICE margin or share gates from this evidence;
+- keep the 9 near-miss users as abstained candidates;
+- proceed to targeted historical-imagery adjudication rather than more global threshold tuning.
+
+Next stage: 07k KML export + fixed manual historical-imagery review rubric.
