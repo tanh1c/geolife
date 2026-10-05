@@ -1259,3 +1259,33 @@ difference and should not be silently normalized away.
 Lesson: when two mobility pipelines disagree on HOME/WORK, first compare their
 event inventories and spatial anchors. Semantic disagreement is only
 interpretable after upstream representation parity has been examined.
+
+
+## 2026-10-05 — Strong comparator agreement is most useful when its coverage and failure modes are visible
+
+Stage 07o compared the frozen semantic result against three literature-style
+semantic comparators plus a Pavan feature-space audit.
+
+HOME shows strong convergence across very different formulations. The
+scikit-mobility 22:00-07:00 visit-frequency rule matches 26/27 production HOME
+locations exactly. The stricter monthly geohash adaptation covers only 21 of the
+27 production HOME users jointly, but 20/21 of those joint selections fall
+within 200 m.
+
+The Pavan-style feature view points in the same direction without requiring a
+classifier: production HOME and OFFICE locations have much higher dwell,
+frequency, and active-date support than ordinary recurring locations.
+
+The SCITEPRESS-style result is a useful warning. It matches 25/27 production
+HOME and 15/16 production OFFICE candidates, yet it assigns the same candidate
+to HOME and WORK for 71/117 comparator users. High reference agreement therefore
+does not imply that a broad heuristic has good semantic separation.
+
+The near-miss view reinforces the same lesson. The SCITEPRESS-style WORK rule
+matches 5/7 share-near candidates, similar to the 5/7 OSNA result from Stage
+07m. Those candidates are plausible under multiple external temporal
+heuristics, but Stage 07j/07l still show weak robustness for most of them.
+
+Lesson: independent comparators are strongest as triangulation tools when we
+report both convergence and failure modes. They can validate the semantic
+family without becoming substitute ground truth or threshold-selection rules.
