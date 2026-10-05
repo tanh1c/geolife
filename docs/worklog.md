@@ -3732,3 +3732,68 @@ Not supported:
 
 Decision: the current CP2-v2 HOME/OFFICE validation track is closed with
 HOME 27 / OFFICE 16 frozen.
+
+
+## 2026-10-05 — Stage 08a HOME coverage expansion added
+
+After Stage 07p closed the validated production core at HOME 27 / OFFICE 16,
+Stage 08a starts a separate HOME coverage-expansion track.
+
+The search space is not the full set of non-HOME users.
+
+Stage 05b had already identified only two non-production HOME candidates that
+were unique HIGH/MEDIUM consensus winners:
+
+- one HIGH fixed candidate not emitted;
+- one MEDIUM fixed candidate not emitted.
+
+Stage 08a therefore audits exactly those two candidates.
+
+Internal evidence is inherited from Stage 05b:
+
+- >=2 HOME method votes;
+- HIGH/MEDIUM unique winner;
+- >=2/3 reliability axes among split, held-out top-1 and 30% dropout.
+
+Later independent evidence is added from:
+
+- Stage 07m Trackintel OSNA exact candidate;
+- Stage 07m Trackintel FREQ exact candidate;
+- Stage 07o scikit-mobility-style HOME exact candidate;
+- Stage 07o SCITEPRESS-style HOME exact candidate;
+- Stage 07o geohash HOME spatial distance;
+- Stage 07n Trackintel end-to-end HOME spatial distance under DBSCAN-100/200.
+
+Predeclared expansion tiers:
+
+- HOME_PROBABLE:
+  - internal HIGH/MEDIUM floor;
+  - no production-OFFICE collision;
+  - at least two exact confirmations among Trackintel OSNA, scikit HOME and
+    SCITEPRESS HOME;
+- HOME_PLAUSIBLE:
+  - same internal floor;
+  - no production-OFFICE collision;
+  - partial exact or auxiliary spatial support;
+- ABSTAIN:
+  - insufficient or conflicting evidence.
+
+Trackintel FREQ and different-namespace spatial comparators remain auxiliary and
+cannot alone create HOME_PROBABLE.
+
+Stage 08a does not change production HOME. It creates an optional downstream
+tiered label layer:
+
+```text
+HOME_HIGH_CONFIDENCE_CORE = 27
+HOME_PROBABLE_NEW         = measured after execution
+HOME_PLAUSIBLE_NEW        = measured after execution
+```
+
+New files:
+
+- `analysis/08a_home_coverage_expansion.py`;
+- `notebooks/08a_home_coverage_expansion.ipynb`;
+- `tests/test_home_coverage_expansion.py`;
+- `docs/eda/41_home_coverage_expansion.md`;
+- `docs/08a_home_coverage_expansion_handoff.md`.
