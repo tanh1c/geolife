@@ -3878,3 +3878,65 @@ production OFFICE = 16
 Decision: Stage 08a demonstrates that downstream usable HOME coverage can expand
 from 27 to 32 when a separate HOME_PROBABLE tier is allowed. This does not
 retroactively weaken or replace the validated HOME-27 production core.
+
+
+## 2026-10-05 — Stage 08b observation-density / exposure-bias audit added
+
+Stage 08b tests whether the frozen global HOME/OFFICE emission gates interact
+with heterogeneous user observation exposure.
+
+The production policy remains HOME 27 / OFFICE 16.
+
+The audit uses frozen semantic stays rather than raw trajectory-file count as the
+primary exposure basis. Per user it measures:
+
+- total stays;
+- active local dates;
+- observation span;
+- recurring-location count;
+- HOME-window opportunity dates/hours;
+- OFFICE-window opportunity dates/hours.
+
+HOME opportunities are local 21:00-06:00 dates with at least 600 seconds of
+observed stay overlap.
+
+OFFICE opportunities are weekday local 09:00-17:00 dates with at least 600
+seconds of observed stay overlap.
+
+Positive-exposure users are stratified separately into SPARSE / MEDIUM / DENSE
+percentile thirds; zero exposure remains separate.
+
+The actual frozen gate is decomposed into:
+
+- no observed opportunity;
+- no recurring candidate;
+- min-dates blocked;
+- share blocked;
+- margin blocked;
+- share-and-margin blocked;
+- emitted.
+
+Stage 08b also constructs an unconstrained recurring-location top candidate
+without the minimum-date requirement. This allows direct counting of users whose
+top candidate covers all or most observed behavior-window opportunity dates but
+cannot satisfy the absolute global min_dates=3 requirement.
+
+Additional diagnostics:
+
+- emission/failure rates by exposure regime;
+- Spearman exposure-emission/share/margin associations;
+- Stage-05 fixed/HoWDe/recurrence selection coverage by exposure;
+- exact fixed-vs-alternate agreement by exposure;
+- concentration of the five Stage-08a HOME_PROBABLE cases by HOME exposure;
+- concentration of the nine Stage-07j OFFICE near misses by OFFICE exposure.
+
+No adaptive threshold is proposed or selected in this stage. A later stage is
+required if measured evidence justifies an exposure-aware emission policy.
+
+New files:
+
+- `analysis/08b_exposure_bias_audit.py`;
+- `notebooks/08b_exposure_bias_audit.ipynb`;
+- `tests/test_exposure_bias_audit.py`;
+- `docs/eda/42_exposure_bias_audit.md`;
+- `docs/08b_exposure_bias_audit_handoff.md`.
