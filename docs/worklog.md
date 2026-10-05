@@ -2857,3 +2857,80 @@ Hard reproduction gates:
 - Stage-05b stable-secondary baseline must reproduce 9 with exact candidate IDs.
 
 No threshold will be selected from Stage 07i based on semantic agreement alone.
+
+
+## 2026-10-05 — Stage 07i measured threshold sensitivity
+
+Stage 07i completed successfully on commit `a8d8308` with no traceback.
+
+Reproduction gates:
+
+- CP2-v2 semantic users 136 / locations 2,015;
+- frozen Stage-05b stable-secondary reproduced exactly: 9 users, exact candidate IDs;
+- frozen production OFFICE reproduced: 16 users.
+
+OFFICE gate result:
+
+- baseline 3 dates / .30 share / .10 margin = 16;
+- margin .10 -> .05 at fixed 3/.30 = 18, retains all 16 and adds 2;
+- share .30 -> .20 at fixed 3/.10 = 23, retains all 16 and adds 7;
+- 3/.20/.05 = 26, retains all 16 and adds 10;
+- lowering dates to 2 greatly expands candidate coverage but can change candidate identity.
+
+Thus OFFICE is conservative in coverage.
+
+BCL evidence in the evaluable emitted subset does not grow with relaxed gates:
+
+- baseline: 4 evaluable / 2 broad-context / 0 business-name;
+- 3/.30/.05: 5 / 2 / 0;
+- 3/.20/.10: 5 / 2 / 0;
+- 3/.20/.05: 6 / 2 / 0.
+
+Stable-secondary OAT:
+
+- baseline 9;
+- 56d, observed-days4, stability.60 each produce 10 while retaining all 9;
+- candidate-stays1/3 and stability.80 leave the nine-user core unchanged;
+- candidate-days2 produces 10 but loses 2 baseline users and adds 3;
+- candidate-days4 reduces to 5;
+- 28d reduces to 6.
+
+Joint profiles:
+
+- relaxed 10 stable, 9 multi-anchor, retains 7 baseline and adds 3;
+- mildly relaxed 10 stable, 8 multi-anchor, retains 7 and adds 3;
+- baseline 9 stable, 3 multi-anchor, all 9 retained;
+- strict 5 stable.
+
+BCL radius for frozen baseline:
+
+- candidate context increases 2/9 at 25m -> 6/9 at 150m;
+- mean candidate-peer = +.199 / +.171 / +.102 / +.021 / +.057 / +.039 for 25/50/75/100/125/150m;
+- all bootstrap intervals cross zero;
+- business-name exact candidates remain 0/9 through 100m, 1/9 at125m, 2/9 at150m.
+
+Relaxed mobility profiles do not improve BCL alignment:
+
+- relaxed/mildly relaxed mean candidate-peer at100m = -.105;
+- at150m = -.095;
+- baseline remains near zero positive;
+- strict has a larger +.261 at100m but only n=5 with wide CI.
+
+BCL-primary / OSM-support-only snapshot at100m:
+
+- BCL candidate-favoring 4/9;
+- BCL peer-favoring 5/9;
+- only 1/4 BCL-positive users has OSM mapped-candidate / candidate-favoring support;
+- 3/4 BCL-positive users simply lack mapped historical OSM candidate context;
+- behavior-strict + BCL-positive = 0;
+- behavior-directional-majority + BCL-positive = 2.
+
+Decision:
+
+- historical OSM remains support-only;
+- production OFFICE is conservative in coverage, but relaxed emissions are not independently validated;
+- stable-secondary null/mixed semantics are robust to nearby threshold changes;
+- 100m POI radius is not the limiting factor;
+- keep production gates frozen.
+
+Potential next stage: targeted near-miss OFFICE audit for users added by small one-step share/margin relaxations, rather than global retuning.
