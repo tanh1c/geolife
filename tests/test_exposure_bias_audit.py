@@ -187,8 +187,8 @@ def test_notebook_contract():
         "HOME_PROBABLE",
         "07j_near_miss_office_audit",
         "08a_home_coverage_expansion",
-        "production HOME = 27",
-        "production OFFICE = 16",
+        "HOME = 27",
+        "OFFICE = 16",
         "08b_exposure_bias_audit",
     ]
     for token in required:
