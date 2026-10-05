@@ -3797,3 +3797,84 @@ New files:
 - `tests/test_home_coverage_expansion.py`;
 - `docs/eda/41_home_coverage_expansion.md`;
 - `docs/08a_home_coverage_expansion_handoff.md`.
+
+
+## 2026-10-05 — Stage 08a measured HOME expansion: 5 new HOME_PROBABLE candidates
+
+Stage 08a executed successfully on `main` at `c1da357` with no traceback.
+
+The current Stage-05b cache differs from the historical measured snapshot used
+when the Stage-08a scaffold was first drafted:
+
+```text
+historical Stage-05b HIGH/MEDIUM non-production candidates = 2
+current cache HIGH/MEDIUM non-production candidates        = 5
+```
+
+Stage 08a now treats the historical count as a drift diagnostic rather than a
+hard failure and audits the current cache contents.
+
+Frozen production still reproduces:
+
+- CP1 stays: 5,821;
+- HOME: 27;
+- OFFICE: 16.
+
+All five current expansion candidates satisfy the predeclared
+`HOME_PROBABLE` rule.
+
+Aggregate support across the five:
+
+- HOME_PROBABLE: 5;
+- HOME_PLAUSIBLE: 0;
+- ABSTAIN: 0;
+- Trackintel OSNA exact: 4/5;
+- scikit-mobility-style HOME exact: 4/5;
+- SCITEPRESS-style HOME exact: 5/5;
+- geohash HOME within 200 m: 3/5;
+- Trackintel end-to-end HOME within 200 m:
+  - DBSCAN-100: 4/5;
+  - DBSCAN-200: 4/5;
+- production-OFFICE collision: 0/5.
+
+Internal support remains strong:
+
+- 2/5 candidates are Stage-05b HIGH;
+- 3/5 are MEDIUM;
+- median internal method votes: 2;
+- median reliability axes: 2;
+- all five have high dropout retention;
+- no candidate collides with the frozen production OFFICE location.
+
+Support is heterogeneous inside HOME_PROBABLE.
+
+Three candidates have 3/3 primary external exact confirmations.
+Two have the minimum 2/3 exact confirmations required by the predeclared rule.
+
+One of those minimum-support candidates has no Trackintel OSNA/FREQ exact match,
+no geohash support, and no end-to-end Trackintel HOME anchor within 200 m. It
+remains HOME_PROBABLE because the tier rule was locked before viewing the
+candidate results and it still receives exact confirmation from scikit-style and
+SCITEPRESS-style HOME.
+
+Measured tiered coverage:
+
+```text
+HOME_HIGH_CONFIDENCE_CORE = 27
+HOME_PROBABLE_NEW         = 5
+HOME_PLAUSIBLE_NEW        = 0
+HOME_EXPANSION_ABSTAIN    = 0
+
+high + probable coverage  = 32
+```
+
+Production is intentionally unchanged:
+
+```text
+production HOME = 27
+production OFFICE = 16
+```
+
+Decision: Stage 08a demonstrates that downstream usable HOME coverage can expand
+from 27 to 32 when a separate HOME_PROBABLE tier is allowed. This does not
+retroactively weaken or replace the validated HOME-27 production core.
