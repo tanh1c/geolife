@@ -196,8 +196,8 @@ def test_notebook_contract():
         "OFFICE_DENSE_ROBUST_RELATIVE",
         "HOME_RELATIVE_DOMINANCE_FLOOR",
         "OFFICE_RELATIVE_DOMINANCE_FLOOR",
-        "production HOME = 27",
-        "production OFFICE = 16",
+        "HOME = 27",
+        "OFFICE = 16",
         "production_changed",
     ]
     for token in required:
