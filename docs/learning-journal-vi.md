@@ -1396,3 +1396,34 @@ nhiều residual semantic signal hơn sparse OFFICE dưới evidence hiện tạ
 
 Bài học: exposure-aware inference nên normalize support và concentration riêng,
 và HOME/OFFICE có thể cần adaptation rule khác nhau.
+
+
+## 2026-10-05 — Exposure-aware rule tăng coverage mà không cần relax toàn cục
+
+Stage 08c biến kết quả 08b thành ba policy experiment có scope rất hẹp.
+
+Nhánh SPARSE HOME recover được 4 users khi chỉ đổi đúng một điều kiện: absolute
+HOME support dates từ 3 xuống 2. Đây không phải các case yếu chỉ có một đêm:
+mỗi case đều có đúng 2 HOME opportunity dates đã quan sát, cùng một candidate
+trên cả 2/2 dates, observed-date coverage = 100%, recurrence chọn đúng candidate,
+và các requirement share/margin HOME cũ vẫn pass.
+
+Nhánh DENSE HOME còn rõ hơn. Cả 5 HOME_PROBABLE đã được corroborate trước đó đều
+pass relative top-vs-runner-up dominance. Vì search universe bị giới hạn đúng
+vào probable tier hiện có, kết quả này cho thấy absolute share/margin dilution
+giải thích khá tốt 5 case đó mà không cần mở relaxation rộng cho toàn bộ dense
+users.
+
+OFFICE vẫn khó hơn. 7/9 audited near misses pass relative concentration, nhưng
+chỉ 3/9 còn lại sau dropout + independent identity corroboration. Khoảng cách
+7 xuống 3 chính là lý do OFFICE nên tiếp tục conservative hơn HOME.
+
+Bức tranh coverage hữu ích hiện tại:
+
+- frozen production: HOME 27 / OFFICE 16;
+- tiered exposure-aware HOME: 36;
+- robust experimental OFFICE: tổng 19 nếu giữ 3 case mới ở tier riêng.
+
+Bài học: exposure-aware inference có thể tăng coverage, nhưng mechanism phải
+đúng theo failure mode. Sparse HOME cần normalize theo opportunity support;
+dense HOME cần relative concentration; OFFICE vẫn cần robustness filter mạnh.
