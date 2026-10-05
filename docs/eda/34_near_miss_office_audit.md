@@ -199,3 +199,130 @@ BCL can strengthen a candidate case when positive, but lack of BCL evidence is n
 If near-miss reliability is materially weaker than baseline OFFICE, retain the frozen gate.
 
 If one near-miss family is broadly comparable to baseline across existing reliability diagnostics, that finding can justify a separate production-policy decision stage.
+
+
+## Measured result — 2026-10-05
+
+Stage 07j executed successfully on repository commit `afbfe81`.
+
+There was no traceback. Two pandas `FutureWarning` messages were emitted from boolean `fillna(False)` downcasting; they are non-blocking and do not affect the measured result.
+
+Hard reproduction gates passed:
+
+- baseline OFFICE users: 16;
+- margin-near users: 2;
+- share-near users: 7;
+- total audit users: 25 unique;
+- full-period candidate identity validation: PASS.
+
+### Support distribution
+
+| group | users | median support days | min support days | median OFFICE share | min OFFICE share |
+|---|---:|---:|---:|---:|---:|
+| baseline | 16 | 5.0 | 3 | 0.548 | 0.358 |
+| margin-near | 2 | 17.5 | 3 | 0.319 | 0.318 |
+| share-near | 7 | 3.0 | 3 | 0.234 | 0.232 |
+
+The two one-step relaxations create different near-miss families:
+
+- margin-near users satisfy the frozen share gate but fail only the margin gate;
+- share-near users sit at the minimum support-day gate and fail the frozen OFFICE-share gate.
+
+### Behavioral / identity robustness
+
+| metric | baseline 16 | margin-near 2 | share-near 7 |
+|---|---:|---:|---:|
+| production HOME collision | 1 | 0 | 0 |
+| HoWDe exact-candidate match | 9 | 2 | 3 |
+| recurrence exact-candidate match | 4 | 0 | 1 |
+| both static comparators match | 2 | 0 | 0 |
+| first/second: both halves recover full candidate | 4 | 0 | 1 |
+| odd/even: both halves recover full candidate | 6 | 1 | 1 |
+| both split tests recover full candidate | 4 | 0 | 1 |
+| held-out full candidate top-1 | 6 | 0 | 2 |
+| median dropout retention | 1.000 | 0.889 | 1.000 |
+| mean dropout retention | 0.958 | 0.889 | 0.841 |
+| candidate retained after 12h shift | 1 | 0 | 1 |
+
+Interpretation:
+
+- margin-near has good HoWDe identity agreement (2 / 2) and moderately high dropout retention, but neither user passes both split tests, neither is held-out top-1, and recurrence supports neither candidate;
+- share-near is heterogeneous: only 1 / 7 recovers the exact candidate in both split tests and 2 / 7 remain held-out top-1;
+- neither near-miss group has any user matched by both HoWDe and recurrence.
+
+The baseline reference is itself not ground truth and is not perfectly stable, but its held-out and split recovery are materially stronger than the near-miss groups.
+
+### BCL-primary historical context
+
+| group | users | BCL evaluable | work-compatible 100m | business-name 100m | work-compatible 150m | business-name 150m |
+|---|---:|---:|---:|---:|---:|---:|
+| baseline | 16 | 4 | 2 | 0 | 3 | 2 |
+| margin-near | 2 | 1 | 0 | 0 | 0 | 0 |
+| share-near | 7 | 1 | 0 | 0 | 0 | 0 |
+
+Only 2 / 9 near-miss users are BCL-evaluable, and neither has broad work-compatible or business-name context at 100 m or 150 m.
+
+This absence is not proof against OFFICE, but BCL provides no positive historical support for the near-miss expansion in the evaluable subset.
+
+### Near-miss aggregate
+
+Across all 9 near-miss users:
+
+- HOME collisions: 0;
+- both static comparators match exact candidate: 0;
+- both split tests recover exact candidate: 1;
+- held-out full candidate top-1: 2;
+- 100% dropout retention: 5;
+- BCL-evaluable: 2;
+- BCL work-compatible 100 m: 0;
+- BCL business-name 100 m: 0;
+- BCL work-compatible 150 m: 0;
+- BCL business-name 150 m: 0.
+
+Static comparator distribution:
+
+- margin-near: 2 / 2 users have exactly one comparator match;
+- share-near: 4 / 7 have one comparator match and 3 / 7 have none;
+- no near-miss user has two comparator matches.
+
+Split recovery distribution:
+
+- margin-near: one user recovers the full candidate in one split test and one in zero; none pass both;
+- share-near: one user passes both split tests and six pass neither.
+
+## Stage 07j decision
+
+Stage 07j does not support changing the global OFFICE gate.
+
+### Margin relaxation
+
+The two margin-near users are not random weak cases: both are HoWDe-consistent and have high support-day counts. However, neither survives the stronger candidate-persistence checks:
+
+- no recurrence match;
+- no held-out exact-candidate top-1;
+- no user passes both split tests.
+
+Therefore `office_min_margin: .10 -> .05` is not yet justified as a production-wide change.
+
+### Share relaxation
+
+The seven share-near users are more heterogeneous and generally weaker:
+
+- minimum support days = 3 for the group;
+- only one user passes both split tests;
+- only two are held-out top-1;
+- only one has recurrence candidate agreement.
+
+Therefore `office_min_share: .30 -> .20` is also not justified globally.
+
+### Next evidence step
+
+The nine near-miss users are small enough for targeted historical-imagery adjudication.
+
+Stage 07k should export exact candidate coordinates, observation dates, HOME reference points, and 50/100/150 m rings to KML for manual Google Earth Pro historical-imagery review.
+
+The historical-imagery review must remain an independent contextual adjudication layer:
+
+- do not infer a company or employer from imagery alone;
+- classify visible land-use / structure only;
+- present-day reverse geocoding may be used only as a naming aid, never as historical proof.
