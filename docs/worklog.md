@@ -2808,3 +2808,52 @@ Decision:
 - close the current semantic-source track.
 
 Any future attempt to validate WORK/OFFICE semantics should rely on qualitatively better supervision/ground truth, not additional opportunistic external-source mining on the same nine-user cohort.
+
+
+## 2026-10-05 — Stage 07i threshold sensitivity + OSM weighting correction
+
+Methodological review after Stage 07h identified that historical OSM should not carry equal negative evidential weight with BCL.
+
+OSM timing:
+
+- each Stage-07d query used the anchor's median observation date;
+- 93 eligible anchors are from 2008;
+- 164 from 2009;
+- therefore 257 / 296 (86.8%) historical OSM snapshots are from 2008–2009.
+
+Interpretation correction:
+
+- BCL POI 2008 becomes the primary historical functional-POI source;
+- historical OSM becomes positive support-only;
+- OSM absence/negative direction is not treated as contradiction;
+- CLCD remains physical context only.
+
+The user also raised a plausible second explanation for low OFFICE/stable-secondary semantic support: conservative heuristic thresholds.
+
+Stage 07i was added as a no-retuning robustness audit.
+
+Production OFFICE sensitivity:
+
+- full 27-config grid over dates 2/3/5, share .20/.30/.40, margin .05/.10/.20;
+- frozen baseline remains 3 / .30 / .10.
+
+Adaptive stable-secondary sensitivity:
+
+- OAT window 28/42/56;
+- OAT observed days 4/6/8;
+- OAT candidate days 2/3/4;
+- OAT candidate stays 1/2/3;
+- OAT stability .60/.70/.80;
+- joint relaxed / mildly-relaxed / baseline / strict profiles.
+
+BCL radius sensitivity:
+
+- exact 25/50/75/100/125/150 m using the already-extracted Stage-07g POI neighborhood;
+- 150 m is the maximum safe radius without new extraction.
+
+Hard reproduction gates:
+
+- OFFICE baseline must reproduce 16;
+- Stage-05b stable-secondary baseline must reproduce 9 with exact candidate IDs.
+
+No threshold will be selected from Stage 07i based on semantic agreement alone.

@@ -380,3 +380,32 @@ The CP2-v2 expansion does not change the Stage-07e semantic conclusion.
 7. Close the CP2-v2 production-dependent downstream refresh through Stage 07e.
 
 The main robustness result is that the null/mixed independent semantic conclusion survives the expansion from the corrected 198-anchor Beijing-v1 universe to the 298-anchor CP2-v2 universe.
+
+
+## Methodological reinterpretation — historical OSM as support-only
+
+The measured Stage-07e tables remain valid as descriptions of what was mapped in historical OSM at each anchor's median observation date.
+
+However, their semantic weight is revised.
+
+The CP2-v2 OSM-eligible year distribution is:
+
+- 2008: 93 anchors;
+- 2009: 164;
+- 2010: 6;
+- 2011: 23;
+- 2012: 10.
+
+Thus 257 / 296 eligible anchors (86.8%) are queried at 2008–2009 OSM snapshots.
+
+For this cohort, a missing historical OSM feature must be interpreted primarily as **historically unmapped / unavailable mapped evidence**, not as evidence that the real-world feature did not exist.
+
+Consequences:
+
+- positive mapped OSM context remains useful supporting evidence;
+- OSM absence is not semantic negative evidence;
+- an OSM candidate-minus-peer value below zero must not be read as a contradiction of contemporaneous BCL evidence;
+- BCL POI 2008 is the primary historical functional-POI source for the GeoLife-heavy 2007–2009 period;
+- CLCD remains physical-context evidence only.
+
+No Stage-07e numeric result is deleted. The correction changes evidential interpretation, not the cached geometry/distance measurement.
