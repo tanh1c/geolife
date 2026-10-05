@@ -144,3 +144,74 @@ The strongest possible finding would be that one near-miss family contains a sta
 - independent BCL support where evaluable.
 
 If the evidence remains heterogeneous or visually plausible cases are behaviorally weak, the frozen OFFICE gate should remain unchanged.
+
+
+## Measured result
+
+Stage 07l was executed successfully against `main` at `7dde88f`.
+
+Validation:
+- 9 review rows loaded;
+- 25 Stage-07k key rows loaded;
+- 25 Stage-07j audit rows loaded;
+- unblinding validation passed for all 9/9 near-miss candidates.
+
+### Visual context by near-miss family
+
+Margin-near (2 users):
+- 1 office-like;
+- 1 indeterminate.
+
+Share-near (7 users):
+- 3 institutional/daytime-compatible;
+- 2 OFFICE-contradictory;
+- 2 indeterminate.
+
+Total:
+- office-like: 1;
+- institutional/daytime-compatible: 3;
+- OFFICE-contradictory: 2;
+- indeterminate: 3.
+
+### Behavior × imagery
+
+The single office-like case is margin-near:
+- HoWDe match: 1/1;
+- recurrence match: 0/1;
+- both split tests: 0/1;
+- held-out top-1: 0/1;
+- median dropout retention: 0.778;
+- BCL evaluable: 1/1;
+- BCL work-compatible context at 100/150 m: 0/1;
+- BCL business-name context at 100/150 m: 0/1.
+
+Share-near institutional/daytime-compatible cases (3 users):
+- HoWDe match: 2/3;
+- recurrence match: 0/3;
+- both split tests: 1/3;
+- held-out top-1: 2/3;
+- median dropout retention: 1.0;
+- BCL evaluable: 1/3;
+- BCL work-compatible context at 100/150 m: 0/3;
+- BCL business-name context at 100/150 m: 0/3.
+
+The visually plausible subset therefore does not form a stable cross-source cluster. The strongest visual OFFICE case is behaviorally weak under recurrence, split and held-out tests, while the more persistent share-near cases are only institutional/daytime-compatible rather than clearly OFFICE-like.
+
+### Policy snapshot
+
+Across all nine near-miss candidates:
+- both split tests: 1/9;
+- held-out exact-candidate top-1: 2/9;
+- perfect dropout retention: 5/9;
+- BCL evaluable: 2/9;
+- BCL work-compatible context within 150 m: 0/9.
+
+### Final decision
+
+Keep the frozen production OFFICE baseline unchanged at 16 users.
+
+Do not widen either the global margin threshold or the global OFFICE-share threshold.
+
+The nine one-step near-miss candidates remain abstained research/audit cases. Historical imagery remains contextual evidence and does not override the existing behavioral robustness requirements.
+
+Stage 07l therefore closes the current OFFICE-expansion investigation as a negative policy result: the evidence is heterogeneous and there is no near-miss family with joint visual, behavioral and independent historical-context support strong enough to justify a production gate change.

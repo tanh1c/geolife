@@ -1184,3 +1184,18 @@ A hard-coded MDB-only pipeline would have incorrectly classified the source as u
 
 Lesson: documented format is provenance context, not runtime truth. External-data pipelines should inspect the actual container, schema, and CRS before normalization logic is written.
 
+
+
+## 2026-10-05 — Plausible imagery should not override weak behavioral persistence
+
+Stage 07l unblinded the fixed nine-candidate historical-imagery review only after the visual labels were complete.
+
+The visually strongest case was the only office-like candidate, and it belonged to the margin-near family. It matched the HoWDe candidate, but it failed recurrence, both split tests, and held-out top-1 recovery. It was BCL-evaluable but had no BCL work-compatible or business-name support within 100/150 m.
+
+The three share-near institutional/daytime-compatible cases were more behaviorally promising, but still heterogeneous: 2/3 matched HoWDe, 1/3 passed both split tests, 2/3 were held-out top-1, and 0/3 matched recurrence. None had BCL work-compatible or business-name support.
+
+Across all nine near-miss users, only 1/9 passed both split tests and 2/9 were held-out top-1. Five had perfect dropout retention, but only two were BCL-evaluable and none had BCL work-compatible context within 150 m.
+
+Lesson: visual plausibility is useful contextual evidence, but it is not a substitute for identity persistence under independent behavioral perturbations. A case that looks office-like in imagery should remain abstained when recurrence, split stability, and held-out persistence do not converge.
+
+Policy consequence: keep the frozen OFFICE baseline at 16 users. Do not globally relax the margin or OFFICE-share gate from this near-miss audit.
