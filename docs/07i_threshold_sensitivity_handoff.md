@@ -102,3 +102,24 @@ A threshold change is interesting only if neighboring relaxed settings show:
 - no obvious collapse into many unstable/multi-anchor cases.
 
 Send the executed notebook after Run All.
+
+
+## Final measured handoff — 2026-10-05
+
+Stage 07i executed successfully on commit `a8d8308`.
+
+No traceback occurred and all aggregate/private outputs were saved.
+
+Main result:
+
+- OFFICE baseline is conservative in coverage;
+- small share/margin relaxation can add users without removing the frozen 16;
+- those additional emissions are not accompanied by stronger BCL evidence in the evaluable subset;
+- the nine-user stable-secondary core is not a generic threshold-cliff artifact;
+- joint relaxation changes cohort composition and increases multi-anchor ambiguity;
+- expanding BCL radius from 100 to 150 m increases context coverage but not candidate-specific advantage;
+- historical OSM should remain positive support-only.
+
+Decision: do not change production thresholds from Stage 07i alone.
+
+If further OFFICE coverage work is desired, use a targeted near-miss audit rather than another broad threshold grid.
