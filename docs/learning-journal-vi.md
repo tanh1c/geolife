@@ -1361,3 +1361,38 @@ rõ lineage drift này thay vì hard-assert và crash.
 
 Bài học: confidence tiers cho phép tăng usable coverage nhưng vẫn giữ nguyên ý
 nghĩa của high-confidence production core.
+
+
+## 2026-10-05 — Exposure sensitivity có hai chiều, không chỉ là vấn đề sparse user
+
+Stage 08b đo được quan hệ khá rõ giữa observation exposure và khả năng emit
+HOME/OFFICE.
+
+SPARSE không emit production HOME/OFFICE, trong khi DENSE emit nhiều hơn đáng
+kể. Rule tuyệt đối min_dates=3 chặn 45 HOME và 50 OFFICE users; trong số đó có
+13 HOME và 14 OFFICE cases mà unconstrained top candidate cover 100% các
+behavior-window opportunity dates thực sự quan sát được.
+
+Điều này support lo ngại ban đầu rằng absolute global support threshold có thể
+penalize sparse observation.
+
+Nhưng nửa còn lại của kết quả cũng quan trọng không kém.
+
+Cả 5 HOME_PROBABLE từ Stage 08a đều là DENSE, và cả 9 OFFICE near-miss từ Stage
+07j cũng đều DENSE. Candidate share/margin còn có xu hướng giảm khi opportunity
+exposure tăng.
+
+Vì vậy global gate đang gặp hai regime đối nghịch:
+
+- sparse: thiếu absolute support;
+- dense/mobile: support đủ nhưng semantic mass bị dilute qua nhiều locations.
+
+Do đó adaptive policy không nên là "ít data thì hạ tất cả threshold". Nó phải
+phân biệt failure mode.
+
+Một nuance nữa: recurrence vẫn chọn HOME cho 25/34 SPARSE users, trong khi cả
+ba method Stage-05 đều chọn 0/38 SPARSE OFFICE users. Nghĩa là sparse HOME còn
+nhiều residual semantic signal hơn sparse OFFICE dưới evidence hiện tại.
+
+Bài học: exposure-aware inference nên normalize support và concentration riêng,
+và HOME/OFFICE có thể cần adaptation rule khác nhau.

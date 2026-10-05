@@ -1346,3 +1346,39 @@ behind a hard assertion.
 
 Lesson: confidence tiers let the project increase useful coverage while
 preserving the meaning of the high-confidence production core.
+
+
+## 2026-10-05 — Exposure sensitivity is bimodal, not just a sparse-user problem
+
+Stage 08b measured a clear relationship between observation exposure and
+HOME/OFFICE emission.
+
+Sparse users emit no production HOME or OFFICE, while dense users emit much
+more often. The absolute min_dates=3 rule blocks 45 HOME and 50 OFFICE users,
+including 13 HOME and 14 OFFICE cases whose unconstrained top candidate covers
+all observed behavior-window opportunity dates.
+
+That supports the original concern that an absolute global support threshold can
+penalize sparse observation.
+
+But the second half of the result is equally important.
+
+All five Stage-08a HOME_PROBABLE candidates are DENSE, and all nine Stage-07j
+OFFICE near misses are DENSE. Candidate share and margin also decrease as
+opportunity exposure grows.
+
+So the global gate appears to face two opposing regimes:
+
+- sparse: insufficient absolute support;
+- dense/mobile: enough support, but semantic mass is diluted across locations.
+
+This means an adaptive policy should not be "less data => lower every
+threshold." It should be failure-mode aware.
+
+A further nuance: HOME recurrence still selects 25/34 SPARSE users, while all
+three Stage-05 OFFICE methods select 0/38 SPARSE users. Sparse HOME therefore has
+more residual semantic signal than sparse OFFICE under the current evidence
+families.
+
+Lesson: exposure-aware inference should normalize support and concentration
+separately, and HOME/OFFICE may require different adaptation rules.

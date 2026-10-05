@@ -3940,3 +3940,120 @@ New files:
 - `tests/test_exposure_bias_audit.py`;
 - `docs/eda/42_exposure_bias_audit.md`;
 - `docs/08b_exposure_bias_audit_handoff.md`.
+
+
+## 2026-10-05 — Stage 08b measured exposure-bias audit completed
+
+Stage 08b was rerun successfully on `main` at `0ef6107`.
+
+The executed notebook contains no traceback and saves all outputs under:
+
+```text
+/mnt/geolife-data/cache/cp2_v2/08b_exposure_bias_audit/
+```
+
+Frozen inputs reproduced:
+
+- 5,821 CP1 stays;
+- 136 stay users;
+- 2,015 semantic locations;
+- production HOME 27;
+- production OFFICE 16;
+- Stage-08a HOME_PROBABLE 5;
+- Stage-07j OFFICE near misses 9.
+
+Exposure regimes:
+
+```text
+HOME:
+ZERO   34
+SPARSE 34
+MEDIUM 34
+DENSE  34
+
+OFFICE:
+ZERO   39
+SPARSE 38
+MEDIUM 25
+DENSE  34
+```
+
+Measured production emission rates show a strong exposure gradient:
+
+```text
+HOME:
+SPARSE   0/34  = 0.0%
+MEDIUM  11/34  = 32.4%
+DENSE   16/34  = 47.1%
+
+OFFICE:
+SPARSE   0/38  = 0.0%
+MEDIUM   5/25  = 20.0%
+DENSE   11/34  = 32.4%
+```
+
+Absolute support blocking is substantial:
+
+- HOME min_dates blocked: 45 users;
+- OFFICE min_dates blocked: 50 users;
+- among these, 13 HOME and 14 OFFICE users have an unconstrained top candidate
+  covering 100% of observed opportunity dates.
+
+Exposure-emission association is positive:
+
+- HOME opportunity dates vs emission Spearman rho = +0.484;
+- OFFICE = +0.406.
+
+At the same time, denser exposure is associated with lower candidate
+concentration:
+
+- HOME opportunity dates vs raw top share: -0.356;
+- HOME vs eligible share: -0.535;
+- HOME vs eligible margin: -0.597;
+- OFFICE opportunity dates vs raw top share: -0.631;
+- OFFICE vs eligible share: -0.303;
+- OFFICE vs eligible margin: -0.224.
+
+This supports two different exposure-related failure modes rather than one
+simple sparse-user penalty:
+
+1. sparse users can be blocked by the absolute min_dates=3 requirement;
+2. dense/mobile users can pass support requirements but suffer share/margin
+   dilution across multiple locations.
+
+Independent-method coverage adds nuance.
+
+For HOME SPARSE users:
+
+- fixed-window selection: 0/34;
+- HoWDe-style: 0/34;
+- recurrence: 25/34.
+
+For OFFICE SPARSE users all three methods select 0/38.
+
+Therefore sparse HOME still contains schedule-light recurring-location signal,
+while sparse OFFICE currently lacks support under all three Stage-05 comparator
+families.
+
+The strongest coverage-expansion evidence is concentrated in dense users, not
+sparse users:
+
+```text
+Stage-08a HOME_PROBABLE:
+DENSE 5/5
+median HOME opportunity dates = 32
+median total stays = 255
+median active dates = 90
+median exact external families = 3
+```
+
+Similarly, all Stage-07j OFFICE near misses are DENSE:
+
+- margin-near: 2/2 DENSE;
+- share-near: 7/7 DENSE.
+
+Decision: Stage 08b supports the hypothesis that a single global gate is
+exposure-sensitive, but the mechanism is bimodal. A future Stage 08c should not
+simply lower thresholds for sparse users. It should test exposure-aware policies
+separately for support-limited sparse cases and concentration-limited dense
+cases, while preserving the frozen HOME-27 / OFFICE-16 baseline.

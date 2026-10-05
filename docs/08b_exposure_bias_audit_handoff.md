@@ -115,3 +115,47 @@ Do not change HOME/OFFICE thresholds from Stage 08b alone.
 
 Stage 08b is an audit. If an adaptive policy is justified, define and validate it
 in a separate next stage against the frozen global baseline.
+
+
+## Measured completion
+
+The rerun on `main` at `0ef6107` completed successfully with no traceback.
+
+Key measured result:
+
+```text
+HOME emission:
+SPARSE   0.0%
+MEDIUM  32.4%
+DENSE   47.1%
+
+OFFICE emission:
+SPARSE   0.0%
+MEDIUM  20.0%
+DENSE   32.4%
+```
+
+Min-date blocking:
+
+```text
+HOME   45 users; 13 have raw-top coverage = 100% of observed opportunities
+OFFICE 50 users; 14 have raw-top coverage = 100%
+```
+
+Expansion / near-miss concentration:
+
+```text
+HOME_PROBABLE: 5/5 DENSE
+OFFICE margin-near: 2/2 DENSE
+OFFICE share-near:  7/7 DENSE
+```
+
+The measured conclusion is therefore not simply "sparse users are penalized."
+
+Stage 08b indicates two exposure-related failure modes:
+
+- sparse absolute-support blocking;
+- dense share/margin dilution.
+
+A future adaptive policy should treat these separately and remain
+label-specific.
