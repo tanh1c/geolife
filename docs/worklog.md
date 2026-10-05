@@ -3277,3 +3277,71 @@ Decision:
   threshold calibration;
 - proceed next to the end-to-end Trackintel pipeline comparator only as a
   separate decomposition experiment.
+
+
+## 2026-10-05 — Stage 07n Trackintel end-to-end comparator added
+
+Stage 07m showed strong independent semantic convergence for HOME and partial,
+method-sensitive convergence for OFFICE while holding CP1 stays and CP2-v2
+locations fixed.
+
+Stage 07n now deliberately changes the upstream representation and runs
+Trackintel end to end from the raw GeoLife release:
+
+```text
+raw GeoLife
+→ Trackintel read_geolife
+→ Trackintel sliding staypoints
+→ Trackintel DBSCAN locations
+→ per-stay IANA local wall clock
+→ Trackintel OSNA
+→ spatial / temporal decomposition against frozen CP1 + CP2-v2
+```
+
+Runtime design:
+
+- process one user at a time to avoid loading all 24.9M raw points into memory;
+- cache per-user Trackintel-derived outputs under the Modal Volume;
+- raw GPS points are never persisted by Stage 07n;
+- reruns resume from completed user caches.
+
+Frozen raw / production gates:
+
+- 182 raw users;
+- 18,670 trajectory files;
+- 24,876,978 raw points reconciled through Trackintel's reader;
+- 5,821 frozen CP1 stays / 136 stay users;
+- 2,015 production semantic locations;
+- HOME 27 / OFFICE 16.
+
+Trackintel staypoint thresholds are aligned to CP1:
+
+- 200 m distance;
+- 20 min dwell;
+- 5 min gap;
+- include_last=False.
+
+The same Trackintel stay inventory is clustered with DBSCAN at 100 m and 200 m,
+both with num_samples=1. This is a representation comparator, not a claim that
+either DBSCAN setting is optimal.
+
+The stage decomposes differences into three layers:
+
+1. reciprocal CP1-vs-Trackintel staypoint overlap / center agreement;
+2. nearest production-vs-Trackintel location geometry at 50/100/200 m;
+3. OSNA HOME/WORK candidate center distance against production HOME/OFFICE.
+
+OSNA receives per-stay local wall-clock time resolved from each Trackintel
+staypoint center and runs with pre_filter=False so extra Trackintel eligibility
+thresholds do not confound decomposition.
+
+New files:
+
+- `analysis/07n_trackintel_end_to_end.py`;
+- `notebooks/07n_trackintel_end_to_end.ipynb`;
+- `tests/test_trackintel_end_to_end.py`;
+- `docs/eda/38_trackintel_end_to_end.md`;
+- `docs/07n_trackintel_end_to_end_handoff.md`.
+
+Stage 07n is diagnostic only. Integer location ids are never compared across
+pipelines, and no result changes the frozen HOME 27 / OFFICE 16 policy.
