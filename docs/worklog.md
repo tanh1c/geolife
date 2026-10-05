@@ -3494,3 +3494,116 @@ New files:
 
 Stage 07o remains diagnostic only. Agreement is methodological convergence, not
 accuracy, and no comparator output changes HOME 27 / OFFICE 16.
+
+
+## 2026-10-05 — Stage 07o measured literature-comparator result
+
+Stage 07o executed successfully on `main` at `f7cbf02` with no traceback.
+
+Frozen gates passed:
+
+- 5,821 CP1 stays / 136 users;
+- 2,015 semantic locations;
+- 716 recurring locations / 104 users;
+- production HOME 27 / OFFICE 16.
+
+Observation adapters:
+
+- 5,821 stay-arrival observations;
+- 9,244 stay-hour observations;
+- both cover all 136 stay users.
+
+### scikit-mobility 1.3.1 HOME rule
+
+The source-equivalent 22:00-07:00 visit-frequency comparator selected HOME for
+all 136 users.
+
+Against the frozen HOME-27 reference:
+
+- jointly selected: 27/27;
+- exact production location match: 26/27 = 96.3%;
+- 40/136 comparator users had no nighttime stay-arrival observation and used the
+  library's fallback to overall most-frequent location.
+
+This is strong HOME-method convergence despite the comparator's intentionally
+broad coverage.
+
+### arXiv:2302.14742 geohash HOME adaptation
+
+The stay-hour adaptation observed 591 user-months.
+
+Strict monthly support filters produced:
+
+- 69 qualifying user-month HOME candidates;
+- 40 users with at least one qualifying monthly HOME;
+- median qualifying months per selected user: 1;
+- median modal-month share: 1.0.
+
+Against production HOME:
+
+- comparator selected: 40 users;
+- jointly selected production HOME users: 21/27;
+- within 50 m: 14;
+- within 100 m: 20;
+- within 200 m: 20.
+
+Therefore coverage is limited, but conditional agreement is strong:
+20/21 jointly selected production HOME users = 95.2% within 200 m.
+
+### Pavan area / intensity / frequency audit
+
+Production roles occupy a substantially stronger important-location feature
+region than other recurring locations.
+
+Median feature values:
+
+- HOME (26 standalone locations): 21.74 dwell hours, 34.5 visits, 11 active
+  local dates;
+- OFFICE (15 standalone locations): 7.62 dwell hours, 15 visits, 6 active local
+  dates;
+- OTHER_RECURRING (674 locations): 1.38 dwell hours, 2 visits, 2 active local
+  dates;
+- one production location is jointly labeled HOME+OFFICE and has 49.38 dwell
+  hours, 83 visits, and 24 active local dates.
+
+Within-user rank audit:
+
+- standalone HOME: 23/26 are top-1 in both total dwell and visit frequency;
+- standalone OFFICE: 11/15 are top-1 in both total dwell and visit frequency;
+- the shared HOME+OFFICE location is top-1 in both.
+
+This supports the interpretation that emitted semantic places occupy the high
+intensity / high frequency portion of the recurring-location space without
+inventing a Pavan classifier.
+
+### SCITEPRESS-style work-rest comparator
+
+The generalized top-two-region comparator selected HOME and WORK for 117 users.
+
+Against production:
+
+- HOME exact match: 25/27 = 92.6%;
+- OFFICE exact match: 15/16 = 93.8%.
+
+However, 71/117 comparator users receive the same candidate for both HOME and
+WORK. This shows that high agreement on the narrow production reference can
+coexist with poor semantic separation under a simple broad-coverage heuristic.
+
+Stage-07j near-miss WORK diagnostic:
+
+- margin-near: 0/2 exact;
+- share-near: 5/7 exact.
+
+The 5/7 share-near result independently echoes Trackintel OSNA's Stage-07m
+finding that many share-near candidates are temporally plausible WORK
+locations. It does not override their weak recurrence/split/held-out/context
+robustness from Stage 07j/07l.
+
+Decision:
+
+- keep HOME 27 / OFFICE 16 frozen;
+- treat the multi-method HOME convergence as positive methodological support;
+- treat SCITEPRESS/OSNA agreement on share-near as semantic plausibility only;
+- do not promote near-miss users or widen gates;
+- Stage 07o completes the planned literature comparator suite without revealing
+  a reason to change production policy.
