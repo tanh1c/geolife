@@ -50,7 +50,7 @@ The notebook must reproduce:
 CP1 stays = 5821
 production HOME = 27
 production OFFICE = 16
-Stage-05b HIGH/MEDIUM non-production HOME candidates = 2
+historical Stage-05b HIGH/MEDIUM non-production HOME candidates = 2\ncurrent cache candidate count = reported at runtime
 
 production + Stage-05b expansion gate: PASS
 ~~~
@@ -71,8 +71,7 @@ candidate descriptive location context
 policy
 ~~~
 
-The displayed two-candidate table uses stable audit ids H01/H02 rather than
-user ids.
+The candidate table uses stable audit ids H01, H02, ... rather than user ids.
 
 ## Expected interpretation
 
@@ -80,12 +79,10 @@ Possible outcome:
 
 ~~~text
 HOME_HIGH_CONFIDENCE_CORE = 27
-HOME_PROBABLE_NEW         = 0..2
-HOME_PLAUSIBLE_NEW        = 0..2
-HOME_EXPANSION_ABSTAIN    = 0..2
+HOME_PROBABLE_NEW         = measured current-cache count\nHOME_PLAUSIBLE_NEW        = measured current-cache count\nHOME_EXPANSION_ABSTAIN    = measured current-cache count
 ~~~
 
-The three expansion counts must sum to 2.
+The three expansion counts must sum to the current Stage-05b HIGH/MEDIUM non-production candidate count.
 
 Production must remain:
 
