@@ -1199,3 +1199,31 @@ Across all nine near-miss users, only 1/9 passed both split tests and 2/9 were h
 Lesson: visual plausibility is useful contextual evidence, but it is not a substitute for identity persistence under independent behavioral perturbations. A case that looks office-like in imagery should remain abstained when recurrence, split stability, and held-out persistence do not converge.
 
 Policy consequence: keep the frozen OFFICE baseline at 16 users. Do not globally relax the margin or OFFICE-share gate from this near-miss audit.
+
+
+## 2026-10-05 — Independent semantic agreement can validate a method family without validating every emission
+
+Stage 07m held the frozen CP1 stays and CP2-v2 complete-link location namespace
+fixed, then applied Trackintel FREQ and OSNA only at the semantic-selection
+layer.
+
+The result is asymmetric. Production HOME aligns exactly with OSNA for all
+27/27 emitted HOME candidates and with FREQ for 24/27. Production OFFICE aligns
+with OSNA for 11/16 exact candidates and with FREQ for only 3/16.
+
+Trackintel itself is not internally stable enough to be treated as ground
+truth: among users where both Trackintel methods select a location, FREQ and
+OSNA agree on the HOME location for 68/104 but on the WORK location for only
+31/93.
+
+The near-miss result is especially instructive. OSNA selects the exact audited
+WORK candidate for 6/9 Stage-07j near-miss users, including 5/7 share-near
+cases. That makes those candidates behaviorally plausible under an established
+external heuristic, but Stage 07j/07l already showed that this plausibility does
+not imply recurrence, split-half, held-out, or independent-context robustness.
+
+Lesson: comparator agreement is evidence that the production model belongs to a
+recognized semantic-inference family. It is not sufficient evidence to widen a
+production gate. HOME shows strong method convergence; WORK/OFFICE requires
+explicit abstention and robustness validation because candidate identity is far
+more method-sensitive.

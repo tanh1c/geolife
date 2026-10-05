@@ -1219,3 +1219,28 @@ Trên toàn bộ 9 near-miss, chỉ 1/9 qua cả hai split test và 2/9 giữ ex
 Bài học: visual plausibility là contextual evidence hữu ích, nhưng không thay thế được candidate-identity persistence khi dữ liệu bị perturb theo các cách độc lập. Một location trông rất giống office trên historical imagery vẫn phải abstain nếu recurrence, split stability và held-out persistence không hội tụ.
 
 Hệ quả policy: giữ production OFFICE baseline ở 16 user; không relax global margin gate hoặc OFFICE-share gate dựa trên near-miss audit này.
+
+
+## 2026-10-05 — Independent semantic agreement xác nhận method family, không tự xác nhận mọi emission
+
+Stage 07m giữ nguyên frozen CP1 stays và CP2-v2 complete-link location namespace,
+sau đó chỉ thay semantic-selection layer bằng Trackintel FREQ và OSNA.
+
+Kết quả rất bất đối xứng. Production HOME match exact với OSNA ở toàn bộ 27/27
+HOME candidates và với FREQ ở 24/27. Production OFFICE chỉ match exact với OSNA
+ở 11/16 và với FREQ ở 3/16.
+
+Bản thân hai Trackintel method cũng không ổn định đủ để coi như ground truth:
+trong các user mà cả FREQ và OSNA đều chọn candidate, hai method chọn cùng HOME
+location ở 68/104 nhưng chỉ chọn cùng WORK location ở 31/93.
+
+Near-miss cho bài học rõ hơn. OSNA chọn đúng audited WORK candidate ở 6/9
+Stage-07j near-miss, gồm 5/7 share-near. Điều này cho thấy các candidate đó hợp
+lý dưới một external heuristic đã được công bố, nhưng Stage 07j/07l đã cho thấy
+semantic plausibility không đồng nghĩa với recurrence, split-half, held-out hay
+independent-context robustness.
+
+Bài học: agreement với comparator là evidence rằng production model thuộc một
+semantic-inference family hợp lý, không phải lý do tự động nới production gate.
+HOME có method convergence rất mạnh; WORK/OFFICE nhạy với method hơn nhiều nên
+cần explicit abstention và robustness validation.
