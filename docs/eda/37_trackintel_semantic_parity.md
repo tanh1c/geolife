@@ -189,3 +189,132 @@ semantic accuracy, because GeoLife has no direct HOME/OFFICE ground truth.
 The next independent stage may run Trackintel end to end with its own staypoint
 generation and DBSCAN location generation, but that experiment must be called a
 pipeline comparator rather than semantic parity.
+
+
+## Measured result
+
+Stage 07m was executed on `main` at `5e4b157` with
+`trackintel==1.4.2`.
+
+### Reproduction / adapter validation
+
+All frozen gates passed:
+
+- CP1 stays: 5,821;
+- users with stays: 136;
+- semantic stays: 5,821;
+- semantic locations: 2,015;
+- recurring locations: 716;
+- recurring-location users: 104;
+- production HOME: 27;
+- production OFFICE: 16.
+
+The local-wall adapter also passed on all 5,821 rows:
+
+- encoded users: 136;
+- encoded locations: 2,015;
+- non-zero finish-wall deltas: 0;
+- maximum absolute finish-wall delta: 0 s.
+
+Therefore the semantic comparator did not introduce a measured local-time /
+elapsed-duration distortion on this frozen dataset.
+
+### Trackintel coverage
+
+With `pre_filter=False`:
+
+| method | HOME selected | WORK selected |
+| --- | ---: | ---: |
+| FREQ | 136 | 117 |
+| OSNA | 104 | 99 |
+
+The broad Trackintel coverage is expected: this stage intentionally disables
+Trackintel eligibility filtering so semantic selection can be separated from
+production abstention.
+
+### Production candidate identity agreement
+
+| method | label | production emitted | comparator selected | jointly selected | exact matches | exact among joint |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| FREQ | HOME | 27 | 136 | 27 | 24 | 88.9% |
+| OSNA | HOME | 27 | 104 | 27 | 27 | 100.0% |
+| FREQ | OFFICE | 16 | 117 | 16 | 3 | 18.8% |
+| OSNA | OFFICE | 16 | 99 | 15 | 11 | 73.3% |
+
+For the frozen HOME-27 reference:
+
+- FREQ exact: 24/27;
+- OSNA exact: 27/27.
+
+For the frozen OFFICE-16 reference:
+
+- FREQ selects all 16 but exact-matches only 3/16;
+- OSNA selects 15/16 and exact-matches 11/16;
+- among the 15 jointly selected OFFICE users, 11/15 are exact and 4/15 select a
+  different location;
+- one production OFFICE user is not selected by OSNA.
+
+### Trackintel internal agreement
+
+Among user-label rows jointly selected by FREQ and OSNA:
+
+- HOME: 68/104 same location = 65.4%;
+- OFFICE: 31/93 same location = 33.3%.
+
+This internal disagreement is important. Trackintel is useful as an independent
+implementation comparator, but its methods do not define a unique semantic
+ground truth, especially for WORK.
+
+### Stage-07j near-miss WORK identity
+
+Both Trackintel methods select WORK for all nine near-miss users.
+
+Exact match to the frozen Stage-07j audited candidate:
+
+| method | margin-near | share-near | total |
+| --- | ---: | ---: | ---: |
+| FREQ | 0/2 | 2/7 | 2/9 |
+| OSNA | 1/2 | 5/7 | 6/9 |
+
+OSNA therefore independently supports the semantic plausibility of many
+share-near candidates. This does not change the Stage-07l policy result:
+candidate plausibility is not the same as robustness. The near-miss cohort still
+has weak recurrence/split/held-out convergence and no BCL work-compatible
+support within 150 m.
+
+### Interpretation
+
+The semantic-only comparator supports three conclusions.
+
+1. **HOME is strongly convergent.** Exact 27/27 OSNA agreement indicates that
+   the frozen HOME ranking is highly consistent with an independent
+   time-structured open-source heuristic once stays and locations are held
+   fixed.
+
+2. **OFFICE is method-sensitive.** OSNA gives meaningful convergence
+   (11/16 exact), but FREQ is weak (3/16 exact), and FREQ-vs-OSNA WORK identity
+   agreement is only 31/93.
+
+3. **Production abstention is doing real work.** OSNA selects 99 WORK users and
+   matches 6/9 near-miss candidates, whereas production emits only 16 OFFICE
+   users. The production gate is therefore not merely reproducing a generic
+   daytime heuristic; it is selecting a narrower evidence-supported subset.
+
+### Decision
+
+Keep the frozen production result:
+
+- HOME = 27;
+- OFFICE = 16.
+
+Do not promote the nine Stage-07j near-miss candidates based on Trackintel
+agreement alone.
+
+Stage 07m is positive validation of the overall semantic-inference family,
+especially for HOME, while simultaneously reinforcing the need for abstention
+and robustness diagnostics for OFFICE.
+
+The next Trackintel experiment, if run, should be an end-to-end pipeline
+comparator that deliberately changes staypoint extraction and spatial
+clustering. Its differences must be decomposed rather than interpreted as
+semantic accuracy.
