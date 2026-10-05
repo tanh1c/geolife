@@ -3345,3 +3345,96 @@ New files:
 
 Stage 07n is diagnostic only. Integer location ids are never compared across
 pipelines, and no result changes the frozen HOME 27 / OFFICE 16 policy.
+
+
+## 2026-10-05 — Stage 07n measured Trackintel end-to-end result
+
+Stage 07n executed successfully on `main` at `5bd2920` with
+`trackintel==1.4.2`.
+
+All raw / production gates passed:
+
+- 182 raw users;
+- 18,670 trajectory files;
+- Trackintel raw-reader reconciliation: 24,876,978 points;
+- 5,821 frozen CP1 stays / 136 stay users;
+- 2,015 production semantic locations;
+- production HOME 27 / OFFICE 16.
+
+Trackintel end-to-end pipeline output:
+
+- 2,157 staypoints / 125 users;
+- DBSCAN-100: 1,237 locations, 247 recurring locations / 75 users;
+- DBSCAN-200: 1,113 locations, 264 recurring locations / 81 users;
+- all 2,157 Trackintel stays resolved to IANA timezone;
+- 18 distinct timezones.
+
+The main decomposition result begins at stay extraction.
+
+Reciprocal strong-stay matching, defined as >=50% overlap of the shorter stay
+and center distance <=200 m:
+
+- CP1 -> Trackintel: 2,125 / 5,821 = 36.5%;
+- Trackintel -> CP1: 2,088 / 2,157 = 96.8%.
+
+Trackintel therefore detects a much smaller stay inventory, but almost every
+Trackintel stay corresponds to a CP1 stay. The dominant observed end-to-end
+difference starts upstream: Trackintel behaves approximately like a strict
+subset of the frozen CP1 inventory under the threshold-aligned 200 m / 20 min /
+5 min configuration.
+
+The Trackintel staypoint generator also emitted warnings that duplicate
+positionfixes were dropped before stay extraction. This is part of the
+independent implementation contract and is one possible contributor to the
+inventory difference; Stage 07n does not isolate its effect separately.
+
+Location geometry remains substantially aligned once stays exist.
+
+For the 716 recurring production locations, nearest Trackintel location within
+200 m:
+
+- DBSCAN-100: 559 / 716 = 78.1%, median nearest distance 36.4 m;
+- DBSCAN-200: 530 / 716 = 74.0%, median nearest distance 49.3 m.
+
+DBSCAN-100 is slightly closer to the production complete-link geometry by these
+nearest-anchor diagnostics, despite the production 200 m maximum-diameter
+contract. This reinforces that DBSCAN epsilon and complete-link diameter are not
+interchangeable parameters.
+
+End-to-end OSNA semantic correspondence:
+
+- DBSCAN-100 HOME: 19 / 27 production HOME within 200 m = 70.4%;
+- DBSCAN-200 HOME: 21 / 27 within 200 m = 77.8%;
+- DBSCAN-100 OFFICE: 9 / 16 production OFFICE within 200 m = 56.3%;
+- DBSCAN-200 OFFICE: 9 / 16 within 200 m = 56.3%.
+
+Trackintel selects 92 HOME and 85 WORK users end to end. For production-emitted
+users, both pipelines select a candidate for 26/27 HOME and 15/16 OFFICE users.
+
+Comparison with Stage 07m is the important control:
+
+- with stays and location namespace held fixed, OSNA matched production HOME
+  27/27 exactly and OFFICE 11/16 exactly;
+- after replacing stay extraction + clustering with Trackintel, HOME spatial
+  correspondence falls to 21/27 at the better DBSCAN-200 setting and OFFICE to
+  9/16.
+
+Interpretation:
+
+- the large end-to-end divergence is already present before OSNA because the
+  Trackintel stay inventory is much smaller;
+- clustering introduces a secondary representation difference but most
+  recurring production anchors still have a nearby Trackintel anchor;
+- HOME remains more robust across implementations than OFFICE;
+- OFFICE remains method- and representation-sensitive and still requires the
+  production abstention / robustness framework.
+
+Decision:
+
+- keep HOME 27 / OFFICE 16 frozen;
+- do not reinterpret Stage 07n as accuracy;
+- do not retune stay, clustering, HOME, or OFFICE thresholds from this
+  comparator;
+- treat Stage 07n as evidence that the production method and Trackintel share
+  substantial significant-place structure while differing materially in
+  upstream stay inventory construction.
