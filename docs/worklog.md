@@ -4057,3 +4057,53 @@ exposure-sensitive, but the mechanism is bimodal. A future Stage 08c should not
 simply lower thresholds for sparse users. It should test exposure-aware policies
 separately for support-limited sparse cases and concentration-limited dense
 cases, while preserving the frozen HOME-27 / OFFICE-16 baseline.
+
+
+## 2026-10-05 — Stage 08c exposure-aware policy experiment added
+
+Stage 08c converts the measured Stage-08b exposure findings into three
+predeclared experimental policy branches while preserving the frozen production
+baseline HOME 27 / OFFICE 16.
+
+Branch A — SPARSE HOME support-aware:
+
+- applies only to SPARSE HOME users blocked by `min_dates`;
+- requires exactly two observed HOME opportunity dates;
+- requires the same raw top candidate on 2/2 observed dates;
+- keeps the frozen HOME share >= .50 and margin >= .20 requirements;
+- requires recurrence to select the same location;
+- rejects production-OFFICE collision;
+- therefore relaxes only absolute support dates from 3 to 2.
+
+Branch B — DENSE HOME concentration-aware:
+
+- searches only the existing Stage-08a HOME_PROBABLE set;
+- requires the probable candidate to remain the fixed-window eligible top
+  candidate;
+- requires a share/margin failure mode;
+- replaces absolute concentration with a relative top-vs-runner-up dominance
+  floor of .625;
+- .625 is derived from the frozen HOME boundary:
+  .50 top share / (.50 top + .30 runner-up).
+
+Branch C — DENSE OFFICE conservative concentration-aware:
+
+- does not relax SPARSE OFFICE because Stage 08b measured 0/38 candidate
+  selection under fixed, HoWDe and recurrence;
+- searches only the nine Stage-07j OFFICE near misses;
+- uses a relative top-vs-runner-up dominance floor of .60, derived from the
+  frozen .30 share / .10 margin OFFICE boundary;
+- requires no production-HOME collision;
+- robust experimental promotion additionally requires dropout retention >= .80
+  plus at least one static/split/held-out candidate-identity corroborator.
+
+Stage 08c reports candidate funnels and tiered coverage only. It does not modify
+production code or silently merge experimental candidates into production.
+
+New files:
+
+- `analysis/08c_exposure_aware_policy.py`;
+- `notebooks/08c_exposure_aware_policy.ipynb`;
+- `tests/test_exposure_aware_policy.py`;
+- `docs/eda/43_exposure_aware_policy.md`;
+- `docs/08c_exposure_aware_policy_handoff.md`.
