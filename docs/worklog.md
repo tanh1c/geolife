@@ -3205,3 +3205,75 @@ New files:
 
 Next action: run Stage 07m on the existing Modal Volume and inspect candidate
 agreement before implementing an end-to-end Trackintel pipeline comparator.
+
+
+## 2026-10-05 — Stage 07m measured Trackintel semantic-parity result
+
+Stage 07m ran successfully on `main` at `5e4b157` with
+`trackintel==1.4.2`.
+
+Frozen reproduction and adapter gates passed:
+
+- 5,821 CP1 stays / 136 users;
+- 2,015 semantic locations;
+- 716 recurring locations / 104 recurring-location users;
+- production HOME 27 / OFFICE 16;
+- Trackintel adapter rows 5,821;
+- local-wall adapter finish delta nonzero: 0.
+
+Trackintel coverage with `pre_filter=False`:
+
+- FREQ: HOME 136, WORK 117;
+- OSNA: HOME 104, WORK 99.
+
+HOME candidate identity is strongly convergent:
+
+- FREQ matches 24/27 frozen HOME candidates exactly (88.9%);
+- OSNA matches 27/27 exactly (100%);
+- OSNA selects HOME for 104 users, so the frozen 27-user production HOME set is
+  a strict support-qualified subset rather than a different semantic rule.
+
+OFFICE/WORK is substantially less convergent:
+
+- FREQ selects WORK for all 16 production OFFICE users but matches the exact
+  candidate in only 3/16 (18.8%);
+- OSNA selects WORK for 15/16 production OFFICE users and matches 11/16 exact
+  production candidates (68.8% of the production reference; 11/15 among jointly
+  selected users = 73.3%);
+- one frozen production OFFICE user is not selected as WORK by OSNA;
+- four jointly selected production OFFICE users receive a different OSNA WORK
+  location.
+
+Trackintel methods also disagree internally:
+
+- HOME: FREQ and OSNA both select 104 user-label rows and choose the same
+  location for 68/104 (65.4%);
+- OFFICE: both select 93 user-label rows but choose the same location for only
+  31/93 (33.3%).
+
+Stage-07j near-miss diagnostic:
+
+- FREQ selects WORK for all 9 near-miss users but matches the audited candidate
+  for only 2/9: 0/2 margin-near and 2/7 share-near;
+- OSNA selects WORK for all 9 near-miss users and matches the audited candidate
+  for 6/9: 1/2 margin-near and 5/7 share-near.
+
+Interpretation:
+
+- HOME has strong independent semantic-method convergence, especially against
+  OSNA;
+- OFFICE is intrinsically more ambiguous under established heuristic methods;
+- the fact that OSNA selects 99 WORK users and matches 6/9 one-step near-miss
+  candidates demonstrates semantic plausibility, not production reliability;
+- the frozen OFFICE abstention policy remains justified because Stage 07j/07l
+  showed that most near-miss candidates do not jointly satisfy recurrence,
+  split, held-out, and independent-context evidence.
+
+Decision:
+
+- keep HOME 27 / OFFICE 16 frozen;
+- do not promote any Stage-07j near-miss from Trackintel agreement alone;
+- use Stage 07m as independent-method validation of the semantic family, not as
+  threshold calibration;
+- proceed next to the end-to-end Trackintel pipeline comparator only as a
+  separate decomposition experiment.
