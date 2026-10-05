@@ -237,7 +237,8 @@ def trackintel_location_table(
     variant: str,
 ) -> pd.DataFrame:
     sp = canonicalize_user_column(staypoints)
-    loc = canonicalize_user_column(locations)
+    loc = canonicalize_user_column(locations).copy()
+    loc["_location_index"] = loc.index
 
     counts = (
         sp.groupby(["user_id", "location_id"], as_index=False)
@@ -246,10 +247,11 @@ def trackintel_location_table(
     )
 
     center = loc.geometry if hasattr(loc, "geometry") else loc["center"]
+    location_ids = loc["location_id"] if "location_id" in loc.columns else loc["_location_index"]
     out = pd.DataFrame(
         {
-            "user_id": loc["user_id"].astype(str),
-            "location_id": pd.to_numeric(loc.index if "location_id" not in loc.columns else loc["location_id"], errors="raise"),
+            "user_id": loc["user_id"].astype(str).to_numpy(),
+            "location_id": pd.to_numeric(location_ids, errors="raise").to_numpy(),
             "longitude": center.x.astype(float).to_numpy(),
             "latitude": center.y.astype(float).to_numpy(),
         }
