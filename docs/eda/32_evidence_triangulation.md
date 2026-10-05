@@ -363,3 +363,29 @@ Even after relaxing behavior from the primary `top1 >= 3` rule to the weaker dir
 Further progress on semantic WORK/OFFICE validity should require qualitatively better supervision or ground truth rather than additional post-hoc source hunting on the same nine-user cohort.
 
 The stable-secondary pattern remains a valid descriptive mobility structure. The correct project-level claim is that its behavioral recurrence is real, while the available independent semantic evidence does not establish a general WORK/OFFICE interpretation.
+
+
+## Evidence-weight correction — 2026-10-05
+
+Stage 07h originally summarized OSM and BCL directional signs symmetrically.
+
+That table remains a valid source-agreement diagnostic, but it should not be interpreted as equal-weight semantic voting.
+
+Reason:
+
+- 257 / 296 historical-OSM-eligible anchors are dated 2008–2009;
+- ohsome queried OSM exactly at each anchor's median observation date;
+- early OSM mapping completeness is unknown and sparse;
+- therefore OSM absence or negative candidate-minus-peer direction is not reliable contradiction.
+
+Revised hierarchy:
+
+1. BCL POI 2008 = primary historical functional-POI evidence;
+2. historical OSM = positive support-only cross-check;
+3. CLCD = physical land-cover context.
+
+The prior result `strict_three_way_convergence = 0` must therefore not be used as an argument that BCL-positive cases were "rejected" by OSM.
+
+Stage 07i adds a BCL-primary / OSM-support-only view and a predeclared threshold sensitivity audit.
+
+The original Stage-07h tables are preserved for provenance.
