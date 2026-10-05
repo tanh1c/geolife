@@ -1335,3 +1335,29 @@ production emission rule.
 Bài học: methodological closure không cần ép heterogeneous evidence thành một
 score duy nhất. Cần giữ đúng ý nghĩa của từng evidence family, validate toàn bộ
 lineage và viết rõ policy boundary.
+
+
+## 2026-10-05 — Có thể tăng coverage mà không làm loãng validated core
+
+Stage 08a cho thấy cần tách rõ production emission khỏi downstream semantic
+coverage.
+
+Validated HOME core vẫn là 27. Cache Stage-05b hiện tại có 5 candidate
+HIGH/MEDIUM ngoài production và cả 5 đều pass rule HOME_PROBABLE đã predeclare
+khi ghép thêm evidence từ Trackintel và literature-style comparators.
+
+Như vậy tiered usable HOME coverage tăng từ 27 lên 32 mà không cần đổi production
+gate.
+
+Tuy nhiên 5 candidate không mạnh bằng nhau. Có 3 candidate được 3/3 primary
+external exact confirmations. Hai candidate chỉ vừa đủ ngưỡng 2-family; trong
+đó có một case không có Trackintel end-to-end/geohash support. Vì vậy nên giữ
+evidence columns rõ ràng thay vì hiểu HOME_PROBABLE như một calibrated
+probability.
+
+Một bài học khác là reproducibility: current Stage-05b cache có 5 candidate,
+trong khi historical measured snapshot ghi 2. Coverage-expansion audit nên báo
+rõ lineage drift này thay vì hard-assert và crash.
+
+Bài học: confidence tiers cho phép tăng usable coverage nhưng vẫn giữ nguyên ý
+nghĩa của high-confidence production core.
