@@ -134,3 +134,33 @@ def test_synthetic_self_check():
     stage = _module()
     result = stage.synthetic_self_check()
     assert result["status"] == "ok"
+
+
+def test_notebook_contract():
+    import json
+
+    notebook_path = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "07m_trackintel_semantic_parity.ipynb"
+    )
+    notebook = json.loads(notebook_path.read_text())
+    source = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+    )
+
+    required = [
+        "trackintel==1.4.2",
+        "pre_filter=False",
+        "/mnt/geolife-data",
+        "stays_baseline_v1.pkl",
+        "assert len(stays)==5821",
+        "assert len(locations)==2015",
+        "label_counts.get('HOME',0)==27",
+        "label_counts.get('OFFICE',0)==16",
+        "07m_trackintel_semantic_parity",
+        "near_miss_office_audit_private.pkl",
+    ]
+    for token in required:
+        assert token in source
