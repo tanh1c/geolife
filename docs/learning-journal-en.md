@@ -1382,3 +1382,38 @@ families.
 
 Lesson: exposure-aware inference should normalize support and concentration
 separately, and HOME/OFFICE may require different adaptation rules.
+
+
+## 2026-10-05 — Exposure-aware rules recovered useful coverage without broad relaxation
+
+Stage 08c turned the Stage-08b diagnosis into three constrained policy
+experiments.
+
+The sparse-HOME branch recovered four users by changing only one condition:
+absolute HOME support dates from three to two. These were not weak one-night
+cases: each had exactly two observed HOME opportunity dates, the same candidate
+on both dates, full observed-date coverage, recurrence identity agreement, and
+the original HOME share/margin requirements still satisfied.
+
+The dense-HOME result was even cleaner. All five previously corroborated
+HOME_PROBABLE candidates passed the relative top-vs-runner-up dominance rule.
+Because the search universe was restricted to the existing probable tier, this
+shows that absolute share/margin dilution explains those five cases well without
+opening a broad dense-user relaxation.
+
+OFFICE remained more difficult. Seven of nine audited near misses passed the
+relative concentration rule, but only three survived dropout plus independent
+identity corroboration. That gap is exactly why OFFICE should stay more
+conservative than HOME.
+
+The useful coverage picture is therefore:
+
+- frozen production: HOME 27 / OFFICE 16;
+- tiered exposure-aware HOME: 36;
+- robust experimental OFFICE: 19 total if the three extra cases are kept as a
+  separate tier.
+
+Lesson: exposure-aware inference can improve coverage, but the right mechanism
+depends on failure mode. Sparse HOME benefits from opportunity-normalized
+support; dense HOME benefits from relative concentration; OFFICE still needs a
+strong robustness filter.
