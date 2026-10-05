@@ -1227,3 +1227,35 @@ recognized semantic-inference family. It is not sufficient evidence to widen a
 production gate. HOME shows strong method convergence; WORK/OFFICE requires
 explicit abstention and robustness validation because candidate identity is far
 more method-sensitive.
+
+
+## 2026-10-05 — End-to-end disagreement should be decomposed before blaming the semantic model
+
+Stage 07n replaced the entire upstream path with Trackintel while keeping broad
+stay thresholds aligned at 200 m / 20 min / 5 min.
+
+Trackintel produced 2,157 stays versus 5,821 frozen CP1 stays. The asymmetry in
+reciprocal matching is the key result: 96.8% of Trackintel stays strongly match
+a CP1 stay, but only 36.5% of CP1 stays strongly match a Trackintel stay.
+
+This means the major end-to-end difference starts before clustering or OSNA.
+Under this configuration, Trackintel is approximately a stricter subset of the
+CP1 stay inventory rather than a completely different set of places.
+
+Once stays exist, spatial structure is still fairly similar. For the 716
+recurring production locations, 78.1% have a DBSCAN-100 Trackintel anchor within
+200 m and 74.0% have a DBSCAN-200 anchor within 200 m.
+
+The semantic result therefore needs to be read conditionally. In Stage 07m,
+OSNA matched HOME 27/27 and OFFICE 11/16 when stays and locations were held
+fixed. End to end, the best HOME spatial correspondence is 21/27 and OFFICE is
+9/16. The drop is not evidence that OSNA suddenly became worse; much of it is
+inherited from a different upstream stay/location representation.
+
+Trackintel also drops duplicate positionfixes during its staypoint pipeline.
+That independent preprocessing choice is part of the observed upstream
+difference and should not be silently normalized away.
+
+Lesson: when two mobility pipelines disagree on HOME/WORK, first compare their
+event inventories and spatial anchors. Semantic disagreement is only
+interpretable after upstream representation parity has been examined.
