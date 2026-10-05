@@ -152,3 +152,158 @@ remaining tightly corroborated.
 
 Any positive result remains a separate confidence/policy tier until additional
 robustness review is complete.
+
+
+## Measured result
+
+The executed notebook ran successfully on `main` at `37cb1e8` with no
+traceback.
+
+### Input reproduction
+
+| item | count |
+| --- | ---: |
+| production HOME | 27 |
+| production OFFICE | 16 |
+| HOME_PROBABLE from 08a | 5 |
+| OFFICE near miss from 07j | 9 |
+| 08b diagnostic rows | 272 |
+
+### SPARSE HOME support-aware branch
+
+The predeclared sparse rule emitted 4 candidates.
+
+All four have:
+
+- HOME exposure regime = SPARSE;
+- exactly 2 observed HOME opportunity dates;
+- raw top candidate support on 2/2 dates;
+- raw top date coverage = 1.0;
+- recurrence exact match;
+- no production-OFFICE collision;
+- original HOME share >= .50;
+- original HOME margin >= .20.
+
+Observed raw shares and margins:
+
+| audit | raw share | raw margin |
+| --- | ---: | ---: |
+| SH01 | 1.000 | 1.000 |
+| SH02 | .833 | .833 |
+| SH03 | .872 | .872 |
+| SH04 | 1.000 | 1.000 |
+
+This is a narrowly exposure-normalized support relaxation, not a general
+sparse-user threshold reduction.
+
+### DENSE HOME concentration-aware branch
+
+All 5/5 existing HOME_PROBABLE candidates pass relative dominance >= .625.
+
+| audit | gate failure | share | margin | relative dominance | external exact families |
+| --- | --- | ---: | ---: | ---: | ---: |
+| DH01 | share+margin | .265 | .162 | .721 | 3 |
+| DH02 | share+margin | .407 | .188 | .650 | 2 |
+| DH03 | share | .453 | .312 | .763 | 2 |
+| DH04 | share+margin | .277 | .187 | .755 | 3 |
+| DH05 | share+margin | .187 | .187 | 1.000 | 3 |
+
+Because the branch only searches the already-corroborated probable tier, this
+result supports relative concentration as an explanation for dense HOME
+dilution without demonstrating that the same rule should be applied to all dense
+users.
+
+### DENSE OFFICE branch
+
+Relative-dominance pool:
+
+```text
+7 / 9 near misses
+```
+
+Robust subset:
+
+```text
+3 / 9 near misses
+```
+
+Aggregate robustness within the 7-user pool:
+
+| metric | users |
+| --- | ---: |
+| static comparator >=1 | 4 |
+| split match >=1 | 1 |
+| held-out top-1 | 2 |
+| dropout retention >= .80 | 4 |
+| final robust rule | 3 |
+
+The three final robust candidates all have dropout retention = 1.0 and at least
+one additional identity corroborator.
+
+### Candidate funnel
+
+| branch | candidate users |
+| --- | ---: |
+| HOME_SPARSE_2OF2_RECURRENCE | 4 |
+| HOME_DENSE_RELATIVE_DOMINANCE | 5 |
+| OFFICE_DENSE_RELATIVE_POOL | 7 |
+| OFFICE_DENSE_ROBUST_RELATIVE | 3 |
+
+### Coverage comparison
+
+| policy view | HOME | OFFICE | production changed |
+| --- | ---: | ---: | --- |
+| frozen baseline | 27 | 16 | no |
+| tiered HOME: dense probable + sparse support | 36 | 16 | no |
+| all experimental Stage-08c branches | 36 | 19 | no |
+
+The +9 HOME are composed of:
+
+- +5 existing Stage-08a HOME_PROBABLE candidates validated by relative
+  dominance;
+- +4 new sparse 2-of-2 support candidates.
+
+The +3 OFFICE are a strict subset of the previously audited nine near misses.
+
+### Interpretation
+
+Stage 08c supports a label-specific exposure-aware design:
+
+```text
+SPARSE HOME
+absolute support limitation
+→ allow only strict 2-of-2 observed support
+→ retain original share/margin
+→ require recurrence identity
+
+DENSE HOME
+absolute concentration dilution
+→ relative top-vs-runner-up dominance
+→ restrict to corroborated HOME_PROBABLE tier
+
+DENSE OFFICE
+relative concentration can recover candidates
+→ but requires dropout + identity corroboration
+→ only 3/9 survive
+```
+
+### Decision
+
+Do not migrate production from Stage 08c alone.
+
+Keep:
+
+```text
+production HOME = 27
+production OFFICE = 16
+```
+
+and retain exposure-aware additions as separate research/confidence tiers:
+
+```text
+tiered HOME coverage = 36
+robust experimental OFFICE coverage = 19
+```
+
+The next validation should test persistence/robustness of the 4 sparse HOME and
+3 robust OFFICE additions before any production policy change.
