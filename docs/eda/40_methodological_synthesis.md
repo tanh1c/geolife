@@ -261,3 +261,126 @@ The CP2-v2 validation track can close when:
 3. the claim boundary is explicit;
 4. no new threshold is selected from comparator agreement;
 5. the synthesis is documented in the worklog and learning journals.
+
+
+## Measured closure
+
+Stage 07p was rerun successfully on `main` at `649f805`.
+
+The executed notebook contains no traceback.
+
+### Lineage validation
+
+All 33 hard checks passed.
+
+Representative reproduced measurements:
+
+- HOME fixed-window vs recurrence: 35/42 exact;
+- OFFICE fixed-window vs recurrence: 6/25 exact;
+- HOME held-out top-1: 0.500;
+- OFFICE held-out top-1: 0.421;
+- HOME 30% dropout retention: 0.81746;
+- OFFICE 30% dropout retention: 0.78889;
+- frozen OFFICE baseline: 16;
+- margin-relax OFFICE: 18;
+- share-relax OFFICE: 23;
+- Stage-07m OSNA: HOME 27/27 exact, OFFICE 11/16 exact;
+- Stage-07n DBSCAN-200 + OSNA: HOME 21/27 within 200 m, OFFICE 9/16;
+- Stage-07o: scikit HOME 26/27 exact, SCITEPRESS HOME 25/27 exact,
+  SCITEPRESS OFFICE 15/16 exact, geohash HOME 20/27 within 200 m.
+
+### HOME evidence ladder
+
+The final HOME ladder reproduces:
+
+- fixed vs HoWDe exact: 19/23;
+- fixed vs recurrence exact: 35/42;
+- held-out top-1: 0.500;
+- 30% dropout retention: 0.81746;
+- Trackintel OSNA exact: 27/27;
+- Trackintel end-to-end within 200 m: 21/27;
+- scikit-mobility-style exact: 26/27;
+- geohash adaptation within 200 m: 20/27;
+- SCITEPRESS-style exact: 25/27.
+
+Interpretation: HOME is strongly convergent across internal and external
+semantic families, with expected degradation under a fully independent
+upstream pipeline.
+
+### OFFICE evidence ladder
+
+The final OFFICE ladder reproduces:
+
+- fixed vs HoWDe exact: 16/19;
+- fixed vs recurrence exact: 6/25;
+- held-out top-1: 0.421;
+- 30% dropout retention: 0.78889;
+- Trackintel OSNA exact: 11/16;
+- Trackintel end-to-end within 200 m: 9/16;
+- SCITEPRESS-style exact: 15/16.
+
+Interpretation: OFFICE is plausible under several schedule-aware heuristics but
+more sensitive than HOME to alternate ranking logic, persistence, and upstream
+representation.
+
+### Near-miss policy
+
+The nine one-step OFFICE near-miss users remain abstained.
+
+Measured summary:
+
+- margin-near: 2 users, 0/2 both-split exact, 0/2 held-out top-1;
+- share-near: 7 users, 1/7 both-split exact, 2/7 held-out top-1;
+- BCL work-context support within 150 m: 0 for both groups;
+- overall Stage-07l snapshot: 1/9 both-split exact and 2/9 held-out top-1.
+
+These results remain insufficient for a global margin/share relaxation.
+
+### End-to-end sensitivity
+
+Stage-07n synthesis reproduces:
+
+- CP1 -> Trackintel strong-match rate: 0.365;
+- Trackintel -> CP1 strong-match rate: 0.968;
+- recurring-location correspondence within 200 m:
+  - DBSCAN-100: 0.781;
+  - DBSCAN-200: 0.740;
+- semantic candidate correspondence:
+  - HOME: 0.778;
+  - OFFICE: 0.563.
+
+The dominant end-to-end difference therefore begins upstream at stay inventory
+construction rather than semantic selection alone.
+
+### Final policy
+
+The final snapshot reproduces:
+
+```text
+production_HOME   = 27
+production_OFFICE = 16
+
+change_home_gate   = False
+change_office_gate = False
+promote_near_miss  = False
+
+final_policy = freeze_HOME_27_OFFICE_16
+```
+
+All Stage-07p aggregate artifacts were saved successfully under:
+
+```text
+/mnt/geolife-data/cache/cp2_v2/07p_methodological_synthesis/
+```
+
+### Closure
+
+The exit criteria are satisfied:
+
+1. measured-lineage checks pass;
+2. HOME 27 / OFFICE 16 reproduces;
+3. the claim boundary is explicit;
+4. no comparator agreement was converted into threshold tuning;
+5. the synthesis is documented.
+
+The current CP2-v2 HOME/OFFICE methodological validation track is closed.
