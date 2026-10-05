@@ -1276,3 +1276,33 @@ không nên âm thầm normalize bỏ khi diễn giải comparator.
 Bài học: khi hai mobility pipelines bất đồng HOME/WORK, phải so event inventory
 và spatial anchors trước. Chỉ khi upstream representation đã được hiểu thì mới
 diễn giải semantic disagreement.
+
+
+## 2026-10-05 — Comparator agreement chỉ thật sự mạnh khi nhìn cùng coverage và failure modes
+
+Stage 07o so frozen semantic result với ba literature-style semantic comparators
+và một Pavan feature-space audit.
+
+HOME hội tụ mạnh dưới các formulation rất khác nhau. Rule scikit-mobility
+22:00-07:00 match exact 26/27 production HOME locations. Geohash monthly
+adaptation strict hơn nên chỉ jointly cover 21/27 production HOME users, nhưng
+20/21 joint selections nằm trong 200 m.
+
+Pavan-style feature view cũng chỉ cùng hướng mà không cần dựng classifier:
+production HOME và OFFICE có dwell, frequency và active-date support cao hơn
+rất nhiều so với ordinary recurring locations.
+
+Kết quả SCITEPRESS-style là một cảnh báo quan trọng. Nó match 25/27 production
+HOME và 15/16 production OFFICE candidates, nhưng lại gán cùng một candidate
+cho cả HOME lẫn WORK ở 71/117 comparator users. Vì vậy reference agreement cao
+không đồng nghĩa một broad heuristic có semantic separation tốt.
+
+Near-miss cũng cho cùng bài học. SCITEPRESS-style WORK match 5/7 share-near,
+gần như giống OSNA 5/7 ở Stage 07m. Các candidate này plausible dưới nhiều
+external temporal heuristics, nhưng Stage 07j/07l vẫn cho thấy robustness yếu ở
+phần lớn cases.
+
+Bài học: independent comparator hữu ích nhất như triangulation evidence khi ta
+báo cả convergence lẫn failure modes. Nó có thể xác nhận semantic family hợp lý,
+nhưng không thay thế ground truth và không tự trở thành threshold-selection
+rule.
