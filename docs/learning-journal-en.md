@@ -1289,3 +1289,32 @@ heuristics, but Stage 07j/07l still show weak robustness for most of them.
 Lesson: independent comparators are strongest as triangulation tools when we
 report both convergence and failure modes. They can validate the semantic
 family without becoming substitute ground truth or threshold-selection rules.
+
+
+## 2026-10-05 — A validation track is complete when its evidence hierarchy reproduces, not when every comparator agrees
+
+Stage 07p reran the full aggregate evidence lineage and passed all 33 checks.
+
+The most useful final result is not one agreement percentage. It is that the
+project can now reproduce a consistent hierarchy of evidence:
+
+- internal cross-method agreement;
+- held-out and dropout persistence;
+- threshold sensitivity;
+- near-miss robustness;
+- historical/context review;
+- independent semantic parity;
+- end-to-end pipeline sensitivity;
+- literature triangulation.
+
+Those layers do not all agree equally, and that is precisely why the final
+policy remains conservative.
+
+HOME is strongly convergent across independent formulations. OFFICE is more
+sensitive to ranking method, upstream representation, and persistence. Several
+additional OFFICE candidates are plausible under external heuristics, but their
+robustness does not justify changing the production emission rule.
+
+Lesson: methodological closure does not require turning heterogeneous evidence
+into one score. It requires preserving what each evidence family actually
+supports, validating the lineage, and making the policy boundary explicit.

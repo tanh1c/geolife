@@ -3664,3 +3664,71 @@ New files:
 Next action: run Stage 07p on the existing Modal Volume. If measured-lineage
 validation passes and the final policy snapshot reproduces the frozen decision,
 the current CP2-v2 validation track can be closed.
+
+
+## 2026-10-05 — Stage 07p measured synthesis passed; CP2-v2 validation track closed
+
+Stage 07p was rerun successfully on `main` at `649f805` after correcting the
+Stage-05 HOME 30% dropout lineage expectation.
+
+The final execution contains no traceback and completes all aggregate writes to:
+
+```text
+/mnt/geolife-data/cache/cp2_v2/07p_methodological_synthesis/
+```
+
+Measured-lineage validation passed all 33 checks spanning Stage 05 and
+Stages 07i-07o.
+
+Key reproduced values include:
+
+- HOME fixed-vs-recurrence exact: 35/42;
+- OFFICE fixed-vs-recurrence exact: 6/25;
+- HOME held-out top-1: 50.0%;
+- OFFICE held-out top-1: 42.1%;
+- HOME 30% dropout retention: 81.746%;
+- OFFICE 30% dropout retention: 78.889%;
+- frozen OFFICE baseline: 16;
+- margin relaxation: 18;
+- share relaxation: 23;
+- Stage-07l near-miss snapshot: 9 users, 1 both-split exact, 2 held-out top-1,
+  0 BCL work-context support within 150 m;
+- Stage-07m OSNA exact: HOME 27/27, OFFICE 11/16;
+- Stage-07n end-to-end within 200 m: HOME 21/27, OFFICE 9/16;
+- Stage-07o literature agreement: scikit HOME 26/27, SCITEPRESS HOME 25/27,
+  SCITEPRESS OFFICE 15/16, geohash HOME 20/27 within 200 m.
+
+Final production-policy snapshot reproduced exactly:
+
+```text
+HOME = 27
+OFFICE = 16
+
+change_home_gate   = False
+change_office_gate = False
+promote_near_miss  = False
+
+final_policy = freeze_HOME_27_OFFICE_16
+```
+
+The final claim boundary also reproduced as intended:
+
+Supported:
+
+- HOME candidate identity converges strongly across multiple heuristic families;
+- OFFICE is more method- and representation-sensitive than HOME;
+- the OFFICE gate is conservative in coverage;
+- Trackintel end-to-end disagreement is driven substantially by upstream stay
+  inventory construction;
+- several share-near OFFICE candidates are temporally plausible but not robust
+  enough for production.
+
+Not supported:
+
+- GeoLife provides known HOME/OFFICE semantic accuracy;
+- POI or imagery context proves employment;
+- external comparator outputs are ground truth;
+- near-miss candidates should be promoted from comparator agreement alone.
+
+Decision: the current CP2-v2 HOME/OFFICE validation track is closed with
+HOME 27 / OFFICE 16 frozen.

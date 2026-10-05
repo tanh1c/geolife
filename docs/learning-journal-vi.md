@@ -1306,3 +1306,32 @@ Bài học: independent comparator hữu ích nhất như triangulation evidence
 báo cả convergence lẫn failure modes. Nó có thể xác nhận semantic family hợp lý,
 nhưng không thay thế ground truth và không tự trở thành threshold-selection
 rule.
+
+
+## 2026-10-05 — Validation track hoàn tất khi toàn bộ evidence hierarchy reproduce được, không phải khi mọi comparator đều đồng ý
+
+Stage 07p đã rerun toàn bộ aggregate evidence lineage và pass đủ 33 checks.
+
+Kết quả cuối quan trọng nhất không phải một con số agreement duy nhất, mà là
+project giờ có thể reproduce một evidence hierarchy nhất quán:
+
+- internal cross-method agreement;
+- held-out và dropout persistence;
+- threshold sensitivity;
+- near-miss robustness;
+- historical/context review;
+- independent semantic parity;
+- end-to-end pipeline sensitivity;
+- literature triangulation.
+
+Các layer này không đồng ý hoàn toàn với nhau, và chính điều đó giải thích vì
+sao production policy vẫn conservative.
+
+HOME hội tụ mạnh qua nhiều formulation độc lập. OFFICE nhạy hơn với ranking
+method, upstream representation và persistence. Một số OFFICE candidates bổ
+sung plausible dưới external heuristics, nhưng robustness chưa đủ để thay đổi
+production emission rule.
+
+Bài học: methodological closure không cần ép heterogeneous evidence thành một
+score duy nhất. Cần giữ đúng ý nghĩa của từng evidence family, validate toàn bộ
+lineage và viết rõ policy boundary.
