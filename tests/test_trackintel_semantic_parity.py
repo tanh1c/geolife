@@ -151,7 +151,7 @@ def test_notebook_contract():
     )
 
     required = [
-        "trackintel==1.4.2",
+        "TRACKINTEL_VERSION='1.4.2'",
         "pre_filter=False",
         "/mnt/geolife-data",
         "stays_baseline_v1.pkl",
