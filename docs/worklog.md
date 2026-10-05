@@ -3438,3 +3438,59 @@ Decision:
 - treat Stage 07n as evidence that the production method and Trackintel share
   substantial significant-place structure while differing materially in
   upstream stay inventory construction.
+
+
+## 2026-10-05 — Stage 07o literature comparator suite added
+
+After Stage 07m (semantic-only Trackintel parity) and Stage 07n (end-to-end
+Trackintel decomposition), Stage 07o adds a broader literature comparator suite
+while holding the frozen CP1 stays and CP2-v2 location namespace fixed.
+
+Comparators:
+
+- scikit-mobility 1.3.1 HOME rule, implemented as a source-equivalent
+  `home_location` replica using 22:00-07:00 visit frequency;
+- Kabiri et al. (arXiv:2302.14742) monthly hierarchical geohash HOME, preserving
+  the level-6 -> level-7 support/ranking logic and 21:00-06:00 night window;
+- Pavan et al. (MDM 2015) important-location feature space using area,
+  intensity/time-spent, and frequency/visit-count dimensions;
+- SCITEPRESS/MATEC 2018 work-rest comparator generalized from the paper's
+  top-two-region demonstration with 00:00-06:00 Home and 08:00-18:00 Work.
+
+Adaptation boundaries are explicit.
+
+The geohash paper expects raw sightings. Stage 07o uses one observation per
+occupied frozen stay-hour and runs the method separately per user-month. Because
+GeoLife spans multiple years, user-level comparison uses a declared
+project-specific modal level-7 aggregation across qualifying months.
+
+Pavan's accessible abstract does not expose a unique reproducible classifier.
+The stage therefore does not invent an importance score. Production
+`total_dwell_h` and `stay_count` implement intensity/frequency; a transparent
+circular area proxy is derived from production location diameter.
+
+The SCITEPRESS source reports one GeoLife user over seven days and includes ADPC
+clustering + reverse geocoding. Stage 07o only generalizes the work-rest ranking
+component on the already-frozen production location namespace and labels it a
+style comparator.
+
+The notebook retains the frozen gates:
+
+- 5,821 CP1 stays / 136 users;
+- 2,015 semantic locations;
+- 716 recurring locations / 104 users;
+- HOME 27 / OFFICE 16.
+
+Optional Stage-07j integration compares the SCITEPRESS-style WORK candidate
+against the fixed nine OFFICE near-miss candidates.
+
+New files:
+
+- `analysis/07o_literature_comparator_suite.py`;
+- `notebooks/07o_literature_comparator_suite.ipynb`;
+- `tests/test_literature_comparator_suite.py`;
+- `docs/eda/39_literature_comparator_suite.md`;
+- `docs/07o_literature_comparator_handoff.md`.
+
+Stage 07o remains diagnostic only. Agreement is methodological convergence, not
+accuracy, and no comparator output changes HOME 27 / OFFICE 16.
