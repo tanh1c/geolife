@@ -3607,3 +3607,60 @@ Decision:
 - do not promote near-miss users or widen gates;
 - Stage 07o completes the planned literature comparator suite without revealing
   a reason to change production policy.
+
+
+## 2026-10-05 — Stage 07p final methodological synthesis added
+
+Stage 07p closes the current CP2-v2 HOME/OFFICE validation track by synthesizing
+already-measured aggregate evidence from Stage 05 and Stages 07i-07o.
+
+It does not rerun raw GPS processing and does not introduce a new threshold,
+semantic classifier, or external evidence source.
+
+Inputs are aggregate CSVs from:
+
+- Stage 05 internal HOME/OFFICE reliability;
+- Stage 07i OFFICE threshold sensitivity;
+- Stage 07j targeted OFFICE near-miss robustness;
+- Stage 07l imagery / behavior / BCL unblinding;
+- Stage 07m Trackintel semantic-only parity;
+- Stage 07n Trackintel end-to-end decomposition;
+- Stage 07o literature comparator suite.
+
+The synthesis notebook first hard-validates representative accepted measurements
+from every stage. If the cached lineage no longer matches the measured results,
+the notebook stops.
+
+Main outputs:
+
+- HOME evidence ladder;
+- OFFICE evidence ladder;
+- near-miss policy summary;
+- upstream/semantic pipeline-sensitivity summary;
+- final production-policy snapshot;
+- supported / unsupported claim boundary.
+
+The final policy expected from this synthesis remains:
+
+```text
+HOME   = 27
+OFFICE = 16
+
+change_home_gate   = False
+change_office_gate = False
+promote_near_miss  = False
+```
+
+No evidence family is collapsed into a composite accuracy score.
+
+New files:
+
+- `analysis/07p_methodological_synthesis.py`;
+- `notebooks/07p_methodological_synthesis.ipynb`;
+- `tests/test_methodological_synthesis.py`;
+- `docs/eda/40_methodological_synthesis.md`;
+- `docs/07p_methodological_synthesis_handoff.md`.
+
+Next action: run Stage 07p on the existing Modal Volume. If measured-lineage
+validation passes and the final policy snapshot reproduces the frozen decision,
+the current CP2-v2 validation track can be closed.
