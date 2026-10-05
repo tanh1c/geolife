@@ -1318,3 +1318,31 @@ robustness does not justify changing the production emission rule.
 Lesson: methodological closure does not require turning heterogeneous evidence
 into one score. It requires preserving what each evidence family actually
 supports, validating the lineage, and making the policy boundary explicit.
+
+
+## 2026-10-05 — Coverage can expand without weakening the validated core
+
+Stage 08a shows a useful distinction between production emission and downstream
+semantic coverage.
+
+The validated HOME core remains 27. The current Stage-05b cache contains five
+non-production HIGH/MEDIUM consensus candidates, and all five satisfy the
+predeclared HOME_PROBABLE rule when later Trackintel and literature-style
+evidence is added.
+
+That increases tiered usable HOME coverage from 27 to 32 without changing the
+production gate.
+
+The five candidates are not equally strong. Three receive all three primary
+external exact confirmations. Two meet only the minimum two-family threshold,
+and one of those has no supporting Trackintel end-to-end or geohash anchor.
+Keeping the evidence columns visible is therefore more informative than treating
+HOME_PROBABLE as a calibrated probability.
+
+A second lesson is about reproducibility: the current Stage-05b cache contains
+five candidates whereas the historical measured snapshot recorded two. A
+coverage-expansion audit should report that lineage drift instead of hiding it
+behind a hard assertion.
+
+Lesson: confidence tiers let the project increase useful coverage while
+preserving the meaning of the high-confidence production core.
