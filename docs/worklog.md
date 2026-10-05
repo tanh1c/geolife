@@ -2934,3 +2934,47 @@ Decision:
 - keep production gates frozen.
 
 Potential next stage: targeted near-miss OFFICE audit for users added by small one-step share/margin relaxations, rather than global retuning.
+
+
+## 2026-10-05 — Stage 07j targeted near-miss OFFICE audit added
+
+Stage 07i established that the frozen OFFICE policy is conservative in coverage but did not justify global threshold relaxation.
+
+Targeted one-step expansions:
+
+- baseline 3 dates / .30 share / .10 margin: 16 users;
+- margin relaxation to .05: +2 users;
+- share relaxation to .20: +7 users.
+
+Stage 07j audits only those 9 new users and compares them with the frozen 16-user OFFICE reference cohort.
+
+Evidence reused from existing artifacts:
+
+- full-period fixed OFFICE candidate identity;
+- production HOME collision;
+- HoWDe-style OFFICE candidate identity;
+- recurrence OFFICE candidate identity;
+- first/second split candidate recovery;
+- odd/even split candidate recovery;
+- 60/40 held-out top-1 persistence;
+- 10/20/30% dropout candidate retention across deterministic seeds;
+- 12-hour time-shift falsification diagnostic;
+- BCL-primary context at 100 m and 150 m.
+
+No new total score or promotion threshold is created.
+
+Hard gates:
+
+- expected audit groups = 16 baseline + 2 margin-near + 7 share-near = 25 unique users;
+- near-miss groups must be disjoint;
+- every audit candidate must match the frozen full-period fixed-window candidate.
+
+New files:
+
+- `analysis/07j_near_miss_office_audit.py`;
+- `notebooks/07j_near_miss_office_audit.ipynb`;
+- `tests/test_near_miss_office_audit.py`;
+- `docs/eda/34_near_miss_office_audit.md`;
+- `docs/07j_near_miss_office_audit_handoff.md`.
+
+Decision goal: determine whether either one-step near-miss family is behaviorally comparable to frozen OFFICE on existing reliability diagnostics. No production gate changes occur in Stage 07j.
