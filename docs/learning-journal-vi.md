@@ -1244,3 +1244,35 @@ Bài học: agreement với comparator là evidence rằng production model thu�
 semantic-inference family hợp lý, không phải lý do tự động nới production gate.
 HOME có method convergence rất mạnh; WORK/OFFICE nhạy với method hơn nhiều nên
 cần explicit abstention và robustness validation.
+
+
+## 2026-10-05 — Phải decomposition end-to-end disagreement trước khi quy lỗi cho semantic model
+
+Stage 07n thay toàn bộ upstream path bằng Trackintel nhưng giữ broad stay
+thresholds cùng mức 200 m / 20 phút / gap 5 phút.
+
+Trackintel chỉ tạo 2,157 stays so với 5,821 frozen CP1 stays. Kết quả reciprocal
+matching rất bất đối xứng: 96.8% Trackintel stays strong-match một CP1 stay,
+nhưng chỉ 36.5% CP1 stays strong-match một Trackintel stay.
+
+Điều này cho thấy khác biệt end-to-end lớn nhất xuất hiện trước clustering và
+OSNA. Với cấu hình này, Trackintel gần giống một strict subset của CP1 stay
+inventory hơn là một tập place hoàn toàn khác.
+
+Khi stay đã tồn tại, spatial structure vẫn khá giống nhau. Trong 716 recurring
+production locations, 78.1% có Trackintel DBSCAN-100 anchor trong 200 m và
+74.0% có DBSCAN-200 anchor trong 200 m.
+
+Vì vậy semantic result phải đọc có điều kiện. Ở Stage 07m, khi giữ nguyên stays
+và location namespace, OSNA match HOME 27/27 và OFFICE 11/16. Khi chạy
+end-to-end, best HOME spatial correspondence còn 21/27 và OFFICE còn 9/16. Mức
+giảm này không có nghĩa OSNA tự nhiên tệ đi; phần đáng kể được truyền xuống từ
+upstream stay/location representation khác nhau.
+
+Trackintel còn tự drop duplicate positionfixes trong staypoint pipeline. Đây là
+một independent preprocessing choice và là một phần của upstream difference,
+không nên âm thầm normalize bỏ khi diễn giải comparator.
+
+Bài học: khi hai mobility pipelines bất đồng HOME/WORK, phải so event inventory
+và spatial anchors trước. Chỉ khi upstream representation đã được hiểu thì mới
+diễn giải semantic disagreement.

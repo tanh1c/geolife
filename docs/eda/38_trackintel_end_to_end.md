@@ -239,3 +239,168 @@ Aggregate:
 - `semantic_candidate_summary.csv`;
 - `semantic_status_distribution.csv`;
 - `decomposition_snapshot.csv`.
+
+
+## Measured result
+
+Stage 07n executed successfully on `main` at `5bd2920` with
+`trackintel==1.4.2`.
+
+No traceback remained in the executed notebook and all aggregate/private output
+tables were written to the Stage-07n cache.
+
+### Raw and frozen-reference gates
+
+All gates passed:
+
+- raw users: 182;
+- trajectory files: 18,670;
+- Trackintel raw-reader positionfix reconciliation: 24,876,978;
+- frozen CP1 stays: 5,821 / 136 users;
+- production semantic locations: 2,015;
+- production HOME: 27;
+- production OFFICE: 16.
+
+### Trackintel pipeline scale
+
+The threshold-aligned Trackintel sliding detector produced:
+
+- 2,157 staypoints;
+- 125 users with staypoints.
+
+Location generation:
+
+| variant | locations | recurring locations | recurring-location users |
+| --- | ---: | ---: | ---: |
+| DBSCAN 100 m | 1,237 | 247 | 75 |
+| DBSCAN 200 m | 1,113 | 264 | 81 |
+
+All 2,157 Trackintel staypoints resolved to an IANA timezone across 18 distinct
+timezones.
+
+The Trackintel staypoint generator emitted warnings that duplicate positionfixes
+were dropped during preprocessing. This is a real implementation difference
+from the frozen CP1 pipeline and remains part of the end-to-end comparator.
+
+### Decomposition A — staypoint extraction
+
+Strong match requires:
+
+- >=50% temporal overlap relative to the shorter stay;
+- center distance <=200 m.
+
+| source inventory | stays | strong matches | strong-match rate |
+| --- | ---: | ---: | ---: |
+| CP1 | 5,821 | 2,125 | 36.5% |
+| Trackintel | 2,157 | 2,088 | 96.8% |
+
+Any temporal-overlap rates show the same asymmetry:
+
+- CP1 -> Trackintel: 37.1%;
+- Trackintel -> CP1: 97.1%.
+
+This is the dominant observed representation difference. Trackintel detects far
+fewer stays, but nearly all Trackintel stays have a corresponding CP1 stay.
+
+The correct interpretation is not that one detector is more accurate; GeoLife
+has no staypoint ground truth here. The result says the two implementations
+partition the raw trajectory differently even with broadly aligned thresholds.
+
+### Decomposition B — location geometry
+
+Nearest Trackintel location to each production location:
+
+| variant | scope | within 50 m | within 100 m | within 200 m | median distance |
+| --- | --- | ---: | ---: | ---: | ---: |
+| DBSCAN 100 m | all 2,015 production locations | 1,025 | 1,170 | 1,238 | 44.9 m |
+| DBSCAN 100 m | 716 recurring locations | 412 | 518 | 559 | 36.4 m |
+| DBSCAN 200 m | all 2,015 production locations | 927 | 1,062 | 1,187 | 65.2 m |
+| DBSCAN 200 m | 716 recurring locations | 357 | 453 | 530 | 49.3 m |
+
+For recurring production anchors, within-200-m correspondence is therefore:
+
+- DBSCAN-100: 559/716 = 78.1%;
+- DBSCAN-200: 530/716 = 74.0%.
+
+DBSCAN-100 is slightly closer by these diagnostics. A 200 m DBSCAN epsilon does
+not reproduce a 200 m complete-link maximum-diameter location contract.
+
+### Decomposition C — OSNA semantic candidates
+
+Trackintel end-to-end OSNA selected:
+
+- HOME: 92 users;
+- WORK: 85 users.
+
+Production-emitted users jointly selected by Trackintel:
+
+- HOME: 26/27;
+- OFFICE: 15/16.
+
+Spatial correspondence:
+
+| variant | label | production emitted | both selected | within 50 m | within 100 m | within 200 m |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| DBSCAN 100 m | HOME | 27 | 26 | 19 | 19 | 19 |
+| DBSCAN 100 m | OFFICE | 16 | 15 | 9 | 9 | 9 |
+| DBSCAN 200 m | HOME | 27 | 26 | 17 | 18 | 21 |
+| DBSCAN 200 m | OFFICE | 16 | 15 | 9 | 9 | 9 |
+
+Relative to the frozen production emissions:
+
+- HOME within 200 m: 70.4% with DBSCAN-100; 77.8% with DBSCAN-200;
+- OFFICE within 200 m: 56.3% for both variants.
+
+Among jointly selected users:
+
+- DBSCAN-200 HOME within 200 m: 21/26 = 80.8%;
+- OFFICE within 200 m: 9/15 = 60.0%.
+
+### 07m -> 07n decomposition
+
+Stage 07m held stays and locations fixed:
+
+- OSNA HOME exact candidate: 27/27;
+- OSNA OFFICE exact candidate: 11/16.
+
+Stage 07n replaces stay extraction and clustering:
+
+- best HOME spatial correspondence: 21/27 within 200 m;
+- OFFICE spatial correspondence: 9/16 within 200 m.
+
+Therefore the end-to-end drop cannot be attributed to semantic selection alone.
+A substantial difference is already introduced by upstream event extraction,
+with a secondary effect from location representation.
+
+### Final interpretation
+
+The measured ordering of differences is:
+
+```text
+largest observed divergence:
+stay inventory construction
+        ↓
+secondary:
+location clustering / anchor geometry
+        ↓
+semantic OSNA remains more stable for HOME than OFFICE
+```
+
+HOME remains comparatively robust across implementations.
+
+OFFICE remains more sensitive to both semantic rule and upstream representation,
+consistent with the Stage-07m and Stage-07j/07l findings.
+
+### Decision
+
+Keep the frozen production policy unchanged:
+
+- HOME = 27;
+- OFFICE = 16.
+
+Do not tune CP1 stay thresholds, DBSCAN/complete-link parameters, or
+HOME/OFFICE gates from Stage 07n.
+
+Stage 07n validates that the two pipelines share substantial significant-place
+structure while also showing that apparently identical stay thresholds do not
+create equivalent event inventories across implementations.
