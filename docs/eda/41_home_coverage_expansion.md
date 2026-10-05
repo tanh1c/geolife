@@ -36,16 +36,7 @@ Production relationship:
 - HIGH: 20 baseline-emitted + 1 fixed candidate not emitted;
 - MEDIUM: 3 baseline-emitted + 1 fixed candidate not emitted.
 
-Therefore:
-
-~~~text
-non-production HIGH/MEDIUM HOME candidates = 2
-~~~
-
-Both are already fixed-window HOME candidates. Neither is a broad
-recurrence-only candidate.
-
-Stage 08a treats this as a hard gate.
+The historical measured Stage-05b snapshot recorded two non-production HIGH/MEDIUM HOME candidates. The current cache is treated as authoritative for Stage 08a execution; any difference from the historical count is reported as lineage drift rather than causing a hard failure.
 
 ## Evidence added in Stage 08a
 
@@ -126,7 +117,7 @@ Anything weaker or semantically conflicting.
 
 ## Why no weighted score
 
-There are only two expansion candidates.
+The expansion set is intentionally small and already prefiltered by Stage 05b.
 
 A weighted score would introduce arbitrary calibration without ground truth and
 would obscure which independent evidence families actually support a candidate.
@@ -176,3 +167,115 @@ It does not silently change production HOME.
 
 The validated production contract remains HOME 27 / OFFICE 16 unless a later
 explicit policy stage decides otherwise.
+
+
+## Measured result
+
+Stage 08a executed successfully on `main` at `c1da357`.
+
+No traceback occurred and all Stage-08a outputs were saved.
+
+### Candidate-lineage gate
+
+Frozen production reproduced:
+
+- CP1 stays: 5,821;
+- HOME: 27;
+- OFFICE: 16.
+
+The Stage-05b candidate count differs from the historical snapshot:
+
+| metric | count |
+| --- | ---: |
+| historical HIGH/MEDIUM non-production candidates | 2 |
+| current cache HIGH/MEDIUM non-production candidates | 5 |
+
+This drift is recorded explicitly. Stage 08a audits the five candidates present
+in the current cache.
+
+### Tier result
+
+All five candidates satisfy the predeclared HOME_PROBABLE contract:
+
+| tier | count |
+| --- | ---: |
+| HOME_HIGH_CONFIDENCE_CORE | 27 |
+| HOME_PROBABLE_NEW | 5 |
+| HOME_PLAUSIBLE_NEW | 0 |
+| HOME_EXPANSION_ABSTAIN | 0 |
+| high + probable coverage | 32 |
+
+Production remains unchanged at HOME 27 / OFFICE 16.
+
+### Aggregate external support
+
+Across the five HOME_PROBABLE candidates:
+
+| signal | supported |
+| --- | ---: |
+| Trackintel OSNA exact | 4/5 |
+| Trackintel FREQ exact | 4/5 |
+| scikit-style HOME exact | 4/5 |
+| SCITEPRESS-style HOME exact | 5/5 |
+| geohash within 200 m | 3/5 |
+| Trackintel e2e DBSCAN-100 within 200 m | 4/5 |
+| Trackintel e2e DBSCAN-200 within 200 m | 4/5 |
+| production-OFFICE collision | 0/5 |
+
+Three candidates receive all three primary exact external confirmations.
+Two receive exactly two, which is the minimum required by the locked
+HOME_PROBABLE rule.
+
+The weakest HOME_PROBABLE candidate receives scikit-style and SCITEPRESS-style
+exact support but no Trackintel OSNA/FREQ, geohash, or end-to-end Trackintel
+spatial support. It is retained because the rule was specified before seeing the
+candidate-level results.
+
+### Internal support
+
+Candidate-level descriptive support:
+
+- internal tiers: 2 HIGH, 3 MEDIUM;
+- method votes: median 2;
+- reliability axes: median 2;
+- dropout retention is high across the set;
+- no candidate collides with production OFFICE.
+
+Observed location support spans:
+
+- stay count: 9 to 85;
+- total dwell: about 11.6 to 55.1 hours;
+- active local dates: 6 to 21.
+
+These descriptive features are not used as an additional post-hoc promotion
+score.
+
+### Interpretation
+
+Stage 08a provides the first validated coverage expansion beyond the frozen
+HOME-27 core.
+
+The appropriate downstream representation is:
+
+```text
+HOME_HIGH_CONFIDENCE = 27
+HOME_PROBABLE        = 5
+usable tiered HOME   = 32
+```
+
+This is not equivalent to changing production HOME from 27 to 32.
+
+The 27-case core retains its validated production semantics; the five additions
+carry a distinct HOME_PROBABLE tier.
+
+### Decision
+
+Stage 08a supports exposing the five candidates downstream as HOME_PROBABLE.
+
+Do not silently merge them into the HOME_HIGH_CONFIDENCE core.
+
+A future export/policy layer should preserve the tier field so analyses can
+choose either:
+
+- strict HOME coverage = 27;
+- tiered HOME coverage = 32.
