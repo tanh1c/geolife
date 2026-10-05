@@ -127,7 +127,7 @@ def sparse_home_support_candidates(
         & pd.to_numeric(home["raw_top_share_margin"], errors="coerce").ge(0.20)
         & home["recurrence_matches_raw_top"]
         & ~home["collides_with_production_office"]
-        & ~home["production_HOME"].fillna(False).astype(bool)
+        & ~home["production_HOME"].astype("boolean").fillna(False).astype(bool)
     )
 
     out = home.loc[mask].copy()
@@ -192,7 +192,7 @@ def dense_home_concentration_candidates(
             HOME_RELATIVE_DOMINANCE_FLOOR
         )
         & ~joined["collides_with_production_office"].fillna(False).astype(bool)
-        & ~joined["production_HOME"].fillna(False).astype(bool)
+        & ~joined["production_HOME"].astype("boolean").fillna(False).astype(bool)
     )
     out = joined.loc[mask].copy()
     out["candidate_location_id"] = out["location_id"].astype(int)
@@ -249,7 +249,7 @@ def dense_office_near_miss_candidates(
             OFFICE_RELATIVE_DOMINANCE_FLOOR
         )
         & ~joined["candidate_equals_production_home"].fillna(False).astype(bool)
-        & ~joined["production_OFFICE"].fillna(False).astype(bool)
+        & ~joined["production_OFFICE"].astype("boolean").fillna(False).astype(bool)
     )
     joined["relative_dominance_pool"] = candidate_pool
     joined["robust_policy_candidate"] = (
