@@ -1427,6 +1427,44 @@ Repo reference:
 
 ---
 
+---
+
+# Stage 09 — Cross-file trajectory continuity audit
+
+Status: **MEASURED COMPLETE; FROZEN PRODUCTION UNCHANGED**
+
+Evidence: executed uploaded `09-cross-file-continuity-audit-1.ipynb` (printed commit `5b76e25`; no traceback). Frozen gate PASS: 182 users / 18,670 .plt files / 5,821 stays / 136 stay users / HOME 27 / OFFICE 16. Synthetic cross-boundary stay check PASS.
+
+| Adjacent-file boundary status | Count |
+|---|---:|
+| gap >300 s | 17,475 |
+| stitch candidate | 647 |
+| too far for shared 200 m anchor | 305 |
+| speed guard | 61 |
+| **Total** | **18,488** |
+
+Eligible components: **517/517 evaluated**, **0 skipped**, 517 per-component results loaded from the private Volume cache.
+
+| Metric | Frozen | Stitched experimental | Delta |
+|---|---:|---:|---:|
+| Stays | 5,821 | 5,831 | +10 (+0.17%) |
+| Stay users | 136 | 136 | 0 |
+| Semantic locations | 2,015 | 2,022 | +7 |
+| Recurring locations | 716 | 716 | 0 |
+| Recurring users | 104 | 104 | 0 |
+| HOME | 27 | 27 | 0 |
+| OFFICE | 16 | 16 | 0 |
+
+Users gaining stays: **3**; users losing stays: **0**. Stitched stays spanning at least one file boundary: **19** (**not** synonymous with 19 newly recovered stays). For evaluated groups: 256 old stays -> 266 new stays.
+
+Spatial correspondence within 200 m: **HOME 27/27; OFFICE 16/16**. Both selected in every case; baseline-only=0 and experiment-only=0 for both labels. This does **not** establish exact coordinate equality or semantic accuracy.
+
+Interpretation: conservative file joining changes stay segmentation slightly but produces no new stay user or HOME/OFFICE emission under frozen CP1/CP2. The test does not cover ineligible boundary cases or prove frozen thresholds optimal.
+
+Decision: keep per-file CP1 and HOME 27 / OFFICE 16 frozen; no ingestion migration or threshold change. Next: separate predeclared gap/dwell/spatial sensitivity and downstream candidate stability.
+
+Detailed protocol/results: `docs/eda/44_cross_file_continuity_audit.md`.
+
 # Superseded-result registry
 
 The following classes of measurements must not be reused as current production evidence.
@@ -1508,6 +1546,10 @@ no stable BCL candidate-specific advantage
 Validation closure
 33/33 hard checks PASS
 production frozen 27/16
+
+Stage 09 cross-file continuity
+5,821 -> 5,831 stays (+10); stay users 136 unchanged
+27/27 HOME and 16/16 OFFICE within 200 m; production unchanged
 
 Coverage research
 HOME_PROBABLE        +5
