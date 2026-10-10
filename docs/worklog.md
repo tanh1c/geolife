@@ -4198,3 +4198,17 @@ Interpretation:
 Decision: keep production HOME 27 / OFFICE 16 frozen. Preserve Stage-08c
 candidates as separate exposure-aware tiers pending a dedicated robustness /
 stability audit before any production migration.
+
+## 2026-10-10 — Stage 09 cross-file continuity audit measured complete
+
+The executed Modal notebook `09-cross-file-continuity-audit-1.ipynb` (reported commit `5b76e25`) completed all code cells without traceback. It passed frozen parity (5,821 stays / 136 users, HOME 27 / OFFICE 16), raw endpoint manifest for 18,670 files, and the synthetic cross-file stay check. No CP1 or CP2 thresholds were modified.
+
+Among 18,488 adjacent within-user .plt boundaries: 17,475 exceeded 300 s, 305 failed the common-anchor 400 m endpoint test, 61 failed the speed guard, and 647 passed the stitching eligibility rule. The eligible boundaries formed 517 components, all evaluated (0 skipped; this rerun loaded 517 component caches).
+
+Measured stay impact: 5,821 -> 5,831 stays (+10, +0.17%); 136 -> 136 stay users; 3 users gained stays, none lost; 19 resulting stays spanned file boundaries (not 19 net-new stays). Semantic impact: 2,015 -> 2,022 locations; recurring locations 716 -> 716; recurring users 104 -> 104; HOME 27 -> 27 and OFFICE 16 -> 16. Within-200-m correspondence was HOME 27/27 and OFFICE 16/16; no production-only or experimental-only emissions.
+
+Interpretation: conservative stitching can change stay segmentation but has no measured effect on current user-level HOME/OFFICE coverage. This does not prove that all file boundaries are harmless, that candidate coordinates are identical, or that CP1 thresholds are optimal. The audit excludes overlapping, equal-time and other ineligible boundaries.
+
+Decision: keep production per-file CP1 and HOME 27 / OFFICE 16 frozen. No stitching migration. Next: separately predeclare a CP1 gap/dwell/spatial threshold sensitivity study with downstream recurrence and semantic stability controls.
+
+Protocol, measured tables, and evidence limits: `docs/eda/44_cross_file_continuity_audit.md`; canonical log: `docs/eda/notebook_measured_results_log.md`.
