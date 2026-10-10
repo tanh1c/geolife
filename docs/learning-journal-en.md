@@ -1417,3 +1417,13 @@ Lesson: exposure-aware inference can improve coverage, but the right mechanism
 depends on failure mode. Sparse HOME benefits from opportunity-normalized
 support; dense HOME benefits from relative concentration; OFFICE still needs a
 strong robustness filter.
+
+## 2026-10-10 — Cross-file stay loss exists, but is not the observed coverage bottleneck
+
+Frozen CP1 runs stay detection independently inside each GeoLife `.plt`. Stage 09 tested whether a stay cut by a file boundary would recover under conservative continuity stitching while holding every CP1/CP2 parameter fixed.
+
+Among 18,488 adjacent same-user file boundaries, 647 passed the eligibility checks; 517 connected components were evaluated, none skipped. Stays increased from 5,821 to 5,831 (+10, 0.17%), spread across three users. Nineteen stitched stays spanned a file boundary, which is **not** the count of new stays. Stay-user coverage remained 136, recurring locations 716, recurring users 104, and HOME/OFFICE emissions 27/16. Every existing HOME (27/27) and OFFICE (16/16) emission had a selected candidate within 200 m of its frozen position.
+
+**Lesson:** Demonstrating that an upstream failure mode exists is not enough; measure its end-to-end magnitude. Under this narrow frozen-threshold experiment, file isolation has negligible measured influence on user-level semantic coverage. Do not equate stay-count changes, spatial correspondence, and ground-truth accuracy.
+
+Scope limits: ineligible overlaps, same-time boundaries, large gaps, excessive speed and distant endpoints were not joined. The experiment does not justify a universal stitching migration or changing thresholds. Next: predeclared CP1 gap/dwell/radius sensitivity with HOME/OFFICE stability and coverage diagnostics. See `docs/eda/44_cross_file_continuity_audit.md`.
