@@ -8,6 +8,8 @@ The notebook clones/pulls branch `experiment/09-cross-file-continuity-audit` aut
 
 No downstream notebooks need to be rerun. Cells run top-to-bottom.
 
+**Performance patch (2026-10-10, commit 7778ad5):** Endpoint inventory reads only a file's first GPS row and its last 8 KiB; it no longer loops through all ~24.9 million raw rows. Exact point counts are deferred until the eligible connected components in Section 4. If an older notebook is still running the old inventory cell, interrupt it, reopen the latest notebook from this branch, and rerun; compatible endpoint checkpoints are resumed from the same Volume path. Do not delete prior private cache files. The synthetic split-stay test was also repaired to use <=5-minute intra-file intervals.
+
 ## Question and A/B
 
 A: frozen per-file CP1 processing (5,821 stays, 136 users).
