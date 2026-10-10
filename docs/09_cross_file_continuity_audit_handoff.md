@@ -54,6 +54,35 @@ The original Stage-09 notebook had two presentation/test-only bugs, both fixed o
 1. The synthetic self-check used intra-file 6-minute gaps even though CP1 splits at 5 minutes. The check now uses 4-minute intervals and can validate a 25-minute boundary-spanning stay.
 2. The semantic spatial comparison unnecessarily merged coordinates from the location table a second time. Since `infer_home_office()` already returns `latitude` and `longitude`, pandas added `latitude_x/latitude_y` and `longitude_x/longitude_y` suffixes; attempting `a.latitude` raised `AttributeError`. The fixed code uses production inference output coordinates directly.
 
-The first uploaded executed run finished endpoint inventory (18,670 files), found 647 stitch-eligible boundaries grouped into 517 components (0 skipped), and reran all 517 groups. Stage-09 summary printed 5,821 -> 5,831 stays (+10) but unchanged stay users (136), recurring users (104), HOME (27), OFFICE (16). These results are **preliminary until spatial correspondence cell finishes**. The errors did not cause those counts to be recomputed or invalidate the cached per-component runs.
+The first uploaded executed run finished endpoint inventory (18,670 files), found 647 stitch-eligible boundaries grouped into 517 components (0 skipped), and reran all 517 groups. Stage-09 summary printed 5,821 -> 5,831 stays (+10) but unchanged stay users (136), recurring users (104), HOME (27), OFFICE (16). The first run's semantic-spatial correspondence cell was subsequently repaired and the complete rerun now supports the measured results in the linked Stage-09 report. The errors did not cause those counts to be recomputed or invalidate the cached per-component runs.
 
 To resume an existing live Modal kernel with the original notebook, replace only the two buggy lines in `summarize_semantics` with `labeled=outputs.copy()` and execute that last code cell. The already cached 517 groups do not need to be recomputed. If starting a new kernel with the latest notebook, all prior stages reuse the existing Volume manifest and group caches. Avoid deleting any Stage-09 caches.
+
+## Measured completion (2026-10-10)
+
+The user-provided executed notebook `09-cross-file-continuity-audit-1.ipynb`
+reported Git SHA `5b76e25`, **no traceback**, and PASS on frozen parity, endpoint
+inventory and synthetic cross-file regression. It loaded 517 completed group
+caches from the mounted Volume. No raw rescan is necessary to reproduce the
+reported summary from those private caches.
+
+- 18,488 same-user adjacent file boundaries: 17,475 gap >300 s;
+  647 stitch candidates; 305 too far for shared anchor; 61 speed guard.
+- 517 eligible components, 517 evaluated, zero skipped.
+- Frozen stays 5,821 -> stitched 5,831: **+10**, in 3 users; stay-user
+  count unchanged at 136; 19 stitched events span file boundaries
+  (not equivalent to 19 new stays).
+- Locations 2,015 -> 2,022; recurring locations unchanged at 716;
+  recurring users unchanged at 104.
+- HOME 27 -> 27, OFFICE 16 -> 16; spatial candidate correspondence
+  within 200 m **HOME 27/27**, **OFFICE 16/16**, with no baseline-only
+  or experimental-only labels.
+
+**Research decision:** the conservative, frozen-threshold stitching experiment
+does not recover additional users or semantic emissions at meaningful scale.
+Retain per-file frozen CP1 and production HOME 27 / OFFICE 16; evaluate gap,
+dwell and stay radius via a separate predeclared sensitivity study.
+No ground-truth accuracy, exact-coordinate parity or all-boundaries claim.
+
+See the full measured interpretation and limits:
+`docs/eda/44_cross_file_continuity_audit.md`.
