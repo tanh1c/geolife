@@ -46,3 +46,14 @@ Private only: raw-file endpoint manifest, per-boundary audit, component plan, pe
 ## After running
 
 Send the 4 aggregate CSVs or the notebook output for interpretation. If stitched spans produce material additional stays, the next stage can audit individual changes privately and predeclare an ingestion contract before threshold relaxation.
+
+## Debug note after first executed Modal notebook (2026-10-10)
+
+The original Stage-09 notebook had two presentation/test-only bugs, both fixed on this branch:
+
+1. The synthetic self-check used intra-file 6-minute gaps even though CP1 splits at 5 minutes. The check now uses 4-minute intervals and can validate a 25-minute boundary-spanning stay.
+2. The semantic spatial comparison unnecessarily merged coordinates from the location table a second time. Since `infer_home_office()` already returns `latitude` and `longitude`, pandas added `latitude_x/latitude_y` and `longitude_x/longitude_y` suffixes; attempting `a.latitude` raised `AttributeError`. The fixed code uses production inference output coordinates directly.
+
+The first uploaded executed run finished endpoint inventory (18,670 files), found 647 stitch-eligible boundaries grouped into 517 components (0 skipped), and reran all 517 groups. Stage-09 summary printed 5,821 -> 5,831 stays (+10) but unchanged stay users (136), recurring users (104), HOME (27), OFFICE (16). These results are **preliminary until spatial correspondence cell finishes**. The errors did not cause those counts to be recomputed or invalidate the cached per-component runs.
+
+To resume an existing live Modal kernel with the original notebook, replace only the two buggy lines in `summarize_semantics` with `labeled=outputs.copy()` and execute that last code cell. The already cached 517 groups do not need to be recomputed. If starting a new kernel with the latest notebook, all prior stages reuse the existing Volume manifest and group caches. Avoid deleting any Stage-09 caches.
