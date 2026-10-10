@@ -1427,3 +1427,13 @@ Bức tranh coverage hữu ích hiện tại:
 Bài học: exposure-aware inference có thể tăng coverage, nhưng mechanism phải
 đúng theo failure mode. Sparse HOME cần normalize theo opportunity support;
 dense HOME cần relative concentration; OFFICE vẫn cần robustness filter mạnh.
+
+## 2026-10-10 — Nối các file trajectory có giúp cứu thêm HOME/OFFICE không?
+
+Giả thuyết ban đầu hợp lý: CP1 phát hiện stays độc lập trên từng `.plt`, nên một lần dừng kéo dài qua hai file có thể bị tách thành hai đoạn ngắn không đủ 20 phút. Stage 09 kiểm chứng giả thuyết đó mà **không thay đổi** threshold CP1 10 m / 300 s / 1.200 km/h / 200 m / 20 phút.
+
+Trong 18.488 ranh giới file, 17.475 có gap >300 giây; chỉ 647 đạt các điều kiện nối an toàn, hình thành 517 cụm, tất cả đều được kiểm tra. Kết quả: 5.821 -> 5.831 stays, tức +10 (+0,17%) trên ba users; có 19 resulting stays băng qua file boundary nhưng **không phải 19 stay mới**. Số users có stay vẫn 136; recurring locations vẫn 716 và recurring users vẫn 104. HOME 27/27 và OFFICE 16/16 còn đối ứng không gian trong 200 m; không có label mới hay mất đi.
+
+**Bài học:** Trước khi nới threshold cần đo mức độ ảnh hưởng thật của từng giả thuyết upstream. File-boundary issue có tồn tại, nhưng trong phạm vi stitching bảo thủ của Stage 09, nó **không phải** nguyên nhân chính giải thích thiếu user. Net stay count, boundary-spanning event, user coverage và label stability là những thước đo khác nhau, không được đánh đồng.
+
+Giới hạn: Không nối overlap, equal timestamps, gap >300 s, speed không hợp lệ hay hai endpoints quá xa; chưa chứng minh accuracy hoặc vị trí giống hệt nhau. Giữ CP1/CP2 production frozen, thử riêng gap/dwell/radius sensitivity và đo độ bền candidate ở bước tiếp theo. Chi tiết: `docs/eda/44_cross_file_continuity_audit.md`.
