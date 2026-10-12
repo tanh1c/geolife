@@ -1,6 +1,8 @@
 # Serving API v2 — contract proposal for Track B1 delivery
 
-Status: **PROPOSAL ONLY — not yet implemented or included in `openapi.yaml`**. Date: 2026-10-12.
+Status: **SYNC v2 MVP IMPLEMENTED ON FEATURE BRANCH**; async/rate-limiting/413/503 are still planned. Date: 2026-10-12.
+
+Implemented in `src/geolife/api/v2.py`: `POST /v2/inferences`, `GET /v2/model-info`, `GET /health/ready`, real complete-link 200m and DBSCAN 100m model configurations, env-controlled deterministic canary, and typed privacy-safe responses. OpenAPI was generated from FastAPI and committed at `openapi.yaml`. This is **code/CI, not an AWS deployment**.
 
 ## What is wrong with v1 for serving?
 
@@ -10,10 +12,10 @@ Current `POST /v1/classify/{user_id}` is implemented and meets the original ment
 
 | Method | Endpoint | Purpose | Priority |
 |---|---|---|---|
-| POST | `/v2/inferences` | Stateless raw GPS -> cleaning/stays/recurring locations/HOME/OFFICE/OTHER_RECURRING | P0 |
+| POST | `/v2/inferences` | Stateless raw GPS -> cleaning/stays/recurring locations/HOME/OFFICE/OTHER_RECURRING | IMPLEMENTED |
 | GET | `/health` | Existing live probe (legacy) | DONE |
-| GET | `/health/ready` | Dependency/model-readiness probe, no GPS data | P0 |
-| GET | `/v2/model-info` | Serving version, release SHA, available variants, no PII | P1 |
+| GET | `/health/ready` | Process/config readiness probe (not external dependency health), no GPS data | IMPLEMENTED |
+| GET | `/v2/model-info` | Supported variants, configured rollout, release ID (injected by environment), no PII | IMPLEMENTED |
 | POST | `/v2/jobs` | Async request submission; returns 202 and job ID | P1 |
 | GET | `/v2/jobs/{job_id}` | Status pending/running/completed/failed/expired | P1 |
 
@@ -34,7 +36,7 @@ Current `POST /v1/classify/{user_id}` is implemented and meets the original ment
 - `client_request_id` optional, opaque, ASCII token with length limit; never a raw email or real-world user identifier. Generate a server `request_id` for telemetry when absent.
 - `points`: chronological order not required (CP1 sorts); each point requires timezone-aware ISO-8601 datetime and coordinates in range; server normalizes to UTC. No `user_id` in path or body.
 - Allow a valid but insufficient sequence to return 200 with HOME/OFFICE abstentions. Do not reject short histories merely because the model would abstain.
-- Bound payload size (e.g. `max_points=20_000` for synchronous endpoint, plus reverse-proxy byte cap); larger input uses async. Proposed limit is an engineering **design target**, not an existing capability.
+- The implemented Pydantic field enforces **max 20,000 GPS points** for sync request (HTTP **422** if exceeded). A reverse-proxy **byte-size cap** and HTTP 413 are still TODO; there is no async alternative yet.
 - Do not expose threshold overrides or require timezone supplied by client: use per-stay coordinate -> IANA timezone policy.
 - Duplicate timestamps and gaps handled by frozen CP1 cleaning, not by request schema.
 
@@ -92,27 +94,27 @@ The example above demonstrates **schema shape only**, not an actual measured mod
 |---|---|---|
 | 200 | Valid sync request, including full/partial abstention | Typed predictions + version + aggregate support |
 | 202 | Async accepted, job ID returned | Status URL; no raw data |
-| 413 | Too many points/request bytes for sync route | Sanitized error and async recommendation |
+| 413 | Planned proxy-level byte limit (NOT IMPLEMENTED) | Sanitized rejection |
 | 422 | Invalid timestamps, shape or coordinate ranges | Sanitized validation details; never input values |
-| 429 | Rate limited | Structured retry response |
-| 503 | Version unavailable/not ready/queue down | Sanitized service error |
+| 429 | Planned rate limiting (NOT IMPLEMENTED) | Structured retry response |
+| 503 | Planned unavailable-version/queue behavior (NOT IMPLEMENTED) | Sanitized service error |
 | 500 | Unexpected implementation error | Generic server error |
 
-Use an API-wide request-ID correlation header. Exact status/error schema needs runtime tests before final OpenAPI export. Do **not** advertise these unimplemented responses in current `openapi.yaml`.
+The response includes an opaque server-generated request UUID; a request-ID header and production ingress controls remain TODO. Current `openapi.yaml` documents the implemented sync routes and statuses (200/422/500), **not** proposed 202/413/429/503 behavior.
 
 ## Versioning / rollout semantics
 
 - Model names must describe an *implemented* algorithm. A heuristic on individual stays and clustered recurring-location model are different variants. Production CP2-v2 is `complete_link_200m` until changed in code through review.
 - Version- and route-tagged metrics: requests, error status, latency histograms, emitted HOME/OFFICE, abstentions; never label disagreement as accuracy.
-- Canary: deterministic hash on a non-identifying request token routes 90% baseline, 10% candidate; response reports selected model version. Admin-controlled rollback must be immediate.
-- Shadow: send same sanitized in-memory request to baseline and candidate, return only baseline, record aggregate disagreement only (no positions, no raw payload).
-- Blue-green: two independently deployed identical API contracts, smoke test green before flipping upstream traffic.
+- Canary **implemented (app-level demo)**: deterministic HMAC hash on an optional opaque request token selects the candidate according to `GEOLIFE_CANARY_PERCENT` (default 10) when `GEOLIFE_ROLLOUT_MODE=canary`. Response reports model variant. Rollback uses `GEOLIFE_ROLLOUT_MODE=baseline` and process restart/redeploy, not an instant dynamic admin toggle. Do not confuse it with load-balancer weighted traffic.
+- Shadow (**TODO**): send the same request in memory to both models, return only baseline, record aggregate disagreement without positions/raw payload.
+- Blue-green (**TODO**): two independently deployed environments with contract parity, smoke test green before flipping upstream traffic.
 
 ## Privacy/security
 
 Do not log request JSON, precise locations, raw user IDs, job bodies or coordinates. Validation errors must suppress `input`, Pydantic `ctx`, and variable values. Use HTTPS, authentication or restricted network access, bounded request size, request timeout, concurrency limits, private encryption/TTL for async, per-model release provenance. CORS is off unless a specific trusted origin is needed. Job ID is a random opaque token, never derived from user location.
 
-## API acceptance tests before this becomes implemented
+## Acceptance tests and remaining gates
 
 1. v1 unchanged and its tests still pass.
 2. v2 accepts UTC-aware GPS and results match the same underlying CP1+CP2 functions for a deterministic fixture.
@@ -124,3 +126,15 @@ Do not log request JSON, precise locations, raw user IDs, job bodies or coordina
 8. OpenAPI generated from the running app matches committed `openapi.yaml`.
 9. Multiple variants have real, tested independent implementation; never call the current complete-link production method `DBSCAN`.
 10. Sync/async and canary changes only routing/execution, not hidden CP1 threshold overrides.
+
+
+## Local v2 smoke (implemented)
+
+```bash
+GEOLIFE_ROLLOUT_MODE=baseline uvicorn geolife.api.app:app --host 127.0.0.1 --port 8000
+curl http://127.0.0.1:8000/v2/model-info
+curl -X POST http://127.0.0.1:8000/v2/inferences -H 'Content-Type: application/json' \\
+  -d '{"points":[{"timestamp_utc":"2009-01-05T13:00:00Z","latitude":39.9042,"longitude":116.4074}]}'
+```
+
+Canary mode: set `GEOLIFE_ROLLOUT_MODE=canary`, `GEOLIFE_CANARY_PERCENT=10`, `GEOLIFE_CANARY_SALT=<private random value>` before starting. To roll back, restart with `GEOLIFE_ROLLOUT_MODE=baseline`. No API option allows external callers to force the variant.
