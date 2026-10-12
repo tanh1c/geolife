@@ -108,13 +108,13 @@ The **implemented compatibility contract** is:
 POST /v1/classify/{user_id}
 ```
 
-A new stateless **v2 serving API is proposed but NOT yet implemented**:
+A new stateless **v2 sync serving API is implemented on the feature branch** (not AWS deployed):
 
 ```text
 POST /v2/inferences
 ```
 
-It avoids user IDs in URLs, distinguishes HOME/OFFICE from generic OTHER_RECURRING places and names heuristic evidence without claiming probability. See `docs/design/05_serving_api_v2_proposal.md`.
+It avoids user IDs in URLs, distinguishes HOME/OFFICE from generic OTHER_RECURRING places and names heuristic evidence without claiming probability. It supports real complete-link and DBSCAN variants with server-side canary routing. See `docs/design/05_serving_api_v2_proposal.md`.
 
 It accepts one user's raw GPS sequence with UTC timestamps and lat/lng observations,
 runs the frozen CP1 cleaning + stay-point detector, then returns HOME / OFFICE /
@@ -213,7 +213,7 @@ See `infra/terraform/README.md`.
 The research track is closed for now: Stage 08c is experimental and Stage 09 cross-file stitching had no new HOME/OFFICE emissions. **Research TODOs do not block serving.**
 
 - [Prioritized Track B1 delivery roadmap](docs/roadmap/track_b1_delivery_roadmap.md)
-- [Proposed privacy-aware API v2 contract](docs/design/05_serving_api_v2_proposal.md) — design only, not deployed
+- [Proposed privacy-aware API v2 contract](docs/design/05_serving_api_v2_proposal.md) — implemented sync/API/variant routing; not AWS deployed
 - [Docker sync-serving runbook](docs/deployment/01_docker_sync_serving.md) — runnable v1 image, CI smoke gate
 
-Current production CP2-v2 clusters recurring locations with **complete-link 200 m**, not DBSCAN. Two distinct model variants, actual AWS endpoint, canary, async job execution and CloudWatch dashboards remain implementation milestones; do not treat project planning or Docker configuration as completed AWS deployment.
+Current production CP2-v2 clusters recurring locations with **complete-link 200 m**, not DBSCAN. The feature branch implements a DBSCAN 100m comparator and app-level canary; **AWS endpoint, async job execution, version-tagged monitoring and CloudWatch dashboards remain implementation milestones**; do not treat project planning or Docker configuration as completed AWS deployment.
