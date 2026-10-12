@@ -27,7 +27,7 @@ The existing **v1 API stays available** for backward compatibility. A more sensi
 | P1 | One release strategy | IMPLEMENTED app-level deterministic canary + env rollback, not yet AWS-demonstrated | App-level deterministic canary routing is implemented via `GEOLIFE_ROLLOUT_MODE`/`GEOLIFE_CANARY_PERCENT`; rollback requires restart/redeploy, not a dynamic control. Per-version metrics and AWS validation are still TODO. |
 | P1 | Shadow vs blue-green explanation | TODO | Document shadow logging without raw coordinates, and environment-level blue-green cutover; shadow must not affect returned response. |
 | P1 | Async proof of concept | TODO | `POST /v2/jobs` -> private encrypted storage for payload + SQS pointer -> worker -> TTL result -> `GET /v2/jobs/{job_id}`; non-blocking idempotency, no GPS in queue message/log. AWS deploy after sync proves stable. |
-| P1 | Latency and operational metrics | TODO | p50/p95/p99 per model/route, error rate, abstention rate, safe request-size histogram; reproducible replay load benchmark for sync and async. |
+| P1 | Latency and operational metrics | HTTP counters/latency histogram and synthetic sync p50/p95/p99 harness IMPLEMENTED on branch; dashboard/async comparison pending | p50/p95/p99 per model/route, error rate, abstention rate, safe request-size histogram; reproducible replay load benchmark for sync and async. |
 | P1 | Basic drift/replay dashboard | TODO | Chronological GeoLife replay of **aggregated, privacy-safe** metrics, distribution-shift alert, CloudWatch dashboard, clear `simulated_offline_replay` label (not production drift). |
 | P1 | End-to-end demo and mentor pack | TODO | Curl/Postman, public or internal AWS URL, model/version comparison, canary rollback, async polling, metrics screenshots, cost teardown, final architecture and reproducibility notes. |
 | P2 | Historical POI enrichment / H3 category | BACKLOG | OPTIONAL: category only with verified data source/license/time alignment; otherwise return OTHER_RECURRING. |
@@ -71,3 +71,10 @@ Do **not** execute these before the required Checkpoint 2/3 deliverables unless 
 ## Safety/cost checkpoints before cloud apply
 
 Do not commit GeoLife raw trajectories, precise derived HOME/OFFICE coordinates, private Volume caches, AWS credentials, Terraform state or API keys. Use budget alerts and confirm current AWS pricing/free-tier eligibility in the user's account before creating resources. Include teardown procedure. Do not expose publicly writable inference without authentication or safe network restrictions.
+
+
+## Delivered Checkpoint 3 groundwork (2026-10-12)
+
+- Added privacy-safe `geolife_http_requests_total` and `geolife_http_latency_seconds` Prometheus metrics labeled by route template, status, method, and allowlisted model variant. Metrics disabled without `GEOLIFE_METRICS_BEARER_TOKEN`; protected `GET /internal/metrics` (not public OpenAPI).
+- Added `scripts/benchmark_sync.py`: HTTP client-side synthetic benchmark producing p50/p95/p99 latency, status counts, and baseline-vs-canary model counts; measurements need an actual running service and have **not** been claimed here.
+- Async SQS, latency comparison, CloudWatch dashboard, and replay drift are still **TODO**. No GeoLife private cache or user trace is used by synthetic benchmarks.
