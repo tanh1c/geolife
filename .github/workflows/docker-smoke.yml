@@ -1,0 +1,64 @@
+name: docker-smoke
+
+on:
+  push:
+    branches: [main, feature/track-b1-serving-delivery]
+  pull_request:
+
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build serving image
+        run: docker build --tag geolife-api:ci .
+      - name: Start container
+        run: docker run --detach --rm --name geolife-api-ci --publish 127.0.0.1:18000:8000 --memory 2g geolife-api:ci
+      - name: Wait for health and check OpenAPI
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = "http://127.0.0.1:18000"
+          for attempt in range(90):
+              try:
+                  with urllib.request.urlopen(base + "/health", timeout=3) as response:
+                      health = json.load(response)
+                  if health.get("status") == "ok":
+                      break
+              except (OSError, TimeoutError, ValueError):
+                  time.sleep(2)
+          else:
+              raise RuntimeError("Docker service did not become healthy")
+          with urllib.request.urlopen(base + "/openapi.json", timeout=10) as response:
+              spec = json.load(response)
+          assert "/v1/classify/{user_id}" in spec["paths"]
+          req = urllib.request.Request(
+              base + "/v1/classify/ci-synthetic",
+              data=json.dumps({"points": [{
+                  "timestamp_utc": "2009-01-05T13:00:00Z",
+                  "latitude": 39.9042,
+                  "longitude": 116.4074
+              }]}).encode(),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=20) as response:
+              body = json.load(response)
+              assert response.status == 200
+          assert body["locations"] == []
+          assert {a["label"] for a in body["abstentions"]} == {"HOME", "OFFICE"}
+          assert '"latitude"' not in json.dumps(body)
+          assert '"longitude"' not in json.dumps(body)
+          print("docker-smoke PASS: health, OpenAPI, valid abstention, no returned coordinates")
+          PY
+      - name: Container logs if failure
+        if: failure()
+        run: docker logs geolife-api-ci || true
+      - name: Stop test container
+        if: always()
+        run: docker stop geolife-api-ci || true
