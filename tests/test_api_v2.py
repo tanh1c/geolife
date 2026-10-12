@@ -157,3 +157,48 @@ def test_v2_openapi_v1_compat_and_readiness(monkeypatch):
     response_properties = schema["components"]["schemas"]["InferenceResponseV2"]["properties"]
     assert "predictions" in response_properties and "other_recurring_places" in response_properties
     assert "latitude" not in response_properties and "longitude" not in response_properties
+
+
+def test_internal_metrics_disabled_by_default_and_token_protected(monkeypatch):
+    monkeypatch.delenv("GEOLIFE_METRICS_BEARER_TOKEN", raising=False)
+    assert client.get("/internal/metrics").status_code == 404
+
+    monkeypatch.setenv("GEOLIFE_METRICS_BEARER_TOKEN", "synthetic-scrape-secret")
+    assert client.get("/internal/metrics").status_code == 403
+    assert client.get(
+        "/internal/metrics", headers={"Authorization": "Bearer wrong"}
+    ).status_code == 403
+
+    # Raw path contains a user identifier; only the route pattern may be
+    # emitted as a metric label.
+    resp = client.post(
+        "/v1/classify/private-id-DO-NOT-LOG",
+        json={"points": [single_point()]},
+    )
+    assert resp.status_code == 200
+    metrics = client.get(
+        "/internal/metrics",
+        headers={"Authorization": "Bearer synthetic-scrape-secret"},
+    )
+    assert metrics.status_code == 200
+    body = metrics.text
+    assert "geolife_http_latency_seconds_bucket" in body
+    assert "geolife_http_requests_total" in body
+    assert "/v1/classify/{user_id}" in body
+    assert "private-id-DO-NOT-LOG" not in body
+    assert "39.9042" not in body
+    assert "116.4074" not in body
+    assert "synthetic-scrape-secret" not in body
+
+
+def test_v2_metrics_have_bounded_model_label(monkeypatch):
+    monkeypatch.setenv("GEOLIFE_ROLLOUT_MODE", "canary")
+    monkeypatch.setenv("GEOLIFE_CANARY_PERCENT", "100")
+    monkeypatch.setenv("GEOLIFE_METRICS_BEARER_TOKEN", "another-secret")
+    resp = client.post("/v2/inferences", json={"points": [single_point()]})
+    assert resp.status_code == 200
+    metrics = client.get(
+        "/internal/metrics", headers={"Authorization": "Bearer another-secret"}
+    )
+    assert metrics.status_code == 200
+    assert 'model="cp2-v2-dbscan-100m"' in metrics.text
