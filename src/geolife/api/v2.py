@@ -13,7 +13,7 @@ import uuid
 from typing import Annotated, Literal
 
 import pandas as pd
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from geolife.model import HomeOfficeConfig, build_semantic_locations, infer_home_office
@@ -252,8 +252,12 @@ def infer_v2(request: InferenceRequestV2) -> InferenceResponseV2:
         500: {"description": "Generic unexpected error."},
     },
 )
-def v2_inference_endpoint(request: InferenceRequestV2) -> InferenceResponseV2:
-    return infer_v2(request)
+def v2_inference_endpoint(
+    request: InferenceRequestV2, http_request: Request
+) -> InferenceResponseV2:
+    response = infer_v2(request)
+    http_request.state.model_variant = response.model.model_version
+    return response
 
 
 @router.get("/v2/model-info", response_model=ModelInfoV2, tags=["system"])
