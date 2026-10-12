@@ -1,0 +1,40 @@
+name: refresh-openapi-on-serving-branch
+
+on:
+  push:
+    branches: [feature/track-b1-serving-delivery]
+    paths:
+      - 'src/geolife/api/**'
+      - 'scripts/export_openapi.py'
+      - 'pyproject.toml'
+      - '.github/workflows/refresh-openapi.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  generate-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install application and OpenAPI export dependency
+        run: python -m pip install -e '.[dev]'
+      - name: Export v1/v2 OpenAPI from serving code
+        run: python scripts/export_openapi.py
+      - name: Update generated OpenAPI in PR branch
+        run: |
+          git add openapi.yaml
+          if git diff --cached --quiet; then
+            echo "OpenAPI already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(api): regenerate OpenAPI from app v1/v2"
+          git push origin "HEAD:feature/track-b1-serving-delivery"
