@@ -14,6 +14,7 @@ from .schemas import (
     ValidationErrorResponse,
 )
 from .service import classify_raw_request, infer_request
+from .v2 import router as v2_router
 
 
 app = FastAPI(
@@ -179,3 +180,6 @@ def classify_endpoint(
 def infer_home_office_endpoint(request: InferRequest) -> InferResponse:
     """Compatibility endpoint retained for model/API parity tests."""
     return infer_request(request)
+
+# Keep v1 HTTP/direct-model parity untouched. v2 is a new serving surface.
+app.include_router(v2_router)
