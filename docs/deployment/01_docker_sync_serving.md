@@ -46,3 +46,10 @@ Do **not** use `-p 8000:8000` on an internet-facing server without protection: l
 ## Model/version distinction
 
 The current production semantic model is CP2-v2 **complete-link 200 m**, not DBSCAN. The Docker tag names the packaged implementation; an image digest or immutable Git SHA is needed for reproducible deployment. A second genuinely different candidate model and v2 public API remain separate tasks in the delivery roadmap.
+
+
+## v2 and metrics follow-up
+
+The image now includes `POST /v2/inferences`, `GET /v2/model-info` and `GET /health/ready`. In canary demo mode, supply `GEOLIFE_ROLLOUT_MODE=canary`, `GEOLIFE_CANARY_PERCENT=10`, a private `GEOLIFE_CANARY_SALT` and immutable `GEOLIFE_RELEASE_ID` via ignored `.env` with `docker run --env-file .env ...`. Rollback: change mode to `baseline` and restart.
+
+Optional protected Prometheus endpoint: set `GEOLIFE_METRICS_BEARER_TOKEN`, scrape `GET /internal/metrics` from a restricted network. Run `python scripts/benchmark_sync.py --requests 50 --warmup 5` for a synthetic client-side latency check. See `docs/deployment/03_monitoring_foundation.md`. Cloud deployment, rate limiting, async SQS and alert/dashboard configuration remain separate work.
