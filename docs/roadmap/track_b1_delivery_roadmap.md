@@ -1,0 +1,73 @@
+# Track B1 — MLE delivery roadmap (post-EDA pivot)
+
+Updated: 2026-10-12. Status: **IMPLEMENTATION PLAN, NOT A CLAIM OF DEPLOYMENT**.
+
+## Objective and scope
+
+Ship a reviewable, working MLE service from raw GPS request to HOME/OFFICE inference, versioned routing, async serving and operational metrics. The objective of the six-week brief is working engineering, **not** maximized semantic coverage or GeoLife ground-truth accuracy.
+
+Freeze the current production reference while delivering infrastructure:
+
+- CP1 fixed cleaning/stay-point semantics: same-second 10m, gap 300s, speed guard 1,200km/h, stay radius 200m, minimum dwell 20 minutes.
+- CP2-v2 uses complete-link max diameter 200m, per-stay IANA timezones and abstention. Frozen full-release result: 5,821 stays, HOME 27, OFFICE 16.
+- Stage 08c experimental tiers (HOME 36, OFFICE 19) **are not** production. Stage 09 file stitching (5,821 -> 5,831 stays; no new stay users or HOME/OFFICE emissions) is a research comparator, not a migration.
+
+The existing **v1 API stays available** for backward compatibility. A more sensible **v2 serving contract** is specified in `docs/design/05_serving_api_v2_proposal.md`; it will be implemented and tested explicitly, not silently substituted for v1.
+
+## Deliverables and gates (in execution order)
+
+| Priority | Track / task | Existing status at pivot | Next implementation / acceptance gate |
+|---|---|---|---|
+| P0 | CP1/CP2 model and tests | DONE | Preserve direct-model parity and fixed semantics. |
+| P0 | FastAPI + Swagger/OpenAPI v1 | DONE | Keep `/v1/classify/{user_id}` and `openapi.yaml` unchanged until v2 is implemented. |
+| P0 | Containerization | IN PROGRESS on delivery branch | Minimal Docker image excluding raw GeoLife data, non-root runtime, health smoke test in CI, documented local run. |
+| P0 | Serving API v2 | PROPOSED contract | Implement `POST /v2/inferences` as stateless POST (no ID in URL); typed HOME/OFFICE emitted/abstained results; OTHER_RECURRING not mislabeled as semantic POI; model metadata; privacy tests; regenerated OpenAPI. |
+| P0 | Two genuinely distinct model variants | TODO | Baseline per-stay time heuristic **actually implemented** vs grouped location heuristic **actually implemented**; register immutable IDs/artifact hashes. Current CP2-v2 is complete-link, **not DBSCAN**. If benchmarking DBSCAN, name it accurately and test it. |
+| P0 | AWS deployment | TODO / user cloud credentials required | Pick a low-complexity runtime: one Docker host for sync MVP, IAM least privilege, HTTPS or restricted internal demo endpoint, cost alerts, explicit deploy/rollback script; verify endpoint externally. Do not claim free tier automatically. |
+| P1 | One release strategy | TODO | Implement **app-level deterministic canary** first (request routing by stable non-PII key, measurable per-version counts), with instant rollback to 100% baseline; clearly differentiate this simulation from infrastructure weighted routing. |
+| P1 | Shadow vs blue-green explanation | TODO | Document shadow logging without raw coordinates, and environment-level blue-green cutover; shadow must not affect returned response. |
+| P1 | Async proof of concept | TODO | `POST /v2/jobs` -> private encrypted storage for payload + SQS pointer -> worker -> TTL result -> `GET /v2/jobs/{job_id}`; non-blocking idempotency, no GPS in queue message/log. AWS deploy after sync proves stable. |
+| P1 | Latency and operational metrics | TODO | p50/p95/p99 per model/route, error rate, abstention rate, safe request-size histogram; reproducible replay load benchmark for sync and async. |
+| P1 | Basic drift/replay dashboard | TODO | Chronological GeoLife replay of **aggregated, privacy-safe** metrics, distribution-shift alert, CloudWatch dashboard, clear `simulated_offline_replay` label (not production drift). |
+| P1 | End-to-end demo and mentor pack | TODO | Curl/Postman, public or internal AWS URL, model/version comparison, canary rollback, async polling, metrics screenshots, cost teardown, final architecture and reproducibility notes. |
+| P2 | Historical POI enrichment / H3 category | BACKLOG | OPTIONAL: category only with verified data source/license/time alignment; otherwise return OTHER_RECURRING. |
+| P2 | Privacy hardening | PARTLY DONE | Maintain location confidentiality: no request-body logs, no exact inferred coordinates, rate/body-size limits, retention and access policies. Review log hygiene and data lifecycle before AWS. |
+
+## Work packages for short remaining schedule
+
+**Package A — first runnable serving demo (highest priority):**
+1. Dockerize existing v1 FastAPI with non-root image; build/test image in GitHub CI.
+2. Implement and test v2 endpoint, freeze a single coherent schema, regenerate `openapi.yaml`.
+3. Implement real alternative heuristic + version metadata; parity tests for each variant.
+4. Start locally with Docker and run fixed synthetic smoke cases.
+
+**Package B — production-like demo:**
+5. Deploy to a single AWS host/service with HTTPS/restricted access and cost alert.
+6. Add deterministic 10% canary and simple rollback; report traffic split and outputs.
+7. Add SQS + worker + private TTL payload/result storage, compare sync/async latency.
+8. Expose privacy-safe operational metrics and a time-ordered **simulated** drift replay; record dashboard.
+
+**Definition of done:** a real callable deployed endpoint, at least two real distinguishable model variants, a working rollout strategy demo, an async flow with job status, latency/error charts, and a complete end-to-end README. A written plan or local Dockerfile alone is **not** deployment completion.
+
+## Architecture choice / explicit tradeoffs
+
+- Prefer **single Docker-based sync service** first. Simple, easy to demo and rollback. AWS EC2 size/price is to be verified against real memory usage (numpy/pandas/scikit-learn/timezonefinder are not tiny).
+- Use app-level canary only as an inexpensive **simulation**; do not confuse it with load-balancer canary. Record which version served each request.
+- For async, SQS holds pointers, not GPS arrays. Sensitive payloads and results require SSE encryption, restricted IAM, expirations and explicit cleanup.
+- Avoid introducing MLflow and a full model registry platform just to version two deterministic heuristics. Use a checked-in manifest with Git SHA, config fingerprint and immutable release label; S3 can store version manifest/releases on AWS. Add MLflow only if necessary.
+- No real-time "drift" inference from a static 2007–2012 dataset. Only offline chronological replay.
+
+## Deferred EDA TODO — do not block serving
+
+- [ ] **Cross-file universal user chronology comparator**: all .plt records per user sorted by timestamp, overlap/duplicate reconciliation, CP1 continuity segmentation; compare with targeted Stage 09.
+- [ ] **CP1 parameter sensitivity after ingestion audit**: gap/dwell/radius isolated experiments; stay-user coverage and downstream label stability, not just number of stays.
+- [ ] **Structured missingness**: overnight/work-window and block dropout vs random dropout, confidence/abstention sensitivity.
+- [ ] **Trackintel implementation ablation**: duplicate handling, include_last and window semantics on equal input.
+- [ ] **Experimental Stage 08c robustness** for four sparse HOME and three robust OFFICE additions; tiered labels remain research-only.
+- [ ] **Historical POI categorization** only with properly licensed time-aligned POI and privacy review.
+
+Do **not** execute these before the required Checkpoint 2/3 deliverables unless a blocking correctness issue appears.
+
+## Safety/cost checkpoints before cloud apply
+
+Do not commit GeoLife raw trajectories, precise derived HOME/OFFICE coordinates, private Volume caches, AWS credentials, Terraform state or API keys. Use budget alerts and confirm current AWS pricing/free-tier eligibility in the user's account before creating resources. Include teardown procedure. Do not expose publicly writable inference without authentication or safe network restrictions.
