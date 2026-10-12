@@ -2,7 +2,7 @@
 
 A 6-week MLE learning project built around the Microsoft GeoLife GPS trajectory dataset.
 
-Current focus: **Checkpoint 1 deliverables aligned; next engineering focus is Checkpoint 2 deployment (Docker/AWS/versioning)**.
+Current focus: **Checkpoint 2/3 MLE delivery (Docker → model-version routing → AWS → async → monitoring).** Further EDA is deferred to a separate TODO backlog.
 
 ## Workflow
 
@@ -91,7 +91,7 @@ Python 3.11–3.13 is supported by the project configuration.
 
 The merged CP2 v1 production baseline is intentionally conservative:
 
-- Beijing-focused semantic cohort with explicit abstention;
+- CP2-v2 all-resolved-IANA-timezone semantic scope, with explicit abstention;
 - per-user complete-link recurring locations with 200 m maximum diameter;
 - interval-overlap Home / Office evidence;
 - separate Home and Office emission gates;
@@ -102,11 +102,19 @@ See `docs/design/03_home_office_baseline_contract.md`.
 
 ## API scope
 
-The primary Track B1 contract is:
+The **implemented compatibility contract** is:
 
 ```text
 POST /v1/classify/{user_id}
 ```
+
+A new stateless **v2 serving API is proposed but NOT yet implemented**:
+
+```text
+POST /v2/inferences
+```
+
+It avoids user IDs in URLs, distinguishes HOME/OFFICE from generic OTHER_RECURRING places and names heuristic evidence without claiming probability. See `docs/design/05_serving_api_v2_proposal.md`.
 
 It accepts one user's raw GPS sequence with UTC timestamps and lat/lng observations,
 runs the frozen CP1 cleaning + stay-point detector, then returns HOME / OFFICE /
@@ -198,3 +206,14 @@ terraform -chdir=infra/terraform validate
 ```
 
 See `infra/terraform/README.md`.
+
+
+## Track B1 delivery pivot (October 2026)
+
+The research track is closed for now: Stage 08c is experimental and Stage 09 cross-file stitching had no new HOME/OFFICE emissions. **Research TODOs do not block serving.**
+
+- [Prioritized Track B1 delivery roadmap](docs/roadmap/track_b1_delivery_roadmap.md)
+- [Proposed privacy-aware API v2 contract](docs/design/05_serving_api_v2_proposal.md) — design only, not deployed
+- [Docker sync-serving runbook](docs/deployment/01_docker_sync_serving.md) — runnable v1 image, CI smoke gate
+
+Current production CP2-v2 clusters recurring locations with **complete-link 200 m**, not DBSCAN. Two distinct model variants, actual AWS endpoint, canary, async job execution and CloudWatch dashboards remain implementation milestones; do not treat project planning or Docker configuration as completed AWS deployment.
