@@ -4214,3 +4214,12 @@ On branch `feature/track-b1-serving-delivery` added:
 - `docs/deployment/01_docker_sync_serving.md` — local Docker instructions and AWS safety boundaries.
 
 **No deployment has occurred; v2 remains a proposal and must not be represented as implemented.** Next: run Docker smoke in CI, implement v2 schema/endpoint with tests and regenerated OpenAPI, then add two *real* model variants, AWS provisioning/rollback, canary, async SQS flow and monitoring. The implemented CP2-v2 clustering method is complete-link 200m, not DBSCAN. Avoid spending cloud resources before explicit cost/credential approval.
+
+
+## 2026-10-12 — Serving v2 sync contract, dual clustering variants, canary implemented
+
+On `feature/track-b1-serving-delivery`, implemented `src/geolife/api/v2.py` and mounted the router in `src/geolife/api/app.py` without modifying v1 inference semantics. Added `POST /v2/inferences`, `GET /v2/model-info`, `GET /health/ready`, typed HOME/OFFICE emission/abstention, generic OTHER_RECURRING, 20,000-point sync input cap, server-generated request UUID, no returned precise coordinates, model/release metadata, and deterministic app-level canary 0–100% based on HMAC of an opaque non-PII token. Model versions are real implementations: frozen complete-link 200m baseline vs DBSCAN 100m candidate. A test fixture verifies the spatial clustering algorithms differ. `tests/test_api_v2.py` covers privacy, abstention, emission, canary, rollback and OpenAPI.
+
+The Docker smoke CI was expanded to exercise v2 as well as v1. OpenAPI exported automatically on this feature branch via `scripts/export_openapi.py` workflow into `openapi.yaml`. Initial v2 PR CI had exactly one failure because committed `openapi.yaml` predated these routes; the regenerated artifact fixes that mismatch. New tests need subsequent CI verification.
+
+**Boundary:** no AWS endpoint/resources created, no runtime SQS job worker, no calibrated confidence or POI categories. `GEOLIFE_RELEASE_ID` must be an immutable SHA/digest for deployments; default local value is not an artifact registry. Canary is app-level and rollback requires a restart/redeploy, not an instant load-balancer flip.
