@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, Path
+from fastapi import FastAPI, Path, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -15,6 +15,7 @@ from .schemas import (
 )
 from .service import classify_raw_request, infer_request
 from .v2 import router as v2_router
+from .metrics import instrument_requests, protected_metrics
 
 
 app = FastAPI(
@@ -183,3 +184,11 @@ def infer_home_office_endpoint(request: InferRequest) -> InferResponse:
 
 # Keep v1 HTTP/direct-model parity untouched. v2 is a new serving surface.
 app.include_router(v2_router)
+
+
+# Privacy-safe histogram/counter instrumentation. Never label raw URL paths.
+app.middleware("http")(instrument_requests)
+
+@app.get("/internal/metrics", include_in_schema=False, tags=["internal"])
+def internal_metrics(request: Request):
+    return protected_metrics(request)
