@@ -4223,3 +4223,10 @@ On `feature/track-b1-serving-delivery`, implemented `src/geolife/api/v2.py` and 
 The Docker smoke CI was expanded to exercise v2 as well as v1. OpenAPI exported automatically on this feature branch via `scripts/export_openapi.py` workflow into `openapi.yaml`. Initial v2 PR CI had exactly one failure because committed `openapi.yaml` predated these routes; the regenerated artifact fixes that mismatch. New tests need subsequent CI verification.
 
 **Boundary:** no AWS endpoint/resources created, no runtime SQS job worker, no calibrated confidence or POI categories. `GEOLIFE_RELEASE_ID` must be an immutable SHA/digest for deployments; default local value is not an artifact registry. Canary is app-level and rollback requires a restart/redeploy, not an instant load-balancer flip.
+
+
+## 2026-10-12 — Private metrics and synthetic sync benchmark added
+
+After sync v2 + real complete-link/DBSCAN variants + app-level canary, added `prometheus-client` production dependency, `src/geolife/api/metrics.py` request counter and latency histogram with bounded labels, and `GET /internal/metrics` protected by `GEOLIFE_METRICS_BEARER_TOKEN` (404 if disabled, 403 if invalid). Tests check that a user ID in a v1 path, GPS coordinates, and tokens never appear as metric labels. Exported metrics are process-local and cannot substitute for a real multi-replica monitoring setup.
+
+Added `scripts/benchmark_sync.py` + pure fixture tests for client-observed p50/p95/p99, status rate and canary model distribution, using *only synthetic GPS*. Runtime measurement results are not claimed without a measured benchmark run. Monitoring design is documented in `docs/deployment/03_monitoring_foundation.md`. AWS, SQS async and CloudWatch/Grafana dashboard remain unimplemented.
