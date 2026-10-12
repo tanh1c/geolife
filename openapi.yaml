@@ -177,6 +177,60 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       deprecated: true
+  /v2/inferences:
+    post:
+      tags:
+      - inference-v2
+      summary: Stateless GPS -> HOME/OFFICE evidence + other recurring places
+      operationId: v2_inference_endpoint_v2_inferences_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InferenceRequestV2'
+        required: true
+      responses:
+        '200':
+          description: Valid input. HOME/OFFICE may abstain.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InferenceResponseV2'
+        '422':
+          description: Sanitized invalid request.
+        '500':
+          description: Generic unexpected error.
+  /v2/model-info:
+    get:
+      tags:
+      - inference-v2
+      - system
+      summary: V2 Model Info
+      operationId: v2_model_info_v2_model_info_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelInfoV2'
+  /health/ready:
+    get:
+      tags:
+      - inference-v2
+      - system
+      summary: V2 Readiness
+      operationId: v2_readiness_health_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response V2 Readiness Health Ready Get
 components:
   schemas:
     AbstainedResult:
@@ -200,6 +254,20 @@ components:
       - label
       - reason
       title: AbstainedResult
+    AbstainedV2:
+      properties:
+        status:
+          type: string
+          const: abstained
+          title: Status
+          default: abstained
+        reason:
+          $ref: '#/components/schemas/AbstentionReason'
+      additionalProperties: false
+      type: object
+      required:
+      - reason
+      title: AbstainedV2
     AbstentionReason:
       type: string
       enum:
@@ -360,6 +428,33 @@ components:
       - relevant_dates
       - relevant_dwell_h
       title: EmittedResult
+    EmittedV2:
+      properties:
+        status:
+          type: string
+          const: emitted
+          title: Status
+          default: emitted
+        location_ref:
+          type: string
+          pattern: ^L[0-9]+$
+          title: Location Ref
+        evidence_score:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Evidence Score
+        evidence_method:
+          type: string
+          const: dwell_share_margin_date_support
+          title: Evidence Method
+          default: dwell_share_margin_date_support
+      additionalProperties: false
+      type: object
+      required:
+      - location_ref
+      - evidence_score
+      title: EmittedV2
     GpsPoint:
       properties:
         timestamp_utc:
@@ -468,6 +563,201 @@ components:
       - user_id
       - results
       title: InferResponse
+    InferenceRequestV2:
+      properties:
+        client_request_id:
+          anyOf:
+          - type: string
+            maxLength: 128
+            minLength: 1
+            pattern: ^[A-Za-z0-9._-]+$
+          - type: 'null'
+          title: Client Request Id
+          description: Optional opaque routing token; never use an email, user ID
+            or GPS.
+        points:
+          items:
+            $ref: '#/components/schemas/GpsPoint'
+          type: array
+          maxItems: 20000
+          minItems: 1
+          title: Points
+      additionalProperties: false
+      type: object
+      required:
+      - points
+      title: InferenceRequestV2
+    InferenceResponseV2:
+      properties:
+        request_id:
+          type: string
+          title: Request Id
+        api_version:
+          type: string
+          const: v2
+          title: Api Version
+          default: v2
+        model:
+          $ref: '#/components/schemas/ModelDescriptorV2'
+        observation:
+          $ref: '#/components/schemas/ObservationV2'
+        predictions:
+          $ref: '#/components/schemas/PredictionsV2'
+        other_recurring_places:
+          items:
+            $ref: '#/components/schemas/RecurringPlaceV2'
+          type: array
+          title: Other Recurring Places
+      additionalProperties: false
+      type: object
+      required:
+      - request_id
+      - model
+      - observation
+      - predictions
+      - other_recurring_places
+      title: InferenceResponseV2
+    ModelDescriptorV2:
+      properties:
+        model_id:
+          type: string
+          const: geolife-home-office
+          title: Model Id
+          default: geolife-home-office
+        model_version:
+          type: string
+          enum:
+          - cp2-v2-complete-link-200m
+          - cp2-v2-dbscan-100m
+          title: Model Version
+        release_id:
+          type: string
+          title: Release Id
+        routing_mode:
+          type: string
+          enum:
+          - baseline
+          - canary
+          title: Routing Mode
+      additionalProperties: false
+      type: object
+      required:
+      - model_version
+      - release_id
+      - routing_mode
+      title: ModelDescriptorV2
+    ModelInfoV2:
+      properties:
+        api_version:
+          type: string
+          const: v2
+          title: Api Version
+          default: v2
+        baseline_model:
+          type: string
+          title: Baseline Model
+        candidate_model:
+          type: string
+          title: Candidate Model
+        available_models:
+          items:
+            type: string
+          type: array
+          title: Available Models
+        routing_mode:
+          type: string
+          enum:
+          - baseline
+          - canary
+          title: Routing Mode
+        canary_percent:
+          type: integer
+          maximum: 100.0
+          minimum: 0.0
+          title: Canary Percent
+        release_id:
+          type: string
+          title: Release Id
+      additionalProperties: false
+      type: object
+      required:
+      - baseline_model
+      - candidate_model
+      - available_models
+      - routing_mode
+      - canary_percent
+      - release_id
+      title: ModelInfoV2
+    ObservationV2:
+      properties:
+        raw_points:
+          type: integer
+          minimum: 0.0
+          title: Raw Points
+        detected_stays:
+          type: integer
+          minimum: 0.0
+          title: Detected Stays
+        recurring_locations:
+          type: integer
+          minimum: 0.0
+          title: Recurring Locations
+      additionalProperties: false
+      type: object
+      required:
+      - raw_points
+      - detected_stays
+      - recurring_locations
+      title: ObservationV2
+    PredictionsV2:
+      properties:
+        HOME:
+          oneOf:
+          - $ref: '#/components/schemas/EmittedV2'
+          - $ref: '#/components/schemas/AbstainedV2'
+          title: Home
+          discriminator:
+            propertyName: status
+            mapping:
+              abstained: '#/components/schemas/AbstainedV2'
+              emitted: '#/components/schemas/EmittedV2'
+        OFFICE:
+          oneOf:
+          - $ref: '#/components/schemas/EmittedV2'
+          - $ref: '#/components/schemas/AbstainedV2'
+          title: Office
+          discriminator:
+            propertyName: status
+            mapping:
+              abstained: '#/components/schemas/AbstainedV2'
+              emitted: '#/components/schemas/EmittedV2'
+      additionalProperties: false
+      type: object
+      required:
+      - HOME
+      - OFFICE
+      title: PredictionsV2
+    RecurringPlaceV2:
+      properties:
+        location_ref:
+          type: string
+          title: Location Ref
+        semantic_type:
+          type: string
+          const: OTHER_RECURRING
+          title: Semantic Type
+          default: OTHER_RECURRING
+        visit_share:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Visit Share
+      additionalProperties: false
+      type: object
+      required:
+      - location_ref
+      - visit_share
+      title: RecurringPlaceV2
     ServerError:
       properties:
         detail:
@@ -523,6 +813,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc
