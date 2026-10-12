@@ -54,7 +54,29 @@ jobs:
           assert {a["label"] for a in body["abstentions"]} == {"HOME", "OFFICE"}
           assert '"latitude"' not in json.dumps(body)
           assert '"longitude"' not in json.dumps(body)
-          print("docker-smoke PASS: health, OpenAPI, valid abstention, no returned coordinates")
+          assert "/v2/inferences" in spec["paths"]
+          with urllib.request.urlopen(base + "/v2/model-info", timeout=10) as response:
+              info = json.load(response)
+          assert len(info["available_models"]) == 2
+          req_v2 = urllib.request.Request(
+              base + "/v2/inferences",
+              data=json.dumps({"points": [{
+                  "timestamp_utc": "2009-01-05T13:00:00Z",
+                  "latitude": 39.9042, "longitude": 116.4074
+              }]}).encode(),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req_v2, timeout=20) as response:
+              v2 = json.load(response)
+              assert response.status == 200
+          assert v2["api_version"] == "v2"
+          assert v2["model"]["model_version"] == "cp2-v2-complete-link-200m"
+          assert v2["predictions"]["HOME"]["status"] == "abstained"
+          assert v2["predictions"]["OFFICE"]["status"] == "abstained"
+          assert '"latitude"' not in json.dumps(v2)
+          assert '"longitude"' not in json.dumps(v2)
+          print("docker-smoke PASS: v1/v2, OpenAPI, variant info, abstention, no returned coordinates")
           PY
       - name: Container logs if failure
         if: failure()
