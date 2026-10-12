@@ -217,3 +217,12 @@ The research track is closed for now: Stage 08c is experimental and Stage 09 cro
 - [Docker sync-serving runbook](docs/deployment/01_docker_sync_serving.md) — runnable v1 image, CI smoke gate
 
 Current production CP2-v2 clusters recurring locations with **complete-link 200 m**, not DBSCAN. The feature branch implements a DBSCAN 100m comparator and app-level canary; **AWS endpoint, async job execution, version-tagged monitoring and CloudWatch dashboards remain implementation milestones**; do not treat project planning or Docker configuration as completed AWS deployment.
+
+
+### v2 serving and monitoring (feature branch)
+
+Implemented v2 sync API endpoints: `POST /v2/inferences`, `GET /v2/model-info`, `GET /health/ready`. Launch with `uvicorn geolife.api.app:app --host 127.0.0.1 --port 8000`, or Docker. The stateless response includes typed HOME/OFFICE evidence and abstention, OTHER_RECURRING visits, selected model version, request UUID and synthetic-free support counts; no precise inferred coordinates.
+
+Canary demo: set `GEOLIFE_ROLLOUT_MODE=canary`, `GEOLIFE_CANARY_PERCENT=10`, `GEOLIFE_CANARY_SALT=<private-token>`, restart service. Deterministic HMAC assignment chooses baseline complete-link or DBSCAN. For rollback, restart with `GEOLIFE_ROLLOUT_MODE=baseline`. Model routing is **application-level**, not AWS weighted routing.
+
+Synthetic latency: `python scripts/benchmark_sync.py --url http://127.0.0.1:8000 --requests 50 --warmup 5`. The output provides p50/p95/p99 response time and model traffic split. For scraping privacy-safe Prometheus metrics set `GEOLIFE_METRICS_BEARER_TOKEN` (endpoint disabled by default), then scrape `GET /internal/metrics` using Bearer authentication. See [monitoring foundation](docs/deployment/03_monitoring_foundation.md). No actual AWS/CloudWatch dashboard or SQS async deployment yet.
