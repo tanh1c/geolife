@@ -4198,3 +4198,19 @@ Interpretation:
 Decision: keep production HOME 27 / OFFICE 16 frozen. Preserve Stage-08c
 candidates as separate exposure-aware tiers pending a dedicated robustness /
 stability audit before any production migration.
+
+## 2026-10-12 — Track B1 serving-delivery pivot (Checkpoint 2/3)
+
+Decided to stop expanding exploratory GeoLife EDA before the remaining Track B1 serving deliverables. The frozen CP1/CP2-v2 baseline and v1 OpenAPI contract remain unchanged; future user-level chronological stitching, CP1 threshold sensitivity, missingness and Trackintel ablation are recorded as a **non-blocking backlog**.
+
+The repo already contains FastAPI, typed schema, OpenAPI YAML, parity tests, and Terraform foundation, but at the pivot did not have a Dockerfile, an AWS runtime deployment, a versioned dual-model router, async jobs or operational dashboards.
+
+On branch `feature/track-b1-serving-delivery` added:
+
+- `docs/roadmap/track_b1_delivery_roadmap.md` — ordered P0/P1 deliverables, acceptance gates and deferred EDA backlog;
+- `docs/design/05_serving_api_v2_proposal.md` — proposal for stateless `POST /v2/inferences`, explicit HOME/OFFICE abstention, OTHER_RECURRING, response model provenance and privacy controls;
+- `Dockerfile` / `.dockerignore` — minimal non-root Python serving image without raw GeoLife data;
+- `.github/workflows/docker-smoke.yml` — CI image build with HTTP health/OpenAPI/abstention checks;
+- `docs/deployment/01_docker_sync_serving.md` — local Docker instructions and AWS safety boundaries.
+
+**No deployment has occurred; v2 remains a proposal and must not be represented as implemented.** Next: run Docker smoke in CI, implement v2 schema/endpoint with tests and regenerated OpenAPI, then add two *real* model variants, AWS provisioning/rollback, canary, async SQS flow and monitoring. The implemented CP2-v2 clustering method is complete-link 200m, not DBSCAN. Avoid spending cloud resources before explicit cost/credential approval.
