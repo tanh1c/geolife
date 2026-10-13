@@ -246,3 +246,13 @@ uvicorn geolife.api.app:app --host 127.0.0.1 --port 8000
 The CLI prompts for a strong password; the SQLite DB and private stay cache are not included in Git or Docker. A user with no CP1 stays receives abstentions. Map labels are heuristic; OTHER_RECURRING is not a verified POI category. This is an **internal educational demo only**, not an AWS public deployment or an authenticated identity system for GeoLife's original research participants.
 
 See [private demo setup, API paths, map consent and security limitations](docs/deployment/04_authenticated_geolife_map_demo.md).
+
+### Final PR #72 acceptance: Modal real-data E2E
+
+After local browser/synthetic validation, validate the **real private frozen GeoLife CP1 cache** on Modal before merging the serving PR. Run:
+
+\`\`\`bash
+python scripts/modal_real_data_e2e.py
+\`\`\`
+
+It uses \`/mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl\`, recomputes **only CP2** and checks frozen totals (5,821 stays; 136 stay users; HOME 27; OFFICE 16), account scoping, login/logout, per-user markers and a synthetic new-GPS request through the actual FastAPI application. Accounts, tokens and selected IDs/coordinates stay private in \`/tmp\` and memory; report contains only aggregate metrics and fixed gate names. **Not yet run on the private Modal Volume in this PR.** Full setup: [Modal E2E runbook](docs/deployment/05_modal_real_data_e2e.md).
