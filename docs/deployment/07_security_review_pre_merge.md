@@ -4,7 +4,7 @@
 
 ## Decision
 
-**Conditional GO to code review/merge for internal research development** once the last Python CI + Docker smoke checks pass and a human reviewer accepts the restricted-only scope. **NO-GO for public AWS exposure, publishing historical GeoLife HOME/OFFICE locations, or claiming that accounts authenticate the original dataset contributors.**
+**GO to human code review for internal research development:** security hardening Python CI + Docker smoke were both PASS at commit `bc4a30ad4814ce522fb7ebcaec90a851b8c41fd4`, and PR #72 was moved from Draft to **Ready for review**. Actual merge still requires human acknowledgment of restricted-only scope. **NO-GO for public AWS exposure, publishing historical GeoLife HOME/OFFICE locations, or claiming that accounts authenticate the original dataset contributors.**
 
 Existing frozen baseline CP1/CP2 data-science behavior remains unchanged. The operator reported real Modal private-cache E2E PASS (5,821 stays; 136 stay users; 27 HOME; 16 OFFICE); see `docs/deployment/06_modal_real_data_e2e_result.md`. This output is not a security audit.
 
@@ -47,11 +47,11 @@ Existing frozen baseline CP1/CP2 data-science behavior remains unchanged. The op
 - [x] HTTP no-store, basic anti-clickjacking/CSP and declared-body-size gate implemented.
 - [x] Added security regression tests and updated Docker smoke expectations.
 - [x] Real Modal private-cache E2E PASS per operator-provided sanitized output.
-- [ ] Last-commit CI and Docker smoke PASS; link verification to PR.
+- [x] Security-hardening Python CI and Docker smoke PASS at `bc4a30ad4814ce522fb7ebcaec90a851b8c41fd4`. Check the final PR head's CI again after documentation-only commits.
 - [ ] Human review/acknowledgment: **merge for internal research only**, not permission to expose per-user GeoLife history to the internet.
 - [ ] Keep deployment-specific controls (HTTPS ingress, firewall, upstream body limits, login rate limits, secure secrets, privacy/data rights and audit) as blockers for public AWS deployment.
 
-**Merge policy:** Merging implementation into `main` does **not** mean the service may be deployed publicly. Keep the PR draft until CI is green and the internal-only approval is obtained. The user must approve the actual GitHub merge step separately.
+**Merge policy:** Merging implementation into `main` does **not** mean the service may be deployed publicly. PR #72 is **Ready for review, not merged**; an explicit human acknowledgment of internal-only scope is still required before actual merge. The user must approve the actual GitHub merge step separately.
 
 ## Operations warning
 
