@@ -50,3 +50,16 @@ variable "instance_type" {
     error_message = "Only t3/t3a medium or large are permitted for this demo."
   }
 }
+
+# One-time IAM console bootstrap by account admin; this role/profile is NOT
+# created or mutated by Terraform. Only iam:PassRole on this exact IAM role
+# is needed by the project SSO provisioning identity.
+variable "instance_profile_name" {
+  description = "Exact pre-created EC2 IAM role/instance profile name"
+  type        = string
+  default     = "geolife-mle-dev-ec2-role"
+  validation {
+    condition     = can(regex("^geolife-mle-[a-z0-9-]+-ec2-role$", var.instance_profile_name))
+    error_message = "Expected a scoped geolife-mle-ENV-ec2-role instance profile name."
+  }
+}
