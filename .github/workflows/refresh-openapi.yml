@@ -1,0 +1,44 @@
+name: refresh-openapi-on-serving-branch
+
+on:
+  push:
+    branches: [feature/track-b1-serving-delivery]
+
+permissions:
+  contents: write
+
+jobs:
+  generate-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install app and OpenAPI exporter
+        run: python -m pip install -e '.[dev]'
+      - name: Regenerate schema on current head (retry concurrent pushes)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin feature/track-b1-serving-delivery
+            git checkout -B feature/track-b1-serving-delivery origin/feature/track-b1-serving-delivery
+            python scripts/export_openapi.py
+            git add openapi.yaml
+            if git diff --cached --quiet; then
+              echo "OpenAPI already matches current branch"
+              exit 0
+            fi
+            git commit -m "docs(api): regenerate OpenAPI from live app v1/v2/demo"
+            if git push origin HEAD:feature/track-b1-serving-delivery; then
+              exit 0
+            fi
+            echo "Branch changed during schema generation; retrying current head"
+            sleep 3
+          done
+          echo "Could not push OpenAPI after retries"
+          exit 1

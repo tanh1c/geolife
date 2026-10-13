@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, Path
+from fastapi import FastAPI, Path, Request
+from importlib.resources import files
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
 from .schemas import (
     ClassifyRequest,
@@ -14,6 +15,10 @@ from .schemas import (
     ValidationErrorResponse,
 )
 from .service import classify_raw_request, infer_request
+from .v2 import router as v2_router
+from .metrics import instrument_requests, protected_metrics
+from .security import secure_http
+from .demo import router as demo_router
 
 
 app = FastAPI(
@@ -179,3 +184,25 @@ def classify_endpoint(
 def infer_home_office_endpoint(request: InferRequest) -> InferResponse:
     """Compatibility endpoint retained for model/API parity tests."""
     return infer_request(request)
+
+# Keep v1 HTTP/direct-model parity untouched. v2 is a new serving surface.
+app.include_router(v2_router)
+
+
+# Privacy-safe histogram/counter instrumentation. Never label raw URL paths.
+app.middleware("http")(instrument_requests)
+
+@app.get("/internal/metrics", include_in_schema=False, tags=["internal"])
+def internal_metrics(request: Request):
+    return protected_metrics(request)
+
+
+# Authenticated GeoLife dataset/new-GPS demo. HTML contains no data or secrets.
+app.include_router(demo_router)
+
+@app.get("/demo", include_in_schema=False)
+def geolife_demo_ui():
+    return FileResponse(str(files("geolife.api").joinpath("static", "demo.html")), media_type="text/html")
+
+# Last registered is outermost: restrict legacy routes before reading GPS bodies.
+app.middleware("http")(secure_http)

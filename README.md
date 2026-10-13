@@ -2,7 +2,7 @@
 
 A 6-week MLE learning project built around the Microsoft GeoLife GPS trajectory dataset.
 
-Current focus: **Checkpoint 1 deliverables aligned; next engineering focus is Checkpoint 2 deployment (Docker/AWS/versioning)**.
+Current focus: **Checkpoint 2/3 MLE delivery (Docker → model-version routing → AWS → async → monitoring).** Further EDA is deferred to a separate TODO backlog.
 
 ## Workflow
 
@@ -91,7 +91,7 @@ Python 3.11–3.13 is supported by the project configuration.
 
 The merged CP2 v1 production baseline is intentionally conservative:
 
-- Beijing-focused semantic cohort with explicit abstention;
+- CP2-v2 all-resolved-IANA-timezone semantic scope, with explicit abstention;
 - per-user complete-link recurring locations with 200 m maximum diameter;
 - interval-overlap Home / Office evidence;
 - separate Home and Office emission gates;
@@ -102,11 +102,19 @@ See `docs/design/03_home_office_baseline_contract.md`.
 
 ## API scope
 
-The primary Track B1 contract is:
+The **implemented compatibility contract** is:
 
 ```text
 POST /v1/classify/{user_id}
 ```
+
+A new stateless **v2 sync serving API is implemented on the feature branch** (not AWS deployed):
+
+```text
+POST /v2/inferences
+```
+
+It avoids user IDs in URLs, distinguishes HOME/OFFICE from generic OTHER_RECURRING places and names heuristic evidence without claiming probability. It supports real complete-link and DBSCAN variants with server-side canary routing. See `docs/design/05_serving_api_v2_proposal.md`.
 
 It accepts one user's raw GPS sequence with UTC timestamps and lat/lng observations,
 runs the frozen CP1 cleaning + stay-point detector, then returns HOME / OFFICE /
@@ -198,3 +206,59 @@ terraform -chdir=infra/terraform validate
 ```
 
 See `infra/terraform/README.md`.
+
+
+## Track B1 delivery pivot (October 2026)
+
+The research track is closed for now: Stage 08c is experimental and Stage 09 cross-file stitching had no new HOME/OFFICE emissions. **Research TODOs do not block serving.**
+
+- [Prioritized Track B1 delivery roadmap](docs/roadmap/track_b1_delivery_roadmap.md)
+- [Proposed privacy-aware API v2 contract](docs/design/05_serving_api_v2_proposal.md) — implemented sync/API/variant routing; not AWS deployed
+- [Docker sync-serving runbook](docs/deployment/01_docker_sync_serving.md) — runnable v1 image, CI smoke gate
+
+Current production CP2-v2 clusters recurring locations with **complete-link 200 m**, not DBSCAN. The feature branch implements a DBSCAN 100m comparator and app-level canary; **AWS endpoint, async job execution, version-tagged monitoring and CloudWatch dashboards remain implementation milestones**; do not treat project planning or Docker configuration as completed AWS deployment.
+
+
+### v2 serving and monitoring (feature branch)
+
+Implemented v2 sync API endpoints: `POST /v2/inferences`, `GET /v2/model-info`, `GET /health/ready`. Launch with `uvicorn geolife.api.app:app --host 127.0.0.1 --port 8000`, or Docker. The stateless response includes typed HOME/OFFICE evidence and abstention, OTHER_RECURRING visits, selected model version, request UUID and synthetic-free support counts; no precise inferred coordinates.
+
+Canary demo: set `GEOLIFE_ROLLOUT_MODE=canary`, `GEOLIFE_CANARY_PERCENT=10`, `GEOLIFE_CANARY_SALT=<private-token>`, restart service. Deterministic HMAC assignment chooses baseline complete-link or DBSCAN. For rollback, restart with `GEOLIFE_ROLLOUT_MODE=baseline`. Model routing is **application-level**, not AWS weighted routing.
+
+Synthetic latency: `python scripts/benchmark_sync.py --url http://127.0.0.1:8000 --requests 50 --warmup 5`. The output provides p50/p95/p99 response time and model traffic split. For scraping privacy-safe Prometheus metrics set `GEOLIFE_METRICS_BEARER_TOKEN` (endpoint disabled by default), then scrape `GET /internal/metrics` using Bearer authentication. See [monitoring foundation](docs/deployment/03_monitoring_foundation.md). No actual AWS/CloudWatch dashboard or SQS async deployment yet.
+
+
+## Authenticated GeoLife dataset/map demo
+
+Open the demo UI at \`http://127.0.0.1:8000/demo\`. Admin provisions demo account credentials separately and assigns each account to one GeoLife research ID. Dataset IDs are **not** credentials or proof of the historical person's identity.
+
+Mode A accepts a new \`.plt\`/\`.json\` file or pasted GPS points. Mode B reads only the logged-in account's portion of the private frozen CP1 stay cache, then runs CP2-v2 inference. Both return HOME/OFFICE and OTHER_RECURRING markers with rounded map coordinates after login. The map loads third-party tiles only after user consent.
+
+Local setup:
+
+\`\`\`bash
+python scripts/provision_demo_users.py --db /mnt/geolife-private/demo.sqlite3 --user-id 000
+export GEOLIFE_DEMO_AUTH_DB=/mnt/geolife-private/demo.sqlite3
+export GEOLIFE_STAYS_CACHE="/mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl"
+uvicorn geolife.api.app:app --host 127.0.0.1 --port 8000
+\`\`\`
+
+The CLI prompts for a strong password; the SQLite DB and private stay cache are not included in Git or Docker. A user with no CP1 stays receives abstentions. Map labels are heuristic; OTHER_RECURRING is not a verified POI category. This is an **internal educational demo only**, not an AWS public deployment or an authenticated identity system for GeoLife's original research participants.
+
+See [private demo setup, API paths, map consent and security limitations](docs/deployment/04_authenticated_geolife_map_demo.md).
+
+### Final PR #72 acceptance: Modal real-data E2E
+
+After local browser/synthetic validation, validate the **real private frozen GeoLife CP1 cache** on Modal before merging the serving PR. Run:
+
+```bash
+python scripts/modal_real_data_e2e.py
+```
+
+It uses `/mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl`, recomputes **only CP2** and checks frozen totals (5,821 stays; 136 stay users; HOME 27; OFFICE 16), account scoping, login/logout, per-user markers and a synthetic new-GPS request through the actual FastAPI application. Accounts, tokens and selected IDs/coordinates stay private in `/tmp` and memory; report contains only aggregate metrics and fixed gate names. **PASS on the private Modal Volume per operator-supplied sanitized output, 2026-10-13.** Check all four user-case types and frozen baseline counts in [measured E2E result](docs/deployment/06_modal_real_data_e2e_result.md). Public security/deployment review remains open. Full setup: [Modal E2E runbook](docs/deployment/05_modal_real_data_e2e.md).
+
+### Security review — internal demo only (2026-10-13)
+
+**Restricted Docker mode:** The image now sets `GEOLIFE_PRIVATE_DEMO=1`. Anonymous legacy `/v1/*` and stateless `POST /v2/inferences` therefore return 404, even though OpenAPI still describes these routes for compatibility. When using a standalone Python process, setting `GEOLIFE_DEMO_AUTH_DB` also enables this guard. Python v1 model-contract/parity tests run without a demo auth DB and remain supported.
+
+Authenticated inference uses `/v2/me/inferences` (new GPS) or `/v2/me/dataset-inferences` (authorized private GeoLife cache). HTTP responses set `Cache-Control: no-store` and safety headers; declared bodies over 3 MiB are rejected. **This does not replace HTTPS/restricted ingress, limits for chunked uploads, independent account/permission review or user-data privacy protection.** Review the [pre-merge security assessment](docs/deployment/07_security_review_pre_merge.md) before deploying. No approval for a public AWS service has been given.

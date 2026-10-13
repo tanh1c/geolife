@@ -4198,3 +4198,68 @@ Interpretation:
 Decision: keep production HOME 27 / OFFICE 16 frozen. Preserve Stage-08c
 candidates as separate exposure-aware tiers pending a dedicated robustness /
 stability audit before any production migration.
+
+## 2026-10-12 — Track B1 serving-delivery pivot (Checkpoint 2/3)
+
+Decided to stop expanding exploratory GeoLife EDA before the remaining Track B1 serving deliverables. The frozen CP1/CP2-v2 baseline and v1 OpenAPI contract remain unchanged; future user-level chronological stitching, CP1 threshold sensitivity, missingness and Trackintel ablation are recorded as a **non-blocking backlog**.
+
+The repo already contains FastAPI, typed schema, OpenAPI YAML, parity tests, and Terraform foundation, but at the pivot did not have a Dockerfile, an AWS runtime deployment, a versioned dual-model router, async jobs or operational dashboards.
+
+On branch `feature/track-b1-serving-delivery` added:
+
+- `docs/roadmap/track_b1_delivery_roadmap.md` — ordered P0/P1 deliverables, acceptance gates and deferred EDA backlog;
+- `docs/design/05_serving_api_v2_proposal.md` — proposal for stateless `POST /v2/inferences`, explicit HOME/OFFICE abstention, OTHER_RECURRING, response model provenance and privacy controls;
+- `Dockerfile` / `.dockerignore` — minimal non-root Python serving image without raw GeoLife data;
+- `.github/workflows/docker-smoke.yml` — CI image build with HTTP health/OpenAPI/abstention checks;
+- `docs/deployment/01_docker_sync_serving.md` — local Docker instructions and AWS safety boundaries.
+
+**No deployment has occurred; v2 remains a proposal and must not be represented as implemented.** Next: run Docker smoke in CI, implement v2 schema/endpoint with tests and regenerated OpenAPI, then add two *real* model variants, AWS provisioning/rollback, canary, async SQS flow and monitoring. The implemented CP2-v2 clustering method is complete-link 200m, not DBSCAN. Avoid spending cloud resources before explicit cost/credential approval.
+
+
+## 2026-10-12 — Serving v2 sync contract, dual clustering variants, canary implemented
+
+On `feature/track-b1-serving-delivery`, implemented `src/geolife/api/v2.py` and mounted the router in `src/geolife/api/app.py` without modifying v1 inference semantics. Added `POST /v2/inferences`, `GET /v2/model-info`, `GET /health/ready`, typed HOME/OFFICE emission/abstention, generic OTHER_RECURRING, 20,000-point sync input cap, server-generated request UUID, no returned precise coordinates, model/release metadata, and deterministic app-level canary 0–100% based on HMAC of an opaque non-PII token. Model versions are real implementations: frozen complete-link 200m baseline vs DBSCAN 100m candidate. A test fixture verifies the spatial clustering algorithms differ. `tests/test_api_v2.py` covers privacy, abstention, emission, canary, rollback and OpenAPI.
+
+The Docker smoke CI was expanded to exercise v2 as well as v1. OpenAPI exported automatically on this feature branch via `scripts/export_openapi.py` workflow into `openapi.yaml`. Initial v2 PR CI had exactly one failure because committed `openapi.yaml` predated these routes; the regenerated artifact fixes that mismatch. New tests need subsequent CI verification.
+
+**Boundary:** no AWS endpoint/resources created, no runtime SQS job worker, no calibrated confidence or POI categories. `GEOLIFE_RELEASE_ID` must be an immutable SHA/digest for deployments; default local value is not an artifact registry. Canary is app-level and rollback requires a restart/redeploy, not an instant load-balancer flip.
+
+
+## 2026-10-12 — Private metrics and synthetic sync benchmark added
+
+After sync v2 + real complete-link/DBSCAN variants + app-level canary, added `prometheus-client` production dependency, `src/geolife/api/metrics.py` request counter and latency histogram with bounded labels, and `GET /internal/metrics` protected by `GEOLIFE_METRICS_BEARER_TOKEN` (404 if disabled, 403 if invalid). Tests check that a user ID in a v1 path, GPS coordinates, and tokens never appear as metric labels. Exported metrics are process-local and cannot substitute for a real multi-replica monitoring setup.
+
+Added `scripts/benchmark_sync.py` + pure fixture tests for client-observed p50/p95/p99, status rate and canary model distribution, using *only synthetic GPS*. Runtime measurement results are not claimed without a measured benchmark run. Monitoring design is documented in `docs/deployment/03_monitoring_foundation.md`. AWS, SQS async and CloudWatch/Grafana dashboard remain unimplemented.
+
+## 2026-10-13 — Authenticated two-mode GeoLife demo and map
+
+Built a scoped teaching demo on the serving branch, without changing frozen CP1/CP2 behavior. Server-managed synthetic demo accounts (not the identities of GeoLife contributors) map to a single pseudonymous dataset user ID. Credential provisioning is offline; PBKDF2 password hashing, 30-minute opaque revocable Bearer sessions, wrong-password lockout, and private SQLite storage were added. No raw GeoLife data, credentials or account database are shipped in Git/Docker.
+
+Created authenticated inference modes: POST /v2/me/dataset-inferences selects only the authenticated ID's already-processed CP1 stays from an admin-trusted private cache, then applies frozen CP2; POST /v2/me/inferences accepts fresh GPS points and runs frozen CP1+CP2 without persisting user uploads. HOME/OFFICE outputs include evidence and abstention; OTHER_RECURRING remains a generic frequently visited cluster rather than a verified POI category.
+
+Added /demo single-page interface (JSON/.plt upload, dataset input, login/logout and map), using 3-decimal approximate markers, Leaflet/OpenStreetMap only after an explicit client consent checkbox. Added account provisioning CLI, package-data static HTML, synthetic cross-account authorization/privacy tests, and expanded Docker smoke checks for protected dataset mode.
+
+This feature is for a controlled local/internal demo. No authentication of the actual historical participants, no public multi-tenant security audit, no AWS deployment, no SQS or live drift dashboard is claimed. Details in docs/deployment/04_authenticated_geolife_map_demo.md. CI/OpenAPI regeneration must be verified on PR #72 before merge.
+
+
+## 2026-10-13 — Real GeoLife cache E2E acceptance harness prepared (NOT YET EXECUTED ON MODAL)
+
+After successful local synthetic browser E2E, added \`scripts/modal_real_data_e2e.py\` and \`tests/test_modal_real_data_e2e.py\` on \`feature/track-b1-serving-delivery\`. The script requires a trusted private CP1 cache and runs in the Modal Jupyter environment where the existing Volume is mounted. It reuses 5,821 cached stays (no raw-trajectory rescan), verifies frozen CP2 totals including 2,015 semantic locations, 716 recurring locations, recurring users 104, HOME 27 and OFFICE 16, then selects four private user cases: HOME, OFFICE, recurring-abstain, no-stay. It provisions ephemeral sessions in \`/tmp\`, checks authenticated per-ID dataset inference and 3-decimal map marker parity against direct frozen model output, rejects account switching via request body, verifies token revocation and tests the new-GPS route with a fully synthetic fixture.
+
+No private IDs, coordinates, passwords, tokens or per-user results are printed/written to project cache. Only sanitized aggregate PASS/FAIL and safe gate names may be shared. Unit tests in CI are synthetic; they do not establish **real-data E2E PASS**. New runbook: \`docs/deployment/05_modal_real_data_e2e.md\`. PR #72 should remain Draft until a Modal Volume run yields an explicit PASS and internal-demo security scope is reviewed.
+
+## 2026-10-13 — Modal private-cache real-data API E2E: PASS (operator-reported)
+
+The operator executed `scripts/modal_real_data_e2e.py` on Modal with the trusted frozen CP1 cache and supplied a sanitized JSON report: `status=PASS`, `case_count=4`; `HOME`, `OFFICE`, `RECURRING_ABSTAIN`, `NO_STAY`. This replaces the earlier *not yet executed on Modal* status.
+
+Reported frozen full-release parity: **5,821 stays**, **136 stay users**, **2,015 semantic locations**, **716 recurring locations**, **104 recurring users**, **HOME 27**, **OFFICE 16**. All seven declared checks passed: full-release parity; real-cache authenticated inference; per-user map label/3-decimal-coordinate parity; four abstention/emission case types; blocked dataset ID body override; invalid/revoked token and logout isolation; new GPS mode on a synthetic trajectory. The report indicated no cache export, private identifier export or persisted credentials.
+
+This confirms the *technical private-real-data E2E gate* according to the operator's output, **not** independent access to their private Modal Volume, semantic ground-truth accuracy, proof of real-data web-map rendering, public security review or AWS deployment. PR #72 remains Draft pending explicit internal-only security/release review. Sanitized record and provenance: `docs/deployment/06_modal_real_data_e2e_result.md`.
+
+## 2026-10-13 — PR #72 pre-merge restricted-demo security review
+
+Code review identified a real API surface mismatch: the newly authenticated demo coexisted with anonymous legacy `/v1/*` and stateless `POST /v2/inferences` routes. Added `src/geolife/api/security.py` to return 404 for those endpoints whenever `GEOLIFE_PRIVATE_DEMO=1` or the private demo auth database is configured; Docker now ships with restricted mode enabled by default. Standalone Python v1 tests without auth DB still exercise the frozen compatibility contract.
+
+Response hardening now includes `Cache-Control: no-store`, nosniff, no-referrer, anti-framing/permissions headers and consent UI CSP. Declared HTTP request bodies over 3 MiB receive 413; streaming/chunked upload limits remain an **ingress** requirement, along with HTTPS, firewall, rate limits, secrets/permissions and data-retention policy. Added tests in `tests/test_security_private_demo.py` and updated Docker smoke expectations for restricted mode.
+
+**Review outcome:** candidate for *internal research merge only*, conditional on last-commit CI/Docker PASS and explicit reviewer acknowledgment. **Not approved** for public deployment of historical GeoLife user locations or identity verification. Full severity and residual findings in `docs/deployment/07_security_review_pre_merge.md`. No merge or AWS provisioning performed by this change.

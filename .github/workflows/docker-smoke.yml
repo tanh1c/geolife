@@ -1,0 +1,83 @@
+name: docker-smoke
+
+on:
+  push:
+    branches: [main, feature/track-b1-serving-delivery]
+  pull_request:
+
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build serving image
+        run: docker build --tag geolife-api:ci .
+      - name: Start container
+        run: docker run --detach --rm --name geolife-api-ci --publish 127.0.0.1:18000:8000 --memory 2g geolife-api:ci
+      - name: Wait for health and check OpenAPI
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = "http://127.0.0.1:18000"
+          for attempt in range(90):
+              try:
+                  with urllib.request.urlopen(base + "/health", timeout=3) as response:
+                      health = json.load(response)
+                  if health.get("status") == "ok":
+                      break
+              except (OSError, TimeoutError, ValueError):
+                  time.sleep(2)
+          else:
+              raise RuntimeError("Docker service did not become healthy")
+          with urllib.request.urlopen(base + "/openapi.json", timeout=10) as response:
+              spec = json.load(response)
+          assert "/v1/classify/{user_id}" in spec["paths"]
+          assert "/v2/inferences" in spec["paths"]
+          # Docker image is restricted by default: no anonymous legacy bypass.
+          for path in ("/v1/classify/ci-synthetic", "/v1/home-office/infer", "/v2/inferences"):
+              req = urllib.request.Request(
+                  base + path,
+                  data=json.dumps({"points": [{
+                      "timestamp_utc": "2009-01-05T13:00:00Z",
+                      "latitude": 39.9042, "longitude": 116.4074
+                  }]}).encode(),
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+              try:
+                  urllib.request.urlopen(req, timeout=10)
+                  raise AssertionError("Anonymous legacy inference unexpectedly exposed")
+              except urllib.error.HTTPError as error:
+                  assert error.code == 404, (path, error.code)
+                  assert error.headers["Cache-Control"] == "no-store"
+          with urllib.request.urlopen(base + "/v2/model-info", timeout=10) as response:
+              info = json.load(response)
+          assert len(info["available_models"]) == 2
+          # Demo UI is public HTML only; private data routes require a bearer.
+          with urllib.request.urlopen(base + "/demo", timeout=5) as response:
+              html = response.read().decode("utf-8")
+              assert response.status == 200
+          assert "GeoLife" in html and "/v2/me/dataset-inferences" in html
+          assert "/v2/me/dataset-inferences" in spec["paths"]
+          unauth = urllib.request.Request(
+              base + "/v2/me/dataset-inferences", data=b"", method="POST"
+          )
+          try:
+              urllib.request.urlopen(unauth, timeout=10)
+              raise AssertionError("Dataset mode did not require authentication")
+          except urllib.error.HTTPError as error:
+              assert error.code == 401, error.code
+          print("docker-smoke PASS: health/OpenAPI, legacy inference blocked, map/demo auth gate")
+
+          PY
+      - name: Container logs if failure
+        if: failure()
+        run: docker logs geolife-api-ci || true
+      - name: Stop test container
+        if: always()
+        run: docker stop geolife-api-ci || true
