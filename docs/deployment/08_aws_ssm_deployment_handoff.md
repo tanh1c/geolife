@@ -30,13 +30,17 @@ the internet; there is **no public endpoint**.
 1. Install AWS CLI v2, Terraform 1.9.8, Docker, and the AWS Session Manager Plugin.
 2. Use **IAM Identity Center / SSO / a time-limited admin role**; don't paste
    access keys in chat or commit them. Set your expected AWS account ID and region.
-3. Get IAM permissions (least privilege, account- and resource-scoped where possible)
+3. Create the scoped SSO deployment and operator permission sets from
+   `docs/deployment/09_aws_iam_identity_center_bootstrap.md`. Get IAM permissions
+   (least privilege, account- and resource-scoped where possible)
    for EC2/VPC reads + RunInstances/TerminateInstances/CreateTags; EBS;
    ECR CreateRepository/UploadImage/DescribeImages (and optional image cleanup);
-   IAM CreateRole/CreateInstanceProfile/AttachRolePolicy/PutRolePolicy/PassRole;
+   IAM only GetRole/GetInstanceProfile and **PassRole on exactly the project role**;
    CloudWatch Logs CreateLogGroup/PutRetentionPolicy/DeleteLogGroup;
    SSM GetParameter (AL2023 public AMI), DescribeInstanceInformation/StartSession; and Terraform state.
-   Explicit `iam:PassRole` for the generated EC2 role is needed.
+   No IAM creation/update permissions are granted to the deployer: see
+   `docs/deployment/09_aws_iam_identity_center_bootstrap.md` for SSO, permission
+   sets and the one-time pre-created EC2 role.
    Don't attach AdministratorAccess to the EC2 instance.
 4. Configure an **AWS Budget alert** and check region, instance pricing, public
    IPv4 address fees, EBS, ECR, CloudWatch log ingestion/storage, and transfer
@@ -51,7 +55,7 @@ terraform version
 docker --version
 session-manager-plugin --version
 
-export AWS_PROFILE=YOUR_SSO_PROFILE
+export AWS_PROFILE=geolife-deployer
 export AWS_REGION=ap-southeast-1
 aws sso login --profile "$AWS_PROFILE"
 aws sts get-caller-identity
@@ -85,6 +89,7 @@ git pull --ff-only origin feature/track-b1-aws-deployment
 
 cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars
 # Edit ONLY local terraform.tfvars: vpc_id, subnet_id, region, environment.
+# instance_profile_name must match the EC2 role created once in AWS IAM Console.
 terraform -chdir=infra/terraform fmt -check
 terraform -chdir=infra/terraform init
 terraform -chdir=infra/terraform validate
@@ -94,8 +99,9 @@ terraform -chdir=infra/terraform show tfplan
 
 Terraform config creates: ECR private image repository (immutable tags, scanning),
 one **non-publicly reachable** EC2 host running Docker (AL2023, encrypted 20GiB
-gp3 EBS, IMDSv2 required), zero-inbound SG, EC2 SSM+ECR-pull instance IAM role,
-and CloudWatch log group with 7-day retention. **No Secrets Manager, S3 bucket,
+gp3 EBS, IMDSv2 required), zero-inbound SG, and CloudWatch log group with
+7-day retention. **EC2 IAM role/instance profile must be pre-created by the IAM
+administrator via the Console**, not by Terraform. **No IAM roles or instance profiles, Secrets Manager, S3 bucket,
 NAT gateway, ELB, public DNS or real GeoLife cache are created.** AMI uses the
 AWS AL2023 SSM public parameter, so update and patch on future deployments.
 
@@ -127,7 +133,7 @@ Requires `AWS_REGION`, `ECR_REPOSITORY_URL`,
 `EXPECTED_AWS_ACCOUNT_ID` exported above. The script checks account+registry,
 builds from Docker's allowlisted sources, pushes an immutable `rev-<git-SHA>`
 tag, and prints a **digest-pinned image URL**. **Save the digest URL.**
-The instance pulls it using its ECR pull-only role; AWS credentials are
+The instance pulls it using its pre-created ECR pull-only role; AWS credentials are
 never copied to the container.
 
 ## 3. Start EC2 via SSM and provision a SYNTHETIC demo account
@@ -264,7 +270,7 @@ aws logs describe-log-streams --region "$AWS_REGION" \
   --log-group-name "$CLOUDWATCH_LOG_GROUP" --output table
 ```
 
-Log stream creation assumes EC2 instance role is attached and outbound 443 is
+Log stream creation assumes EC2 pre-created EC2 IAM role is attached and outbound 443 is
 available. Metrics `/internal/metrics` are Prometheus-format and private;
 **a CloudWatch dashboard/latency collector is NOT deployed yet**. Do not
 publish fake p95 latency without measuring the real SSM-hosted deployment.
@@ -278,6 +284,8 @@ items and don't leave the t3.medium instance on indefinitely.
 
 ## Required operator handoff, in order
 
+- [ ] Bootstrap IAM Identity Center SSO user, 2 scoped permission sets,
+      and a pre-created EC2 service role using the [IAM Console walkthrough](09_aws_iam_identity_center_bootstrap.md).
 - [ ] Confirm intended AWS account and region via `sts get-caller-identity`.
 - [ ] Set budget alert; verify role authorization and costs (EC2 + public IPv4).
 - [ ] Pick VPC/public subnet and review Terraform plan; **user runs apply**.
