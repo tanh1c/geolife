@@ -505,6 +505,17 @@ components:
           type: string
           title: Model Version
           default: cp2-v2-complete-link-200m
+        routing_mode:
+          type: string
+          enum:
+          - baseline
+          - canary
+          title: Routing Mode
+          default: baseline
+        release_id:
+          type: string
+          title: Release Id
+          default: local-unversioned
         coordinate_precision:
           type: string
           const: rounded_3_decimals
