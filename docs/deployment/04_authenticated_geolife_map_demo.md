@@ -124,3 +124,8 @@ For a real privacy-reviewed public deployment, further work is mandatory: HTTPS 
 - Swagger/OpenAPI describes auth and map endpoints, while \`/demo\` is just the HTML shell.
 - The frozen CP1/CP2 inference algorithm and the no-coordinate unauthenticated v1/v2 API remain unchanged.
 - A human operator must still mount and grant access to the private GeoLife cache and separately provision demo accounts. No historical participant consent/identity can be inferred from an ID.
+
+
+## Real-cache model/API parity gate
+
+Local/browser tests already exercised synthetic trajectories and mock cache. To validate the **frozen private GeoLife** dataset without exporting stays, run \`scripts/modal_real_data_e2e.py\` inside an existing Modal Jupyter server with Volume mounted. It checks full CP2 frozen counts, then privately selects HOME/OFFICE/recurring-abstain/no-stay cases and verifies authenticated API responses and map marker rounding. Only aggregate PASS/FAIL is displayed. The script is described in \`docs/deployment/05_modal_real_data_e2e.md\`. This step is a merge gate; it has **not** been run against the real private Volume by CI.
