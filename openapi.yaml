@@ -231,6 +231,106 @@ paths:
                   type: string
                 type: object
                 title: Response V2 Readiness Health Ready Get
+  /v2/auth/login:
+    post:
+      tags:
+      - authenticated-demo
+      summary: Log in with an explicitly provisioned demo account
+      operationId: demo_login_v2_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/auth/logout:
+    post:
+      tags:
+      - authenticated-demo
+      summary: Revoke current bearer session
+      operationId: demo_logout_v2_auth_logout_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: boolean
+                type: object
+                title: Response Demo Logout V2 Auth Logout Post
+      security:
+      - HTTPBearer: []
+  /v2/auth/me:
+    get:
+      tags:
+      - authenticated-demo
+      summary: Demo Me
+      operationId: demo_me_v2_auth_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoAccount'
+      security:
+      - HTTPBearer: []
+  /v2/me/dataset-inferences:
+    post:
+      tags:
+      - authenticated-demo
+      summary: Demo Dataset
+      operationId: demo_dataset_v2_me_dataset_inferences_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoInferenceResponse'
+      security:
+      - HTTPBearer: []
+  /v2/me/inferences:
+    post:
+      tags:
+      - authenticated-demo
+      summary: Demo New Trajectory
+      operationId: demo_new_trajectory_v2_me_inferences_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemoTrajectoryBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoInferenceResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
 components:
   schemas:
     AbstainedResult:
@@ -377,6 +477,92 @@ components:
       - locations
       - abstentions
       title: ClassifyResponse
+    DemoAccount:
+      properties:
+        account_id:
+          type: string
+          title: Account Id
+        dataset_user_id:
+          type: string
+          title: Dataset User Id
+      type: object
+      required:
+      - account_id
+      - dataset_user_id
+      title: DemoAccount
+    DemoInferenceResponse:
+      properties:
+        dataset_user_id:
+          type: string
+          title: Dataset User Id
+        source:
+          type: string
+          enum:
+          - dataset_cp1_cache
+          - new_gps
+          title: Source
+        model_version:
+          type: string
+          title: Model Version
+          default: cp2-v2-complete-link-200m
+        coordinate_precision:
+          type: string
+          const: rounded_3_decimals
+          title: Coordinate Precision
+          default: rounded_3_decimals
+        raw_points:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Raw Points
+        detected_stays:
+          type: integer
+          title: Detected Stays
+        recurring_locations:
+          type: integer
+          title: Recurring Locations
+        predictions:
+          additionalProperties:
+            additionalProperties: true
+            type: object
+          type: object
+          title: Predictions
+        map_locations:
+          items:
+            $ref: '#/components/schemas/MapLocation'
+          type: array
+          title: Map Locations
+        warnings:
+          items:
+            type: string
+          type: array
+          title: Warnings
+      additionalProperties: false
+      type: object
+      required:
+      - dataset_user_id
+      - source
+      - raw_points
+      - detected_stays
+      - recurring_locations
+      - predictions
+      - map_locations
+      - warnings
+      title: DemoInferenceResponse
+    DemoTrajectoryBody:
+      properties:
+        points:
+          items:
+            $ref: '#/components/schemas/GpsPoint'
+          type: array
+          maxItems: 20000
+          minItems: 1
+          title: Points
+      additionalProperties: false
+      type: object
+      required:
+      - points
+      title: DemoTrajectoryBody
     EmittedResult:
       properties:
         label:
@@ -617,6 +803,94 @@ components:
       - predictions
       - other_recurring_places
       title: InferenceResponseV2
+    LoginBody:
+      properties:
+        account_id:
+          type: string
+          maxLength: 64
+          minLength: 3
+          title: Account Id
+        password:
+          type: string
+          maxLength: 1024
+          minLength: 1
+          title: Password
+      additionalProperties: false
+      type: object
+      required:
+      - account_id
+      - password
+      title: LoginBody
+    LoginResult:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        token_type:
+          type: string
+          title: Token Type
+          default: bearer
+        expires_in:
+          type: integer
+          title: Expires In
+          default: 1800
+        account_id:
+          type: string
+          title: Account Id
+        dataset_user_id:
+          type: string
+          title: Dataset User Id
+      type: object
+      required:
+      - access_token
+      - account_id
+      - dataset_user_id
+      title: LoginResult
+    MapLocation:
+      properties:
+        location_ref:
+          type: string
+          title: Location Ref
+        label:
+          type: string
+          enum:
+          - HOME
+          - OFFICE
+          - OTHER_RECURRING
+          title: Label
+        latitude:
+          type: number
+          maximum: 90.0
+          minimum: -90.0
+          title: Latitude
+        longitude:
+          type: number
+          maximum: 180.0
+          minimum: -180.0
+          title: Longitude
+        evidence_score:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Evidence Score
+        visit_count:
+          type: integer
+          minimum: 1.0
+          title: Visit Count
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - location_ref
+      - label
+      - latitude
+      - longitude
+      - visit_count
+      - note
+      title: MapLocation
     ModelDescriptorV2:
       properties:
         model_id:
@@ -860,3 +1134,7 @@ components:
       - type
       title: ValidationIssue
       description: Sanitized validation detail that never echoes raw GPS input.
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer
