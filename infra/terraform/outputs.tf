@@ -34,7 +34,7 @@ output "aws_account_id" {
 }
 
 output "instance_role_name" {
-  value = aws_iam_role.instance.name
+  value = var.instance_profile_name
 }
 
 output "instance_security_group_id" {
