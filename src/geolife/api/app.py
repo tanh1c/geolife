@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Path, Request
+from importlib.resources import files
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
 from .schemas import (
     ClassifyRequest,
@@ -16,6 +17,7 @@ from .schemas import (
 from .service import classify_raw_request, infer_request
 from .v2 import router as v2_router
 from .metrics import instrument_requests, protected_metrics
+from .demo import router as demo_router
 
 
 app = FastAPI(
@@ -192,3 +194,11 @@ app.middleware("http")(instrument_requests)
 @app.get("/internal/metrics", include_in_schema=False, tags=["internal"])
 def internal_metrics(request: Request):
     return protected_metrics(request)
+
+
+# Authenticated GeoLife dataset/new-GPS demo. HTML contains no data or secrets.
+app.include_router(demo_router)
+
+@app.get("/demo", include_in_schema=False)
+def geolife_demo_ui():
+    return FileResponse(str(files("geolife.api").joinpath("static", "demo.html")), media_type="text/html")
