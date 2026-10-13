@@ -1,4 +1,6 @@
-# AWS IAM Identity Center bootstrap — GeoLife dev (AWS Console walkthrough)
+# AWS IAM Identity Center bootstrap — Existing AWS Organizations ONLY
+
+**STOP if you are on the AWS Free plan with credits:** creating/joining an AWS Organization can immediately expire remaining AWS Free Tier credits. Use the [Free-plan IAM User + MFA + temporary AWS CLI login](10_aws_free_plan_iam_user_bootstrap.md) instead. The section below is appropriate only when an AWS Organization already exists and billing consequences have been evaluated.
 
 **Purpose:** create a distinct, short-lived SSO identity for GeoLife and a
 separate narrowly scoped EC2 **service role**, with no AdministratorAccess,
