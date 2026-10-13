@@ -8,5 +8,7 @@ environment  = "dev"
 vpc_id        = "vpc-REPLACE"
 subnet_id     = "subnet-REPLACE"
 
-# Single non-production 4-GiB instance, not a free-tier assumption.
-instance_type = "t3.medium"
+# For AWS Free plan accounts created on/after 2025-07-15: x86_64, >=4 GiB.
+# Verify account-level FreeTierEligible AND ap-southeast-1a offering before apply.
+# m7i-flex.large (8 GiB) is an option only after separate budget review.
+instance_type = "c7i-flex.large"
