@@ -12,7 +12,7 @@ Freeze the current production reference while delivering infrastructure:
 - CP2-v2 uses complete-link max diameter 200m, per-stay IANA timezones and abstention. Frozen full-release result: 5,821 stays, HOME 27, OFFICE 16.
 - Stage 08c experimental tiers (HOME 36, OFFICE 19) **are not** production. Stage 09 file stitching (5,821 -> 5,831 stays; no new stay users or HOME/OFFICE emissions) is a research comparator, not a migration.
 
-The existing **v1 API stays available** for backward compatibility. A more sensible **v2 serving contract** is specified in `docs/design/05_serving_api_v2_proposal.md`; it will be implemented and tested explicitly, not silently substituted for v1.
+The existing **v1 API stays in code** for backward-compatible Python parity tests but is blocked in the restricted Docker/demo deployment. A more sensible **v2 serving contract** is specified in `docs/design/05_serving_api_v2_proposal.md`; it will be implemented and tested explicitly, not silently substituted for v1.
 
 ## Deliverables and gates (in execution order)
 
@@ -96,3 +96,7 @@ Additional TODO before internet-facing use: external auth and HTTPS ingress poli
 - [ ] Review/merge PR #72; only after that begin AWS deployment work on a separate branch.
 
 See `docs/deployment/05_modal_real_data_e2e.md`.
+
+## 2026-10-13 — Restricted internal-demo security review
+
+Review: `docs/deployment/07_security_review_pre_merge.md`. The previous parallel anonymous inference endpoints are now blocked in Docker/private demo runtime (`GEOLIFE_PRIVATE_DEMO=1` or configured auth DB), while standalone v1 Python parity remains available. Added no-store/CSP/clickjacking headers, declared-content-length 3 MiB rejection, Docker regression checks, and security test coverage. **Residual public-deployment blockers:** no independently verified identity of GeoLife original participants; historical HOME/OFFICE coordinates remain sensitive even after rounding; trusted pickle supply chain; chunked body cap, TLS/restricted ingress, rate limiting, centralized account lifecycle and cloud secret/IAM controls. Merge only as internal research code after review and green CI; public AWS exposure is not approved.
