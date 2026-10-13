@@ -41,13 +41,13 @@ variable "subnet_id" {
 }
 
 variable "instance_type" {
-  description = "Non-production single instance; t3.medium is safer for Python scientific packages than 1-2 GiB sizes."
+  description = "AWS Free plan eligible x86_64 (post-2025) instance with >=4 GiB RAM for scientific Python container. Verify actual account and AZ eligibility with AWS CLI before apply."
   type        = string
-  default     = "t3.medium"
+  default     = "c7i-flex.large"
 
   validation {
-    condition     = contains(["t3.medium", "t3.large", "t3a.medium", "t3a.large"], var.instance_type)
-    error_message = "Only t3/t3a medium or large are permitted for this demo."
+    condition     = contains(["c7i-flex.large", "m7i-flex.large"], var.instance_type)
+    error_message = "Use only c7i-flex.large (4 GiB) or m7i-flex.large (8 GiB). Verify FreeTierEligible and AZ availability first."
   }
 }
 
