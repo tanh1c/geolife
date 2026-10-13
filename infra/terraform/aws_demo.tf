@@ -62,56 +62,18 @@ resource "aws_security_group" "instance" {
   }
 }
 
-resource "aws_iam_role" "instance" {
-  name = format("%s-%s-ec2-role", var.project_name, var.environment)
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ssm" {
-  role       = aws_iam_role.instance.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_role_policy_attachment" "ecr" {
-  role       = aws_iam_role.instance.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
-}
-
-resource "aws_iam_role_policy" "logs" {
-  name = "geolife-api-cloudwatch-writer"
-  role = aws_iam_role.instance.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "logs:CreateLogStream",
-        "logs:DescribeLogStreams",
-        "logs:PutLogEvents"
-      ]
-      Resource = format("%s:*", aws_cloudwatch_log_group.api.arn)
-    }]
-  })
-}
-
-resource "aws_iam_instance_profile" "api" {
-  name = format("%s-%s-ec2-profile", var.project_name, var.environment)
-  role = aws_iam_role.instance.name
-}
+# The narrow IAM instance role and instance profile are bootstrapped ONCE by
+# the account IAM administrator through AWS Console. Terraform deliberately
+# cannot create, attach policies to, or mutate IAM roles. The Terraform deployer
+# needs only iam:PassRole restricted to that role.
+# See docs/deployment/09_aws_iam_identity_center_bootstrap.md.
 
 resource "aws_instance" "api" {
   ami                         = data.aws_ssm_parameter.al2023_ami.value
   instance_type               = var.instance_type
   subnet_id                   = var.subnet_id
   vpc_security_group_ids      = [aws_security_group.instance.id]
-  iam_instance_profile        = aws_iam_instance_profile.api.name
+  iam_instance_profile        = var.instance_profile_name
   associate_public_ip_address = true
   monitoring                  = false
 
@@ -148,9 +110,4 @@ resource "aws_instance" "api" {
     Access          = "ssm-no-inbound"
   }
 
-  depends_on = [
-    aws_iam_role_policy_attachment.ssm,
-    aws_iam_role_policy_attachment.ecr,
-    aws_iam_role_policy.logs
-  ]
 }
