@@ -10,7 +10,7 @@ plan and explicitly runs `terraform apply`. See
 No original GeoLife private cache, GPS trajectories, passwords or cloud
 credentials are written to Terraform state or user data.
 
-**IAM bootstrap prerequisite:** an existing account IAM administrator must
+**Free plan IAM option:** preserving AWS Free Tier credits? Avoid creating AWS Organizations; use IAM user MFA and browser-based temporary AWS CLI login per [Free-plan bootstrap](../../docs/deployment/10_aws_free_plan_iam_user_bootstrap.md).\n\n**IAM bootstrap prerequisite:** an existing account IAM administrator must
 create the EC2 service role and instance profile `geolife-mle-dev-ec2-role`
 through the AWS Console. A separate IAM Identity Center deployment permission
 set may then use `iam:PassRole` on only that role; **Terraform no longer needs
