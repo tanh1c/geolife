@@ -61,10 +61,8 @@
       "Condition": {
         "StringNotEqualsIfExists": {
           "ec2:InstanceType": [
-            "t3.medium",
-            "t3.large",
-            "t3a.medium",
-            "t3a.large"
+            "c7i-flex.large",
+            "m7i-flex.large"
           ]
         }
       }
