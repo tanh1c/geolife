@@ -10,7 +10,7 @@ Architecture:
 ```text
 Local browser / benchmark -> AWS CLI + SSM encrypted port forwarding
                                      |
-                              EC2 (t3.medium)
+                              EC2 (c7i-flex.large, Free plan eligible x86_64)
                               no inbound SG
                               Docker :127.0.0.1:8000
                                      |
@@ -26,6 +26,18 @@ return HTTP 503 until a separate **privacy/permission decision** authorizes priv
 data transfer. GeoLife user IDs are dataset pseudonyms and cannot authenticate the
 original participants. The local SSM tunnel prevents opening port 80/443/8000 to
 the internet; there is **no public endpoint**.
+
+## Recovery if the first apply has already created some resources
+
+If an earlier `t3.medium` apply was rejected by the Free plan **after** ECR,
+CloudWatch Logs and Security Group were created, **keep the original
+`terraform.tfstate` and those four resources intact**. Do not reapply the old
+saved plan or recreate the repo/log group. Follow
+[11 — Free plan partial apply recovery](11_aws_free_plan_partial_apply_recovery.md).
+Terraform and the scoped IAM Group policy now permit
+`c7i-flex.large` (4 GiB) or `m7i-flex.large` (8 GiB), but the IAM Group
+policy must be manually updated via Console and actual FreeTierEligible/AZ
+offerings verified before generating a fresh plan.
 
 ## 0. Operator prerequisites — local / IAM
 
@@ -307,7 +319,7 @@ account data, then run `terraform -chdir=infra/terraform destroy` from the
 operator local machine after reviewing its destroy plan. ECR images must first
 be explicitly deleted by an authorized operator if ECR repository is not empty;
 `force_delete=false` is deliberate. Verify AWS EC2/ECR/EBS/CloudWatch billing
-items and don't leave the t3.medium instance on indefinitely.
+items and don't leave the EC2 instance on indefinitely.
 
 ## Required operator handoff, in order
 
