@@ -2,13 +2,20 @@
 
 **Checkpoint 2 source configuration (not deployed).** This Terraform root now
 provisions one **short-lived internal** EC2 host, a private ECR repository,
-CloudWatch Logs, an SSM instance profile/role, and a **zero-ingress**
+CloudWatch Logs, a **pre-created SSM EC2 instance profile**, and a **zero-ingress**
 security group. AWS resource creation happens only when the operator reviews a
 plan and explicitly runs `terraform apply`. See
 [the full local/IAM/SSM handoff](../../docs/deployment/08_aws_ssm_deployment_handoff.md).
 
 No original GeoLife private cache, GPS trajectories, passwords or cloud
-credentials are written to Terraform state or user data. Only the operator can
+credentials are written to Terraform state or user data.
+
+**IAM bootstrap prerequisite:** an existing account IAM administrator must
+create the EC2 service role and instance profile `geolife-mle-dev-ec2-role`
+through the AWS Console. A separate IAM Identity Center deployment permission
+set may then use `iam:PassRole` on only that role; **Terraform no longer needs
+`iam:CreateRole`, `iam:AttachRolePolicy`, `iam:PutRolePolicy` or
+`iam:CreateInstanceProfile`**. Use the [Console IAM guide](../../docs/deployment/09_aws_iam_identity_center_bootstrap.md) and project-scoped permission-set templates in `infra/iam/`. Only the operator can
 later provision a synthetic demo account on the EC2 host.
 
 ## Local validation / plan
