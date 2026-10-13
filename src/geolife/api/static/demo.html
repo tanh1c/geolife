@@ -117,9 +117,9 @@ async function newPoints(){
    for(var file of files){
      if(file.size>5*1024*1024)throw Error("Giới hạn 5MiB/file trong demo.");
      var s=await file.text(),d;
-     if(file.name.toLowerCase().endsWith(".plt")){p.push(...parsePlt(s))}
+     if(file.name.toLowerCase().endsWith(".plt")){for(const point of parsePlt(s))p.push(point)}
      else if(file.name.toLowerCase().endsWith(".json")){
-       d=JSON.parse(s);p.push(...(Array.isArray(d)?d:d.points||[]));
+       d=JSON.parse(s);for(const point of (Array.isArray(d)?d:d.points||[]))p.push(point);
      }else throw Error("Chỉ chấp nhận .plt hoặc .json");
    }
  }else{
