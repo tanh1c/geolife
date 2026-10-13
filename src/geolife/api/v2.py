@@ -118,21 +118,29 @@ def rollout_config() -> tuple[Literal["baseline", "canary"], int]:
     return mode, percent
 
 
-def selected_model(request: InferenceRequestV2, request_id: str) -> str:
+def selected_model_for_token(token: str) -> str:
+    """Stable HMAC-based variant selection for an opaque server-scoped token.
+
+    Authenticated demo routing passes a server-provisioned demo account ID with
+    a private namespace prefix, never a raw GPS coordinate or user-submitted
+    dataset selector. No token or hash bucket is emitted in response/logs.
+    """
     mode, percent = rollout_config()
     if mode == "baseline" or percent == 0:
         return BASELINE
     if percent == 100:
         return CANDIDATE
-    # Stable partition for the same opaque client token.  Request IDs are
-    # random when no token is provided; no raw trajectory or user ID is hashed.
-    token = request.client_request_id or request_id
     salt = os.getenv("GEOLIFE_CANARY_SALT", "local-demo-only-not-a-secret")
     digest = hmac.new(
         salt.encode("utf-8"), token.encode("utf-8"), hashlib.sha256
     ).digest()
     bucket = int.from_bytes(digest[:8], "big") % 10_000
     return CANDIDATE if bucket < percent * 100 else BASELINE
+
+
+def selected_model(request: InferenceRequestV2, request_id: str) -> str:
+    # Preserve original stateless v2 client-request routing contract.
+    return selected_model_for_token(request.client_request_id or request_id)
 
 
 def model_config(variant: str) -> HomeOfficeConfig:
