@@ -22,7 +22,6 @@ jobs:
           import time
           import urllib.error
           import urllib.request
-          import urllib.error
 
           base = "http://127.0.0.1:18000"
           for attempt in range(90):
@@ -38,45 +37,27 @@ jobs:
           with urllib.request.urlopen(base + "/openapi.json", timeout=10) as response:
               spec = json.load(response)
           assert "/v1/classify/{user_id}" in spec["paths"]
-          req = urllib.request.Request(
-              base + "/v1/classify/ci-synthetic",
-              data=json.dumps({"points": [{
-                  "timestamp_utc": "2009-01-05T13:00:00Z",
-                  "latitude": 39.9042,
-                  "longitude": 116.4074
-              }]}).encode(),
-              headers={"Content-Type": "application/json"},
-              method="POST",
-          )
-          with urllib.request.urlopen(req, timeout=20) as response:
-              body = json.load(response)
-              assert response.status == 200
-          assert body["locations"] == []
-          assert {a["label"] for a in body["abstentions"]} == {"HOME", "OFFICE"}
-          assert '"latitude"' not in json.dumps(body)
-          assert '"longitude"' not in json.dumps(body)
           assert "/v2/inferences" in spec["paths"]
+          # Docker image is restricted by default: no anonymous legacy bypass.
+          for path in ("/v1/classify/ci-synthetic", "/v1/home-office/infer", "/v2/inferences"):
+              req = urllib.request.Request(
+                  base + path,
+                  data=json.dumps({"points": [{
+                      "timestamp_utc": "2009-01-05T13:00:00Z",
+                      "latitude": 39.9042, "longitude": 116.4074
+                  }]}).encode(),
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+              try:
+                  urllib.request.urlopen(req, timeout=10)
+                  raise AssertionError("Anonymous legacy inference unexpectedly exposed")
+              except urllib.error.HTTPError as error:
+                  assert error.code == 404, (path, error.code)
+                  assert error.headers["Cache-Control"] == "no-store"
           with urllib.request.urlopen(base + "/v2/model-info", timeout=10) as response:
               info = json.load(response)
           assert len(info["available_models"]) == 2
-          req_v2 = urllib.request.Request(
-              base + "/v2/inferences",
-              data=json.dumps({"points": [{
-                  "timestamp_utc": "2009-01-05T13:00:00Z",
-                  "latitude": 39.9042, "longitude": 116.4074
-              }]}).encode(),
-              headers={"Content-Type": "application/json"},
-              method="POST",
-          )
-          with urllib.request.urlopen(req_v2, timeout=20) as response:
-              v2 = json.load(response)
-              assert response.status == 200
-          assert v2["api_version"] == "v2"
-          assert v2["model"]["model_version"] == "cp2-v2-complete-link-200m"
-          assert v2["predictions"]["HOME"]["status"] == "abstained"
-          assert v2["predictions"]["OFFICE"]["status"] == "abstained"
-          assert '"latitude"' not in json.dumps(v2)
-          assert '"longitude"' not in json.dumps(v2)
           # Demo UI is public HTML only; private data routes require a bearer.
           with urllib.request.urlopen(base + "/demo", timeout=5) as response:
               html = response.read().decode("utf-8")
@@ -91,7 +72,7 @@ jobs:
               raise AssertionError("Dataset mode did not require authentication")
           except urllib.error.HTTPError as error:
               assert error.code == 401, error.code
-          print("docker-smoke PASS: v1/v2 + map demo HTML + authenticated dataset gate")
+          print("docker-smoke PASS: health/OpenAPI, legacy inference blocked, map/demo auth gate")
 
           PY
       - name: Container logs if failure
