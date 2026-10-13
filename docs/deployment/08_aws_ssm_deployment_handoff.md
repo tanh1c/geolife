@@ -1,6 +1,8 @@
 # AWS Checkpoint 2 — SSM-only single-host deployment handoff
 
 **Status: IaC + authenticated-canary code prepared. No AWS resources created.**
+
+**Free plan operator:** If creating an AWS Organization would forfeit your remaining Free Tier credits, do not enable IAM Identity Center's organization instance. Instead use the existing scoped IAM user, MFA and temporary `aws login` from the [Free-plan IAM alternative](10_aws_free_plan_iam_user_bootstrap.md). The Identity Center setup below is only for already-established AWS Organizations.
 The design is a **short-lived internal research demonstration**, deliberately not a public HTTPS API.
 
 Architecture:
@@ -28,7 +30,7 @@ the internet; there is **no public endpoint**.
 ## 0. Operator prerequisites — local / IAM
 
 1. Install AWS CLI v2, Terraform 1.9.8, Docker, and the AWS Session Manager Plugin.
-2. Use **IAM Identity Center / SSO / a time-limited admin role**; don't paste
+2. Use **IAM Identity Center / SSO in existing Organizations, OR Free-plan IAM user with MFA and temporary browser-based `aws login`**; don't paste
    access keys in chat or commit them. Set your expected AWS account ID and region.
 3. Create the scoped SSO deployment and operator permission sets from
    `docs/deployment/09_aws_iam_identity_center_bootstrap.md`. Get IAM permissions
@@ -55,9 +57,11 @@ terraform version
 docker --version
 session-manager-plugin --version
 
-export AWS_PROFILE=geolife-deployer
+export AWS_PROFILE=geolife-ops  # Free plan IAM user; see section on credential_process
 export AWS_REGION=ap-southeast-1
-aws sso login --profile "$AWS_PROFILE"
+aws login --profile geolife-ops  # Free plan alternative; AWS CLI >= 2.32.0
+# If already on an existing AWS Organization with SSO, use:
+# aws sso login --profile "$AWS_PROFILE"
 aws sts get-caller-identity
 ```
 
@@ -284,8 +288,8 @@ items and don't leave the t3.medium instance on indefinitely.
 
 ## Required operator handoff, in order
 
-- [ ] Bootstrap IAM Identity Center SSO user, 2 scoped permission sets,
-      and a pre-created EC2 service role using the [IAM Console walkthrough](09_aws_iam_identity_center_bootstrap.md).
+- [ ] IAM login bootstrap: **choose one**: [Free-plan IAM user + MFA + temporary aws login](10_aws_free_plan_iam_user_bootstrap.md), or [Identity Center with an existing Organization](09_aws_iam_identity_center_bootstrap.md). Never create an Organization just to enable SSO while relying on Free Tier credits.
+- [ ] IAM administrator separately creates narrow EC2 service role/instance profile.
 - [ ] Confirm intended AWS account and region via `sts get-caller-identity`.
 - [ ] Set budget alert; verify role authorization and costs (EC2 + public IPv4).
 - [ ] Pick VPC/public subnet and review Terraform plan; **user runs apply**.
