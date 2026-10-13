@@ -34,6 +34,9 @@ dev = [
 [tool.setuptools]
 package-dir = {"" = "src"}
 
+[tool.setuptools.package-data]
+"geolife.api" = ["static/*.html"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
