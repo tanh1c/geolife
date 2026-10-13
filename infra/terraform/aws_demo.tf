@@ -48,7 +48,10 @@ resource "aws_security_group" "instance" {
   description = "No inbound: access only via AWS SSM session port forward"
   vpc_id      = var.vpc_id
 
-  # There are intentionally ZERO ingress rules.
+  # Explicit empty list enforces zero inbound rules, including after drift.
+  # Do not add inline ingress rules for this SSM-only internal demo.
+  ingress = []
+
   egress {
     description = "Outbound HTTPS to SSM, ECR, package repositories and CW"
     from_port   = 443
