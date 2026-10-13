@@ -251,8 +251,8 @@ See [private demo setup, API paths, map consent and security limitations](docs/d
 
 After local browser/synthetic validation, validate the **real private frozen GeoLife CP1 cache** on Modal before merging the serving PR. Run:
 
-\`\`\`bash
+```bash
 python scripts/modal_real_data_e2e.py
-\`\`\`
+```
 
-It uses \`/mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl\`, recomputes **only CP2** and checks frozen totals (5,821 stays; 136 stay users; HOME 27; OFFICE 16), account scoping, login/logout, per-user markers and a synthetic new-GPS request through the actual FastAPI application. Accounts, tokens and selected IDs/coordinates stay private in \`/tmp\` and memory; report contains only aggregate metrics and fixed gate names. **Not yet run on the private Modal Volume in this PR.** Full setup: [Modal E2E runbook](docs/deployment/05_modal_real_data_e2e.md).
+It uses `/mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl`, recomputes **only CP2** and checks frozen totals (5,821 stays; 136 stay users; HOME 27; OFFICE 16), account scoping, login/logout, per-user markers and a synthetic new-GPS request through the actual FastAPI application. Accounts, tokens and selected IDs/coordinates stay private in `/tmp` and memory; report contains only aggregate metrics and fixed gate names. **Not yet run on the private Modal Volume in this PR.** Full setup: [Modal E2E runbook](docs/deployment/05_modal_real_data_e2e.md).
