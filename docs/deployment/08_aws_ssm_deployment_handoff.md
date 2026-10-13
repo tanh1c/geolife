@@ -35,7 +35,7 @@ the internet; there is **no public endpoint**.
    ECR CreateRepository/UploadImage/DescribeImages (and optional image cleanup);
    IAM CreateRole/CreateInstanceProfile/AttachRolePolicy/PutRolePolicy/PassRole;
    CloudWatch Logs CreateLogGroup/PutRetentionPolicy/DeleteLogGroup;
-   SSM DescribeInstanceInformation/StartSession; and Terraform state.
+   SSM GetParameter (AL2023 public AMI), DescribeInstanceInformation/StartSession; and Terraform state.
    Explicit `iam:PassRole` for the generated EC2 role is needed.
    Don't attach AdministratorAccess to the EC2 instance.
 4. Configure an **AWS Budget alert** and check region, instance pricing, public
@@ -174,7 +174,7 @@ chmod 600 /opt/geolife-private/runtime.env
 ```
 
 Run the image privately on loopback, logging only request metadata to
-CloudWatch. **Never log GPS bodies or the generated auth file.**
+CloudWatch. The Docker image disables default Uvicorn access logs to avoid recording URL user IDs; CloudWatch will contain only app/system logs. **Never log GPS bodies or the generated auth file.**
 
 ```bash
 docker run -d --name geolife-api --restart unless-stopped \
