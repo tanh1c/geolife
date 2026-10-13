@@ -70,7 +70,7 @@ button.ghost{border-color:#aab4bf;background:#fff;color:#17191d}button:hover{fil
 var token=null,latest=null,map=null,layer=null;
 function el(id){return document.getElementById(id)}
 function message(t,bad){el("status").textContent=t;el("status").classList.toggle("error",!!bad)}
-function signedOut(){el("loginForm").classList.remove("hidden");el("signed").classList.add("hidden");el("modes").classList.add("hidden");el("result").classList.add("hidden");el("empty").classList.remove("hidden")}
+function signedOut(){latest=null;if(layer)layer.clearLayers();el("preds").replaceChildren();el("mapWrap").classList.add("hidden");el("consent").checked=false;el("loginForm").classList.remove("hidden");el("signed").classList.add("hidden");el("modes").classList.add("hidden");el("result").classList.add("hidden");el("empty").classList.remove("hidden")}
 async function request(path,opts){
  var o=opts||{},headers=Object.assign({"Content-Type":"application/json"},o.headers||{});
  if(token)headers.Authorization="Bearer "+token;
@@ -117,9 +117,9 @@ async function newPoints(){
    for(var file of files){
      if(file.size>5*1024*1024)throw Error("Giới hạn 5MiB/file trong demo.");
      var s=await file.text(),d;
-     if(file.name.toLowerCase().endsWith(".plt")){p.push.apply(p,parsePlt(s))}
+     if(file.name.toLowerCase().endsWith(".plt")){p.push(...parsePlt(s))}
      else if(file.name.toLowerCase().endsWith(".json")){
-       d=JSON.parse(s);p.push.apply(p,Array.isArray(d)?d:d.points||[]);
+       d=JSON.parse(s);p.push(...(Array.isArray(d)?d:d.points||[]));
      }else throw Error("Chỉ chấp nhận .plt hoặc .json");
    }
  }else{
