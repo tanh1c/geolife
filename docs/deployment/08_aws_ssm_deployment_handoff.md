@@ -101,6 +101,29 @@ terraform -chdir=infra/terraform plan -out=tfplan
 terraform -chdir=infra/terraform show tfplan
 ```
 
+**Zero-ingress verification before apply:** `aws_security_group.instance`
+explicitly declares `ingress = []`, which asks Terraform to enforce an empty
+inbound rule set. In the plan JSON, `after.ingress` can still appear as
+`<unknown>` while the resource is not created; that by itself is neither
+a security error nor proof of security. Re-run `plan -out=tfplan` after
+pulling any security-group code changes (an older saved plan must not be
+applied). After an operator-approved apply, verify the actual AWS security
+group has no IpPermissions:
+
+```powershell
+$env:AWS_PROFILE = "geolife-terraform"
+$sgid = terraform -chdir=infra/terraform output -raw instance_security_group_id
+aws ec2 describe-security-groups `
+  --region ap-southeast-1 `
+  --group-ids $sgid `
+  --query "SecurityGroups[0].{GroupId:GroupId,Ingress:IpPermissions,Egress:IpPermissionsEgress}" `
+  --output json
+```
+
+Only proceed to an internal SSM demo if `Ingress` is exactly `[]`.
+If unexpected inbound permissions exist, stop and remediate immediately;
+never assume the zero-ingress property is proved by plan-only output.
+
 Terraform config creates: ECR private image repository (immutable tags, scanning),
 one **non-publicly reachable** EC2 host running Docker (AL2023, encrypted 20GiB
 gp3 EBS, IMDSv2 required), zero-inbound SG, and CloudWatch log group with
