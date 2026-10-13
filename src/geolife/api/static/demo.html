@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="vi"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoLife | MLE demo</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#fafafa;color:#17191d;font-family:Inter,system-ui,-apple-system,sans-serif}
+main{max-width:1160px;margin:auto;padding:32px 20px}header{border-bottom:2px solid #17191d;padding-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:800;font-size:26px;letter-spacing:-1px}.logo b{background:#da3d36;color:#fff;padding:2px 8px;margin-right:8px}
+h1{font-size:clamp(30px,5vw,52px);letter-spacing:-2px;max-width:760px;line-height:1.08}
+h2{font-size:21px;letter-spacing:-.5px;margin:0 0 16px}.over{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#67717f;font-weight:750}
+p{line-height:1.6}small,.small{color:#5b6877;font-size:12px;line-height:1.55}.layout{display:grid;grid-template-columns:350px 1fr;gap:22px}
+section{border:1px solid #dedfe2;padding:23px;background:#fff}.gap{height:20px}label{font-size:13px;font-weight:650;display:block;margin:14px 0 7px}
+input[type=text],input[type=password],input[type=file],textarea{display:block;width:100%;padding:11px;border:1px solid #c7cdd4;font:inherit}
+textarea{font-family:monospace;font-size:12px;min-height:115px;resize:vertical}
+button{border:1px solid #1956b9;padding:11px 16px;background:#1956b9;color:#fff;font:inherit;font-weight:650;cursor:pointer}
+button.ghost{border-color:#aab4bf;background:#fff;color:#17191d}button:hover{filter:brightness(.92)}
+.tabs{display:flex;border-bottom:1px solid #ddd;margin:16px 0}.tabs button{background:#fff;border:0;color:#617084;border-bottom:3px solid transparent;padding:10px}
+.tabs button.active{border-color:#1956b9;color:#17191d}.hidden{display:none!important}
+#status{padding:14px;background:#edf3fc;border-left:4px solid #1956b9;font-size:13px}#status.error{background:#fff0ee;border-color:#da3d36}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.card{background:#f3f5f7;padding:14px}.number{font-size:28px;font-weight:750;margin-top:6px}
+.place{border-top:1px solid #ddd;padding:13px 0;display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.pill{font-size:11px;display:inline-block;padding:3px 7px;background:#dfeafa;color:#1956b9;font-weight:750}
+.pill.office{background:#ffebe8;color:#ad302c}.pill.other{background:#e5e8ec;color:#5b6877}
+#map{height:400px;border:1px solid #d3d9df;margin:16px 0;background:#eef2f7}
+.consent{font-size:13px;font-weight:400;display:flex;gap:10px;align-items:start;line-height:1.5}.consent input{margin-top:4px}
+@media(max-width:820px){.layout{grid-template-columns:1fr}}@media(max-width:520px){.cards{grid-template-columns:1fr}main{padding:18px 12px}}
+</style></head>
+<body><main>
+<header><div class="logo"><b>G</b> GeoLife / MLE</div><div class="over">Private research demo</div></header>
+<h1>Home, Office & recurring places.</h1>
+<p class="small" style="max-width:750px">Đăng nhập với tài khoản demo được cấp quyền cho một GeoLife dataset ID. Chọn dữ liệu đã xử lý từ Microsoft GeoLife hoặc nhập GPS mới; model suy luận HOME, OFFICE và các nơi dừng lặp lại. Đây là nhãn heuristic, không phải nhãn ground truth.</p>
+<div class="layout"><div>
+<section><h2>01 / Đăng nhập</h2>
+<p class="small">GeoLife IDs 000–181 không phải định danh cá nhân hay mật khẩu. Chỉ tài khoản admin đã tạo mới đăng nhập được.</p>
+<form id="loginForm">
+<label for="account">Demo account</label><input id="account" type="text" autocomplete="username" placeholder="demo_000" required>
+<label for="pass">Mật khẩu</label><input id="pass" type="password" autocomplete="current-password" required>
+<div class="gap"></div><button type="submit">Đăng nhập →</button></form>
+<div id="signed" class="hidden"><p class="small">Account: <strong id="acct"></strong><br>GeoLife dataset ID: <strong id="uid"></strong></p><button id="logout" class="ghost" type="button">Đăng xuất</button></div>
+</section><div class="gap"></div>
+<section id="modes" class="hidden"><h2>02 / Chọn nguồn</h2><div class="tabs">
+<button id="tabDataset" class="active" type="button">Dataset</button>
+<button id="tabNew" type="button">GPS mới</button></div>
+<div id="modeDataset"><p class="small">Lấy private CP1 staypoint cache cho đúng GeoLife ID đã được gán. Không phải xử lý lại tất cả 18.670 file .plt.</p>
+<button id="goDataset" type="button">Suy luận từ GeoLife</button>
+<p class="small">Nếu user không đủ quan sát, HOME/OFFICE sẽ abstain.</p></div>
+<div id="modeNew" class="hidden">
+<label for="files">Chọn nhiều .plt/.json</label><input id="files" type="file" accept=".plt,.json" multiple>
+<label for="json">Hoặc dán JSON points</label>
+<textarea id="json" placeholder='{"points":[{"timestamp_utc":"2009-01-05T13:00:00Z","latitude":39.9,"longitude":116.4}]}'></textarea>
+<p class="small">Tối đa 20.000 GPS points. File PLT có 6 dòng header; timestamp được hiểu là UTC. Raw upload chỉ xử lý trong request.</p>
+<button id="goNew" type="button">Suy luận GPS mới</button></div>
+</section><div class="gap"></div><div id="status" role="status">Đăng nhập để bắt đầu.</div>
+</div><section>
+<h2>03 / Inference result</h2><div id="model" class="over">No inference yet</div>
+<p id="empty" class="small">Sau khi suy luận, HOME sẽ có marker màu xanh, OFFICE màu đỏ, địa điểm lặp lại màu xám.</p>
+<div id="result" class="hidden">
+<div class="cards"><div class="card"><div class="over">Stays</div><div id="stays" class="number">—</div></div>
+<div class="card"><div class="over">Recurring</div><div id="recurs" class="number">—</div></div>
+<div class="card"><div class="over">Map points</div><div id="pins" class="number">—</div></div></div>
+<div id="preds"></div><div class="gap"></div><h2>Map</h2>
+<p class="small">Marker đã làm tròn tới 3 chữ số thập phân (~100 m), vẫn là dữ liệu vị trí nhạy cảm. Leaflet/OpenStreetMap gửi yêu cầu tải tile cho bên thứ ba: chỉ bật nếu đồng ý.</p>
+<label class="consent"><input type="checkbox" id="consent"><span>Đồng ý tải bản đồ bên thứ ba tại khu vực các địa điểm được suy luận.</span></label>
+<div class="gap"></div><button id="showMap" class="ghost" type="button">Hiển thị bản đồ</button>
+<div id="mapWrap" class="hidden"><div id="map"></div></div>
+<p class="small">OTHER_RECURRING là nơi lặp lại, không phải POI category đã xác minh. Evidence score không phải xác suất dự đoán đúng.</p>
+</div></section></div></main>
+<script>
+"use strict";
+var token=null,latest=null,map=null,layer=null;
+function el(id){return document.getElementById(id)}
+function message(t,bad){el("status").textContent=t;el("status").classList.toggle("error",!!bad)}
+function signedOut(){el("loginForm").classList.remove("hidden");el("signed").classList.add("hidden");el("modes").classList.add("hidden");el("result").classList.add("hidden");el("empty").classList.remove("hidden")}
+async function request(path,opts){
+ var o=opts||{},headers=Object.assign({"Content-Type":"application/json"},o.headers||{});
+ if(token)headers.Authorization="Bearer "+token;
+ var r=await fetch(path,Object.assign({},o,{headers:headers,cache:"no-store"}));
+ if(!r.ok){
+   if(r.status===401){token=null;signedOut()}
+   throw Error("HTTP "+r.status+": "+(r.status===503?"Thiếu cấu hình auth hoặc cache trên server.":r.status===401?"Phiên không hợp lệ.":"Request không hợp lệ hoặc server đang lỗi."));
+ }
+ return r.json();
+}
+el("loginForm").addEventListener("submit",async function(e){
+ e.preventDefault();
+ try{
+   var d=await request("/v2/auth/login",{method:"POST",body:JSON.stringify({account_id:el("account").value,password:el("pass").value})});
+   token=d.access_token;el("pass").value="";
+   el("acct").textContent=d.account_id;el("uid").textContent=d.dataset_user_id;
+   el("loginForm").classList.add("hidden");el("signed").classList.remove("hidden");el("modes").classList.remove("hidden");
+   message("Đã đăng nhập. Chọn nguồn dữ liệu.");
+ }catch(err){message(err.message,true)}
+});
+el("logout").addEventListener("click",async function(){
+ try{await request("/v2/auth/logout",{method:"POST"})}catch(e){}
+ token=null;latest=null;signedOut();message("Đã đăng xuất.");
+});
+function mode(isNew){
+ el("modeNew").classList.toggle("hidden",!isNew);el("modeDataset").classList.toggle("hidden",isNew);
+ el("tabNew").classList.toggle("active",isNew);el("tabDataset").classList.toggle("active",!isNew);
+}
+el("tabDataset").addEventListener("click",function(){mode(false)});
+el("tabNew").addEventListener("click",function(){mode(true)});
+function parsePlt(raw){
+ var rows=raw.trim().split(/\r?\n/),points=[];
+ rows.slice(6).forEach(function(row){
+   var c=row.split(",");if(c.length<7)return;
+   var lat=Number(c[0]),lon=Number(c[1]);
+   if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
+   points.push({timestamp_utc:c[5]+"T"+c[6]+"Z",latitude:lat,longitude:lon});
+ });
+ return points;
+}
+async function newPoints(){
+ var files=Array.from(el("files").files),p=[];
+ if(files.length){
+   for(var file of files){
+     if(file.size>5*1024*1024)throw Error("Giới hạn 5MiB/file trong demo.");
+     var s=await file.text(),d;
+     if(file.name.toLowerCase().endsWith(".plt")){p.push.apply(p,parsePlt(s))}
+     else if(file.name.toLowerCase().endsWith(".json")){
+       d=JSON.parse(s);p.push.apply(p,Array.isArray(d)?d:d.points||[]);
+     }else throw Error("Chỉ chấp nhận .plt hoặc .json");
+   }
+ }else{
+   var obj=JSON.parse(el("json").value);p=Array.isArray(obj)?obj:obj.points;
+ }
+ if(!Array.isArray(p)||!p.length)throw Error("Không có GPS points hợp lệ.");
+ if(p.length>20000)throw Error("Giới hạn 20.000 points/request.");
+ p.sort(function(a,b){return Date.parse(a.timestamp_utc)-Date.parse(b.timestamp_utc)});
+ return p;
+}
+async function infer(path,body){
+ message("Đang suy luận...");
+ try{
+   latest=await request(path,{method:"POST",body:body?JSON.stringify(body):undefined});
+   draw(latest);message("Đã suy luận xong.");
+ }catch(e){message(e.message,true)}
+}
+el("goDataset").addEventListener("click",function(){infer("/v2/me/dataset-inferences")});
+el("goNew").addEventListener("click",async function(){
+ try{var p=await newPoints();await infer("/v2/me/inferences",{points:p})}catch(e){message(e.message,true)}
+});
+function item(cls,text){var node=document.createElement("div");node.className=cls;node.textContent=text;return node}
+function draw(d){
+ el("empty").classList.add("hidden");el("result").classList.remove("hidden");
+ el("model").textContent=d.source+" / "+d.model_version;
+ el("stays").textContent=d.detected_stays;el("recurs").textContent=d.recurring_locations;el("pins").textContent=d.map_locations.length;
+ var target=el("preds");target.replaceChildren();
+ ["HOME","OFFICE"].forEach(function(k){
+   var p=d.predictions[k],row=item("place",""),left=item("","");
+   left.append(item("pill"+(k==="OFFICE"?" office":""),k));
+   left.append(item("small",p.status==="emitted"?"Location "+p.location_ref+" / evidence "+Number(p.evidence_score).toFixed(3):"Abstained / "+p.reason));
+   row.append(left);row.append(item("small",p.status));target.append(row);
+ });
+ var other=d.map_locations.filter(function(p){return p.label==="OTHER_RECURRING"}).length;
+ if(other)target.append(item("small",other+" recurring places chưa xác minh category."));
+ el("mapWrap").classList.add("hidden");el("consent").checked=false;
+ if(layer)layer.clearLayers();
+}
+function leaflet(){
+ if(window.L)return Promise.resolve();
+ return new Promise(function(resolve,reject){
+   var css=document.createElement("link");css.rel="stylesheet";css.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.append(css);
+   var script=document.createElement("script");script.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+   script.onload=resolve;script.onerror=function(){reject(Error("Không tải được Leaflet."))};document.head.append(script);
+ });
+}
+el("showMap").addEventListener("click",async function(){
+ if(!latest)return;
+ if(!el("consent").checked){message("Bạn cần đồng ý tải tile bản đồ bên thứ ba.",true);return}
+ if(!latest.map_locations.length){message("Không có địa điểm để hiển thị.");return}
+ try{
+   await leaflet();el("mapWrap").classList.remove("hidden");
+   if(!map){
+     map=L.map("map");
+     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenStreetMap contributors"}).addTo(map);
+     layer=L.layerGroup().addTo(map);
+   }
+   layer.clearLayers();var bounds=[],colors={HOME:"#1956b9",OFFICE:"#da3d36",OTHER_RECURRING:"#66717e"};
+   latest.map_locations.forEach(function(p){
+     var m=L.circleMarker([p.latitude,p.longitude],{
+       radius:p.label==="OTHER_RECURRING"?7:10,color:colors[p.label],fillColor:colors[p.label],fillOpacity:.85,weight:2
+     }).addTo(layer);
+     var label=document.createElement("div");
+     label.textContent=p.label+" / "+p.location_ref+" / "+p.visit_count+" stays (tọa độ xấp xỉ)";
+     m.bindPopup(label);bounds.push([p.latitude,p.longitude]);
+   });
+   map.invalidateSize();map.fitBounds(bounds,{padding:[24,24],maxZoom:14});message("Đã hiển thị marker trên bản đồ.");
+ }catch(e){message(e.message,true)}
+});
+</script></body></html>
