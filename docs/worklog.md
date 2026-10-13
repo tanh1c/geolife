@@ -4230,3 +4230,13 @@ The Docker smoke CI was expanded to exercise v2 as well as v1. OpenAPI exported 
 After sync v2 + real complete-link/DBSCAN variants + app-level canary, added `prometheus-client` production dependency, `src/geolife/api/metrics.py` request counter and latency histogram with bounded labels, and `GET /internal/metrics` protected by `GEOLIFE_METRICS_BEARER_TOKEN` (404 if disabled, 403 if invalid). Tests check that a user ID in a v1 path, GPS coordinates, and tokens never appear as metric labels. Exported metrics are process-local and cannot substitute for a real multi-replica monitoring setup.
 
 Added `scripts/benchmark_sync.py` + pure fixture tests for client-observed p50/p95/p99, status rate and canary model distribution, using *only synthetic GPS*. Runtime measurement results are not claimed without a measured benchmark run. Monitoring design is documented in `docs/deployment/03_monitoring_foundation.md`. AWS, SQS async and CloudWatch/Grafana dashboard remain unimplemented.
+
+## 2026-10-13 — Authenticated two-mode GeoLife demo and map
+
+Built a scoped teaching demo on the serving branch, without changing frozen CP1/CP2 behavior. Server-managed synthetic demo accounts (not the identities of GeoLife contributors) map to a single pseudonymous dataset user ID. Credential provisioning is offline; PBKDF2 password hashing, 30-minute opaque revocable Bearer sessions, wrong-password lockout, and private SQLite storage were added. No raw GeoLife data, credentials or account database are shipped in Git/Docker.
+
+Created authenticated inference modes: POST /v2/me/dataset-inferences selects only the authenticated ID's already-processed CP1 stays from an admin-trusted private cache, then applies frozen CP2; POST /v2/me/inferences accepts fresh GPS points and runs frozen CP1+CP2 without persisting user uploads. HOME/OFFICE outputs include evidence and abstention; OTHER_RECURRING remains a generic frequently visited cluster rather than a verified POI category.
+
+Added /demo single-page interface (JSON/.plt upload, dataset input, login/logout and map), using 3-decimal approximate markers, Leaflet/OpenStreetMap only after an explicit client consent checkbox. Added account provisioning CLI, package-data static HTML, synthetic cross-account authorization/privacy tests, and expanded Docker smoke checks for protected dataset mode.
+
+This feature is for a controlled local/internal demo. No authentication of the actual historical participants, no public multi-tenant security audit, no AWS deployment, no SQS or live drift dashboard is claimed. Details in docs/deployment/04_authenticated_geolife_map_demo.md. CI/OpenAPI regeneration must be verified on PR #72 before merge.
