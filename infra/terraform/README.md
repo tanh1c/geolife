@@ -1,47 +1,53 @@
-# Terraform — GeoLife AWS foundation
+# Terraform — GeoLife AWS SSM-only demo
 
-This directory satisfies the Track B1 Week 1 requirement to set up Terraform without
-prematurely creating paid AWS infrastructure.
+**Checkpoint 2 source configuration (not deployed).** This Terraform root now
+provisions one **short-lived internal** EC2 host, a private ECR repository,
+CloudWatch Logs, an SSM instance profile/role, and a **zero-ingress**
+security group. AWS resource creation happens only when the operator reviews a
+plan and explicitly runs `terraform apply`. See
+[the full local/IAM/SSM handoff](../../docs/deployment/08_aws_ssm_deployment_handoff.md).
 
-Current scope is intentionally **foundation only**:
+No original GeoLife private cache, GPS trajectories, passwords or cloud
+credentials are written to Terraform state or user data. Only the operator can
+later provision a synthetic demo account on the EC2 host.
 
-- pin Terraform and the AWS provider;
-- define development region/project/environment variables;
-- apply consistent default AWS tags;
-- validate the configuration in CI.
-
-No EC2, Lambda, API Gateway, SQS, S3, IAM, CloudWatch, or networking resources are
-created in Checkpoint 1. Those resources belong to the deployment/serving checkpoints.
-
-## Local commands
-
-```bash
-terraform -chdir=infra/terraform fmt -check
-terraform -chdir=infra/terraform init -backend=false
-terraform -chdir=infra/terraform validate
-```
-
-To use custom development values:
+## Local validation / plan
 
 ```bash
 cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars
+# Set vpc_id, subnet_id, region. Subnet must route to an Internet Gateway.
+terraform -chdir=infra/terraform fmt -check
+terraform -chdir=infra/terraform init
+terraform -chdir=infra/terraform validate
+terraform -chdir=infra/terraform plan -out=tfplan
+terraform -chdir=infra/terraform show tfplan
 ```
 
-`terraform.tfvars`, state files, and the local `.terraform/` directory are ignored by git.
+**Charged resources if you apply:** EC2 (default t3.medium), public IPv4,
+encrypted 20GiB gp3 volume, ECR storage/scanning, CloudWatch Logs and data
+transfer. SSM itself doesn't require opened inbound ports. AWS Budgets should
+be configured and account/region verified before apply. Never treat budget
+notifications as a hard spend cap.
 
-## Why there is no remote backend yet
+The instance sits in an operator-selected public subnet **but the security
+group has no inbound rules**. Public IP is used only for outbound SSM/ECR/OS
+patches on HTTPS: no public HTTP server, ALB, NAT gateway or DNS are created.
+The browser connects by IAM-authorized SSM port forwarding to a container
+bound on host localhost. This is **not an internet-facing deployment**.
 
-Checkpoint 1 only asks for repository/environment/Terraform setup. Remote state,
-locking, IAM roles and real AWS resources should be introduced together with the
-Checkpoint 2 deployment design so the project does not pretend that an AWS deployment
-already exists.
+Docker starts only after image push and private account provisioning through
+SSM. CloudWatch Log Group retention is 7 days; Prometheus metrics are still
+local/private and no monitoring dashboard/SQS worker exists yet.
 
-## Planned Checkpoint 2 extension
+## Non-production restrictions
 
-The same foundation can later own either:
-
-- EC2 + container deployment; or
-- Lambda + API Gateway for the lightweight FastAPI/classification path.
-
-Model artifacts/version metadata and deploy-strategy infrastructure will be added only
-after that architecture is chosen.
+- One instance and one writable demo-auth SQLite DB (not horizontally scalable).
+- Default Docker image denies anonymous legacy /v1 and stateless /v2 inference.
+- Historical GeoLife cache must not be copied to AWS without an explicit
+  privacy/legal/data-access decision.
+- Terraform backend is local in this training stage. Protect state from
+  disclosure/loss; adopt encrypted remote backend/locking before collaboration.
+- Use the AWS CLI/local account-verified ECR build script
+  `scripts/aws_build_push_ecr.sh`, not plaintext access keys.
+- Terminate/destroy paid resources immediately after the demo, after checking
+  the explicit ECR image cleanup precondition.
