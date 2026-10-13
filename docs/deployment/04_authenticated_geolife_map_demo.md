@@ -114,3 +114,13 @@ Original stateless \`POST /v2/inferences\` and v1 endpoints continue to exist fo
 \`tests/test_demo_auth_map.py\` exercises provisioned accounts, bad password, missing auth, login/logout revocation, disjoint synthetic locations for 2 different dataset IDs, attempted cross-user selection, new-GPS workflow, missing cache 503, UI availability and OpenAPI. No historical raw trajectories or user-level real GPS data are included in tests.
 
 For a real privacy-reviewed public deployment, further work is mandatory: HTTPS and authentication enforcement across all routes, CSRF/XSS/CSP hardening for UI, login rate limiting at ingress, account-management audit, secure secret rotation, cookie/token policies, tile-host privacy, backup/retention, monitoring, an independent security review, and AWS IAM/network policy. **This is a research demo, not a secure multi-tenant production identity platform.**
+
+
+## Deployment-facing acceptance gates
+
+- A logged-in demo account can open only its server-bound dataset ID; a forged JSON user ID does not switch account context.
+- Unauthenticated or expired bearer sessions receive HTTP 401 for both map-producing endpoints.
+- Without \`GEOLIFE_STAYS_CACHE\`, historical dataset mode returns 503 instead of silently guessing predictions; fresh GPS mode remains usable.
+- Swagger/OpenAPI describes auth and map endpoints, while \`/demo\` is just the HTML shell.
+- The frozen CP1/CP2 inference algorithm and the no-coordinate unauthenticated v1/v2 API remain unchanged.
+- A human operator must still mount and grant access to the private GeoLife cache and separately provision demo accounts. No historical participant consent/identity can be inferred from an ID.
