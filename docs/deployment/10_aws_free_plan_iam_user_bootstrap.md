@@ -146,12 +146,16 @@ matching EC2 role. It is not allowed to create/modify IAM roles.
   even when credit remains. No AWS Organizations creation.
 - Create an AWS Budget for the project. Budgets alert, not hard-stop.
 - Verify the Free plan allows your selected EC2 instance type/usage;
-  a `t3.medium` is not necessarily "free tier eligible".
+  `t3.medium` is **NOT** Free-plan eligible and was rejected by EC2. Use the new x86_64 default `c7i-flex.large` (4 GiB) only after verifying account/AZ eligibility. See [partial apply recovery](11_aws_free_plan_partial_apply_recovery.md) if ECR/CloudWatch/SG were already created before the EC2 failure.
 - The proposed EC2 host has a public IPv4 address for outbound HTTPS but
   **zero inbound SG rules**; its EBS/ECR/logging and IPv4 usage can consume
   credits. Never call Terraform `apply` before approving the plan.
 - Do not copy historical GeoLife stay cache or per-user HOME/OFFICE positions
   onto AWS. Initial demo uses fully synthetic GPS only.
+
+## Free plan EC2 policy refresh
+
+The `geolife-deployers` IAM Group policy template in `infra/iam/` was updated to explicitly allow only `c7i-flex.large` and `m7i-flex.large` in its instance-type deny guard. An IAM administrator **must update the existing group policy in AWS Console**; committing the JSON template on GitHub does not change live IAM. Never enable full EC2 or IAM permissions as a workaround. The updated EC2 sizes may consume credits while running.
 
 ## Next operator checkpoint
 
