@@ -226,3 +226,23 @@ Implemented v2 sync API endpoints: `POST /v2/inferences`, `GET /v2/model-info`, 
 Canary demo: set `GEOLIFE_ROLLOUT_MODE=canary`, `GEOLIFE_CANARY_PERCENT=10`, `GEOLIFE_CANARY_SALT=<private-token>`, restart service. Deterministic HMAC assignment chooses baseline complete-link or DBSCAN. For rollback, restart with `GEOLIFE_ROLLOUT_MODE=baseline`. Model routing is **application-level**, not AWS weighted routing.
 
 Synthetic latency: `python scripts/benchmark_sync.py --url http://127.0.0.1:8000 --requests 50 --warmup 5`. The output provides p50/p95/p99 response time and model traffic split. For scraping privacy-safe Prometheus metrics set `GEOLIFE_METRICS_BEARER_TOKEN` (endpoint disabled by default), then scrape `GET /internal/metrics` using Bearer authentication. See [monitoring foundation](docs/deployment/03_monitoring_foundation.md). No actual AWS/CloudWatch dashboard or SQS async deployment yet.
+
+
+## Authenticated GeoLife dataset/map demo
+
+Open the demo UI at \`http://127.0.0.1:8000/demo\`. Admin provisions demo account credentials separately and assigns each account to one GeoLife research ID. Dataset IDs are **not** credentials or proof of the historical person's identity.
+
+Mode A accepts a new \`.plt\`/\`.json\` file or pasted GPS points. Mode B reads only the logged-in account's portion of the private frozen CP1 stay cache, then runs CP2-v2 inference. Both return HOME/OFFICE and OTHER_RECURRING markers with rounded map coordinates after login. The map loads third-party tiles only after user consent.
+
+Local setup:
+
+\`\`\`bash
+python scripts/provision_demo_users.py --db /mnt/geolife-private/demo.sqlite3 --user-id 000
+export GEOLIFE_DEMO_AUTH_DB=/mnt/geolife-private/demo.sqlite3
+export GEOLIFE_STAYS_CACHE="/mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl"
+uvicorn geolife.api.app:app --host 127.0.0.1 --port 8000
+\`\`\`
+
+The CLI prompts for a strong password; the SQLite DB and private stay cache are not included in Git or Docker. A user with no CP1 stays receives abstentions. Map labels are heuristic; OTHER_RECURRING is not a verified POI category. This is an **internal educational demo only**, not an AWS public deployment or an authenticated identity system for GeoLife's original research participants.
+
+See [private demo setup, API paths, map consent and security limitations](docs/deployment/04_authenticated_geolife_map_demo.md).
