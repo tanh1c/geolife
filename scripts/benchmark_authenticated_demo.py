@@ -17,14 +17,18 @@ import statistics
 import time
 from collections import Counter
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 
 def validate_endpoint(url: str) -> str:
-    if not url.startswith((
-        "http://127.0.0.1:", "http://localhost:", "https://"
-    )):
-        raise ValueError("Only local SSM-tunneled HTTP or HTTPS is permitted")
+    parsed = urlsplit(url)
+    if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+        or parsed.username or parsed.password or parsed.query or parsed.fragment
+        or parsed.path not in ("", "/")):
+        raise ValueError("An explicit local SSM URL or HTTPS origin is required")
+    if parsed.scheme == "http" and parsed.hostname not in {"127.0.0.1", "localhost"}:
+        raise ValueError("Unencrypted HTTP must be localhost/SSM only")
     return url.rstrip("/")
 
 
