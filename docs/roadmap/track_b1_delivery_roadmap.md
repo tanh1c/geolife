@@ -100,3 +100,9 @@ See `docs/deployment/05_modal_real_data_e2e.md`.
 ## 2026-10-13 — Restricted internal-demo security review
 
 Review: `docs/deployment/07_security_review_pre_merge.md`. The previous parallel anonymous inference endpoints are now blocked in Docker/private demo runtime (`GEOLIFE_PRIVATE_DEMO=1` or configured auth DB), while standalone v1 Python parity remains available. Added no-store/CSP/clickjacking headers, declared-content-length 3 MiB rejection, Docker regression checks, and security test coverage. **Residual public-deployment blockers:** no independently verified identity of GeoLife original participants; historical HOME/OFFICE coordinates remain sensitive even after rounding; trusted pickle supply chain; chunked body cap, TLS/restricted ingress, rate limiting, centralized account lifecycle and cloud secret/IAM controls. Merge only as internal research code after review and green CI; public AWS exposure is not approved.
+
+## Checkpoint 2 AWS preparation (PR #73; not deployed)
+
+Code-only implementation on `feature/track-b1-aws-deployment`: Terraform SSM-only EC2/ECR/CloudWatch architecture with no inbound ports, EC2 least-privilege ECR pull/SSM role, immutable ECR image references, guarded local ECR push script, internal SSM port-forwarding runbook, and account-sticky authenticated canary selection on both dataset and new-GPS API routes. Current frozen CP2 baseline remains the default and private GeoLife cache transfer is **not** authorized.
+
+Operator gates: account and IAM preflight, budget/cost review, choose VPC/public subnet, approve Terraform plan/apply, provision synthetic account, push ECR image, private SSM tunnel demo, canary/rollback/latency measurements and destroy resources. No AWS `apply`, ECR upload, latency number or drift result has been claimed. See `docs/deployment/08_aws_ssm_deployment_handoff.md`.
