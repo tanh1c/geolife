@@ -1,6 +1,6 @@
 # Modal private-cache real-data E2E — Stage serving acceptance gate
 
-Status: **script and synthetic CI checks implemented; private Modal Volume execution NOT YET VERIFIED**.
+Status: **PRIVATE MODAL CACHE E2E PASS — operator-reported 2026-10-13**. Full sanitized report: `docs/deployment/06_modal_real_data_e2e_result.md`. GitHub CI/Docker smoke previously PASS. Security/public deployment review remains open.
 
 Entry point: `scripts/modal_real_data_e2e.py`. This is the final acceptance check for PR #72 before considering a controlled demo merge, **not** another EDA study. It does not clone, recompute or read any raw `.plt` files. It does not create/deploy an HTTP server, does not contact external map providers, and does not write a report or credentials to the shared Volume.
 
@@ -106,7 +106,7 @@ A valid completion output looks like this:
 }
 ```
 
-The shown values are **expected test criteria**, not a claim that the run occurred.
+The table and example were predeclared acceptance criteria. The operator subsequently supplied a real execution report with `status: PASS`, 4 case types and identical frozen counts on 2026-10-13. See `docs/deployment/06_modal_real_data_e2e_result.md` for the accepted output and provenance.
 
 ## Privacy and operational details
 
@@ -123,4 +123,4 @@ The shown values are **expected test criteria**, not a claim that the run occurr
 - **FAIL with gate name**: share only the non-sensitive gate identifier. Do not relax thresholds, merge, or publish user-level results until investigated.
 - **FAIL with UNEXPECTED_...**: a schema/library/implementation issue occurred. Keep the trace private and diagnose without posting raw cache contents.
 
-CI unit tests: `tests/test_modal_real_data_e2e.py` use *synthetic fixtures only*, never the private Volume. Neither a green GitHub CI nor a successful synthetic local-browser test replaces this actual Modal execution.
+CI unit tests: `tests/test_modal_real_data_e2e.py` use *synthetic fixtures only*, never the private Volume. This real Modal execution is now reported PASS by the operator, complementing the earlier green GitHub CI and synthetic local-browser test. It does not replace an independent public-deployment security review.
