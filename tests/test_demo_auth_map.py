@@ -176,6 +176,10 @@ def test_map_endpoints_are_described_by_openapi_and_are_bearer_protected(demo_se
     ):
         assert route in schema["paths"]
     assert schema["components"]["schemas"]["MapLocation"]["properties"]["latitude"]
+    demo_schema = schema["components"]["schemas"]["DemoInferenceResponse"]["properties"]
+    assert "routing_mode" in demo_schema and "release_id" in demo_schema
+    assert demo_schema["routing_mode"]["default"] == "baseline"
+
     assert "/demo" not in schema["paths"]
     assert "GEOLIFE_DEMO_AUTH_DB" not in str(schema)
 
