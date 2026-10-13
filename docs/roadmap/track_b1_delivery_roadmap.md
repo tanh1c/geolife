@@ -85,3 +85,14 @@ Do not commit GeoLife raw trajectories, precise derived HOME/OFFICE coordinates,
 Implemented **on the delivery feature branch**: a private admin-provisioned account mapped to one GeoLife 000–181 pseudonymous ID, revocable 30-minute bearer sessions, two routes for fresh uploaded GPS versus the existing private CP1 stay cache, and an opt-in map with rounded HOME/OFFICE/OTHER_RECURRING markers. The experimental demo is intended for internal use; there is no verified identity of the original dataset contributors and no AWS deployment.
 
 Additional TODO before internet-facing use: external auth and HTTPS ingress policy for old compatibility endpoints, security review, rate/body-size limits, secrets and permission hardening, retention policy, self-hosted tiles or third-party map privacy review. See \`docs/deployment/04_authenticated_geolife_map_demo.md\`. Dataset users without stays may return a valid abstention; semantic POI categories remain out-of-scope.
+
+
+## Immediate merge gate — private CP1 real-data E2E
+
+- [x] Local browser/synthetic account, new PLT, HOME, abstention and map interactions tested by operator (2026-10-13); Python CI and Docker smoke also PASS.
+- [x] Prepare \`scripts/modal_real_data_e2e.py\` and synthetic auditor tests on serving branch. **This is tooling only, not Modal proof.**
+- [ ] Execute \`python scripts/modal_real_data_e2e.py\` on Modal Jupyter against trusted private CP1 cache, obtain sanitized \`"status": "PASS"\` report.
+- [ ] Review internal-only security and privacy restrictions on disclosure of even 3-decimal HOME/OFFICE map coordinates before approving merge.
+- [ ] Review/merge PR #72; only after that begin AWS deployment work on a separate branch.
+
+See \`docs/deployment/05_modal_real_data_e2e.md\`.
