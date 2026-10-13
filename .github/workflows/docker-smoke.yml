@@ -22,6 +22,7 @@ jobs:
           import time
           import urllib.error
           import urllib.request
+          import urllib.error
 
           base = "http://127.0.0.1:18000"
           for attempt in range(90):
@@ -76,7 +77,22 @@ jobs:
           assert v2["predictions"]["OFFICE"]["status"] == "abstained"
           assert '"latitude"' not in json.dumps(v2)
           assert '"longitude"' not in json.dumps(v2)
-          print("docker-smoke PASS: v1/v2, OpenAPI, variant info, abstention, no returned coordinates")
+          # Demo UI is public HTML only; private data routes require a bearer.
+          with urllib.request.urlopen(base + "/demo", timeout=5) as response:
+              html = response.read().decode("utf-8")
+              assert response.status == 200
+          assert "GeoLife" in html and "/v2/me/dataset-inferences" in html
+          assert "/v2/me/dataset-inferences" in spec["paths"]
+          unauth = urllib.request.Request(
+              base + "/v2/me/dataset-inferences", data=b"", method="POST"
+          )
+          try:
+              urllib.request.urlopen(unauth, timeout=10)
+              raise AssertionError("Dataset mode did not require authentication")
+          except urllib.error.HTTPError as error:
+              assert error.code == 401, error.code
+          print("docker-smoke PASS: v1/v2 + map demo HTML + authenticated dataset gate")
+
           PY
       - name: Container logs if failure
         if: failure()
