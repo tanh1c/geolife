@@ -1,3 +1,12 @@
 aws_region   = "ap-southeast-1"
 project_name = "geolife-mle"
 environment  = "dev"
+
+# REQUIRED: choose existing VPC + public subnet in ap-southeast-1.
+# The public subnet must route 0.0.0.0/0 to an Internet Gateway.
+# No inbound firewall ports are opened; only AWS SSM is allowed for access.
+vpc_id        = "vpc-REPLACE"
+subnet_id     = "subnet-REPLACE"
+
+# Single non-production 4-GiB instance, not a free-tier assumption.
+instance_type = "t3.medium"
