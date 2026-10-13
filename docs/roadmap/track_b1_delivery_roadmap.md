@@ -78,3 +78,10 @@ Do not commit GeoLife raw trajectories, precise derived HOME/OFFICE coordinates,
 - Added privacy-safe `geolife_http_requests_total` and `geolife_http_latency_seconds` Prometheus metrics labeled by route template, status, method, and allowlisted model variant. Metrics disabled without `GEOLIFE_METRICS_BEARER_TOKEN`; protected `GET /internal/metrics` (not public OpenAPI).
 - Added `scripts/benchmark_sync.py`: HTTP client-side synthetic benchmark producing p50/p95/p99 latency, status counts, and baseline-vs-canary model counts; measurements need an actual running service and have **not** been claimed here.
 - Async SQS, latency comparison, CloudWatch dashboard, and replay drift are still **TODO**. No GeoLife private cache or user trace is used by synthetic benchmarks.
+
+
+## Authenticated two-mode GeoLife map demo (2026-10-13)
+
+Implemented **on the delivery feature branch**: a private admin-provisioned account mapped to one GeoLife 000–181 pseudonymous ID, revocable 30-minute bearer sessions, two routes for fresh uploaded GPS versus the existing private CP1 stay cache, and an opt-in map with rounded HOME/OFFICE/OTHER_RECURRING markers. The experimental demo is intended for internal use; there is no verified identity of the original dataset contributors and no AWS deployment.
+
+Additional TODO before internet-facing use: external auth and HTTPS ingress policy for old compatibility endpoints, security review, rate/body-size limits, secrets and permission hardening, retention policy, self-hosted tiles or third-party map privacy review. See \`docs/deployment/04_authenticated_geolife_map_demo.md\`. Dataset users without stays may return a valid abstention; semantic POI categories remain out-of-scope.
