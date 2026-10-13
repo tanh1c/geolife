@@ -256,3 +256,9 @@ python scripts/modal_real_data_e2e.py
 ```
 
 It uses `/mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl`, recomputes **only CP2** and checks frozen totals (5,821 stays; 136 stay users; HOME 27; OFFICE 16), account scoping, login/logout, per-user markers and a synthetic new-GPS request through the actual FastAPI application. Accounts, tokens and selected IDs/coordinates stay private in `/tmp` and memory; report contains only aggregate metrics and fixed gate names. **PASS on the private Modal Volume per operator-supplied sanitized output, 2026-10-13.** Check all four user-case types and frozen baseline counts in [measured E2E result](docs/deployment/06_modal_real_data_e2e_result.md). Public security/deployment review remains open. Full setup: [Modal E2E runbook](docs/deployment/05_modal_real_data_e2e.md).
+
+### Security review — internal demo only (2026-10-13)
+
+**Restricted Docker mode:** The image now sets `GEOLIFE_PRIVATE_DEMO=1`. Anonymous legacy `/v1/*` and stateless `POST /v2/inferences` therefore return 404, even though OpenAPI still describes these routes for compatibility. When using a standalone Python process, setting `GEOLIFE_DEMO_AUTH_DB` also enables this guard. Python v1 model-contract/parity tests run without a demo auth DB and remain supported.
+
+Authenticated inference uses `/v2/me/inferences` (new GPS) or `/v2/me/dataset-inferences` (authorized private GeoLife cache). HTTP responses set `Cache-Control: no-store` and safety headers; declared bodies over 3 MiB are rejected. **This does not replace HTTPS/restricted ingress, limits for chunked uploads, independent account/permission review or user-data privacy protection.** Review the [pre-merge security assessment](docs/deployment/07_security_review_pre_merge.md) before deploying. No approval for a public AWS service has been given.
