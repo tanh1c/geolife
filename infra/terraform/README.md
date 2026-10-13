@@ -10,13 +10,24 @@ plan and explicitly runs `terraform apply`. See
 No original GeoLife private cache, GPS trajectories, passwords or cloud
 credentials are written to Terraform state or user data.
 
-**Free plan IAM option:** preserving AWS Free Tier credits? Avoid creating AWS Organizations; use IAM user MFA and browser-based temporary AWS CLI login per [Free-plan bootstrap](../../docs/deployment/10_aws_free_plan_iam_user_bootstrap.md).\n\n**IAM bootstrap prerequisite:** an existing account IAM administrator must
+**Free plan IAM option:** preserving AWS Free Tier credits? Avoid creating AWS Organizations; use IAM user MFA and browser-based temporary AWS CLI login per [Free-plan bootstrap](../../docs/deployment/10_aws_free_plan_iam_user_bootstrap.md).
+
+**IAM bootstrap prerequisite:** an existing account IAM administrator must
 create the EC2 service role and instance profile `geolife-mle-dev-ec2-role`
 through the AWS Console. A separate IAM Identity Center deployment permission
 set may then use `iam:PassRole` on only that role; **Terraform no longer needs
 `iam:CreateRole`, `iam:AttachRolePolicy`, `iam:PutRolePolicy` or
 `iam:CreateInstanceProfile`**. Use the [Console IAM guide](../../docs/deployment/09_aws_iam_identity_center_bootstrap.md) and project-scoped permission-set templates in `infra/iam/`. Only the operator can
 later provision a synthetic demo account on the EC2 host.
+
+## Recovery after a partially completed Free-plan apply
+
+If `t3.medium` was rejected as not Free Tier eligible, **do not delete your
+local Terraform state, the already-created ECR repository, log group, ECR
+lifecycle policy, or Security Group**. Use the recovery runbook
+[11 — Partial apply recovery](../../docs/deployment/11_aws_free_plan_partial_apply_recovery.md).
+The account IAM group's explicit deny list must be updated by an IAM
+administrator before attempting a newly eligible instance type.
 
 ## Local validation / plan
 
@@ -30,7 +41,7 @@ terraform -chdir=infra/terraform plan -out=tfplan
 terraform -chdir=infra/terraform show tfplan
 ```
 
-**Charged resources if you apply:** EC2 (default t3.medium), public IPv4,
+**Charged resources if you apply:** EC2 (default c7i-flex.large, AWS Free-plan eligible type), public IPv4,
 encrypted 20GiB gp3 volume, ECR storage/scanning, CloudWatch Logs and data
 transfer. SSM itself doesn't require opened inbound ports. AWS Budgets should
 be configured and account/region verified before apply. Never treat budget
