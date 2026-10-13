@@ -17,6 +17,7 @@ from .schemas import (
 from .service import classify_raw_request, infer_request
 from .v2 import router as v2_router
 from .metrics import instrument_requests, protected_metrics
+from .security import secure_http
 from .demo import router as demo_router
 
 
@@ -202,3 +203,6 @@ app.include_router(demo_router)
 @app.get("/demo", include_in_schema=False)
 def geolife_demo_ui():
     return FileResponse(str(files("geolife.api").joinpath("static", "demo.html")), media_type="text/html")
+
+# Last registered is outermost: restrict legacy routes before reading GPS bodies.
+app.middleware("http")(secure_http)
