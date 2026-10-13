@@ -12,18 +12,18 @@ this repository.** Links to live [IAM Identity Center AWS docs](https://docs.aws
 
 | Item | Name |
 |---|---|
-| Workforce login (IAM Identity Center user) | \`geolife-ops\` (use your own accessible email) |
-| Group, provision / teardown | \`geolife-deployers\` |
-| Group, session / operations | \`geolife-operators\` |
-| Permission set (temporary) | \`GeoLifeDevDeployer\` |
-| Permission set (daily) | \`GeoLifeDevOperator\` |
-| EC2 service role + instance profile | \`geolife-mle-dev-ec2-role\` |
-| Region / environment | \`ap-southeast-1\` / \`dev\` |
-| ECR repository | \`geolife-mle-dev-api\` |
-| CloudWatch log group | \`/geolife/dev/api\` |
+| Workforce login (IAM Identity Center user) | `geolife-ops` (use your own accessible email) |
+| Group, provision / teardown | `geolife-deployers` |
+| Group, session / operations | `geolife-operators` |
+| Permission set (temporary) | `GeoLifeDevDeployer` |
+| Permission set (daily) | `GeoLifeDevOperator` |
+| EC2 service role + instance profile | `geolife-mle-dev-ec2-role` |
+| Region / environment | `ap-southeast-1` / `dev` |
+| ECR repository | `geolife-mle-dev-api` |
+| CloudWatch log group | `/geolife/dev/api` |
 
 IAM Identity Center login is for the human operator; the service role belongs
-to EC2 and is assumed automatically by \`ec2.amazonaws.com\`. No SSH key or
+to EC2 and is assumed automatically by `ec2.amazonaws.com`. No SSH key or
 permanent AWS access key is needed.
 
 ## 0. Before enabling Identity Center
@@ -39,13 +39,13 @@ permanent AWS access key is needed.
   use it; don't create another one.
 - IAM Identity Center *home Region* may differ from the EC2 region. Select the
   existing Identity Center Region when administering users; use
-  \`ap-southeast-1\` for deployment resources.
+  `ap-southeast-1` for deployment resources.
 
 ## 1. Create a login
 
 AWS Console search: **IAM Identity Center** → **Users** → **Add user**.
 
-- Username: \`geolife-ops\`; email: one you control.
+- Username: `geolife-ops`; email: one you control.
 - Invite/activate by email; choose a unique password.
 - IAM Identity Center → Settings → Authentication → Multi-factor
   authentication → use **Always on** or equivalent required MFA, and
@@ -53,7 +53,7 @@ AWS Console search: **IAM Identity Center** → **Users** → **Add user**.
 - Do NOT go into IAM → Users → Create user with an access key for this workflow.
 
 AWS Identity Center → **Groups** → **Create group** (two groups named above).
-Add \`geolife-ops\` to both. A deployment user can later be removed from the
+Add `geolife-ops` to both. A deployment user can later be removed from the
 deployer group after provision while retaining operator access.
 
 ## 2. Bootstrap the EC2 instance service role ONCE as account IAM admin
@@ -61,16 +61,40 @@ deployer group after provision while retaining operator access.
 Open AWS Console → **IAM** → **Roles** → **Create role**:
 
 1. Trusted entity: **AWS service**, use case **EC2**.
-2. Attach only **AmazonSSMManagedInstanceCore** and
-   **AmazonEC2ContainerRegistryPullOnly** (the managed policy for pulling ECR
-   images, not ECR full access).
-3. Name \`geolife-mle-dev-ec2-role\`. Add project/environment tags.
+2. Attach **AmazonSSMManagedInstanceCore** only. ECR pull access is provided by
+   a project-repository-scoped inline policy below, not account-wide ECR read.
+3. Name `geolife-mle-dev-ec2-role`. Add project/environment tags.
 4. Create role. The AWS EC2-role console workflow creates an **instance
    profile with the same name** automatically.
-5. IAM → Roles → \`geolife-mle-dev-ec2-role\` → Add permissions → Create
-   inline policy → JSON; attach this additional CloudWatch writer policy:
+5. IAM → Roles → project EC2 role → Add permissions → Create inline policy → JSON.
+   Name it `GeoLifeDevEcrPull` and paste:
 
-\`\`\`json
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchCheckLayerAvailability"
+      ],
+      "Resource": "arn:aws:ecr:ap-southeast-1:REPLACE_ACCOUNT_ID:repository/geolife-mle-dev-api"
+    }
+  ]
+}
+```
+
+6. Under the same EC2 role, create another inline policy named
+   `GeoLifeDevCloudWatchWriter` with this JSON:
+
+```json
 {
   "Version": "2012-10-17",
   "Statement": [{
@@ -84,10 +108,10 @@ Open AWS Console → **IAM** → **Roles** → **Create role**:
     "Resource": "arn:aws:logs:ap-southeast-1:REPLACE_ACCOUNT_ID:log-group:/geolife/dev/api:*"
   }]
 }
-\`\`\`
+```
 
-Replace \`REPLACE_ACCOUNT_ID\` with your actual 12-digit ID. Inline policy
-name: \`GeoLifeDevCloudWatchWriter\`. No \`logs:CreateLogGroup\` (Terraform
+Replace `REPLACE_ACCOUNT_ID` with your actual 12-digit ID. Inline policy
+name: `GeoLifeDevCloudWatchWriter`. No `logs:CreateLogGroup` (Terraform
 creates it), no IAM write, no S3 and no historical GeoLife data access.
 
 The EC2 role is **not** the human identity and should not be made trustable
@@ -100,19 +124,19 @@ AWS Console → **IAM Identity Center** → **Multi-account permissions** →
 
 For the first set:
 
-- Name: \`GeoLifeDevDeployer\`
+- Name: `GeoLifeDevDeployer`
 - Session duration: 1 hour (temporary; this role creates/destroys infrastructure)
 - Policies: **Inline policy** → JSON. Paste the template from
-  \`infra/iam/geolife-deployer-permission-set.template.json\`, after replacing
-  every \`REPLACE_ACCOUNT_ID\` with the correct 12-digit AWS account ID.
-- Don't attach \`AdministratorAccess\`, \`PowerUserAccess\`, \`IAMFullAccess\`,
-  \`AmazonEC2FullAccess\`, or \`AmazonEC2ContainerRegistryFullAccess\`.
+  `infra/iam/geolife-deployer-permission-set.template.json`, after replacing
+  every `REPLACE_ACCOUNT_ID` with the correct 12-digit AWS account ID.
+- Don't attach `AdministratorAccess`, `PowerUserAccess`, `IAMFullAccess`,
+  `AmazonEC2FullAccess`, or `AmazonEC2ContainerRegistryFullAccess`.
 
 For the second set:
 
-- Name: \`GeoLifeDevOperator\`
+- Name: `GeoLifeDevOperator`
 - Session duration: 1–4 hours.
-- Use \`infra/iam/geolife-operator-permission-set.template.json\` with the
+- Use `infra/iam/geolife-operator-permission-set.template.json` with the
   same account-ID replacement.
 
 These are **project-specific templates**, not a blanket AWS admin role.
@@ -120,10 +144,10 @@ They must be reviewed for the real account, VPC/subnet, tags and AWS policy
 simulator/CloudTrail feedback. The deployer template explicitly:
 - restricts service APIs to selected EC2 write, ECR repo write, CloudWatch
   log group and a single public AL2023 AMI parameter;
-- restricts \`iam:PassRole\` to exactly \`geolife-mle-dev-ec2-role\` and
-  \`iam:PassedToService=ec2.amazonaws.com\`;
-- grants **no** \`iam:CreateRole\`, \`iam:PutRolePolicy\`,
-  \`iam:AttachRolePolicy\`, \`iam:CreateUser\`, \`iam:CreateAccessKey\`,
+- restricts `iam:PassRole` to exactly `geolife-mle-dev-ec2-role` and
+  `iam:PassedToService=ec2.amazonaws.com`;
+- grants **no** `iam:CreateRole`, `iam:PutRolePolicy`,
+  `iam:AttachRolePolicy`, `iam:CreateUser`, `iam:CreateAccessKey`,
   or Organizations write actions;
 - restricts deployment actions to Singapore region (EC2 write is currently
   region-scoped and permitted instance types are constrained, rather than
@@ -131,7 +155,7 @@ simulator/CloudTrail feedback. The deployer template explicitly:
   conditions after first successful plan).
   
 The operator can start SSM sessions only on instances tagged
-\`Project=geolife-mle\`, use approved SSM session documents and read the
+`Project=geolife-mle`, use approved SSM session documents and read the
 GeoLife dev logs/ECR metadata. It cannot create or delete EC2/ECR/IAM.
 An SSM shell may have powerful OS rights **inside the target EC2 host**, so
 only a trusted operator should receive this permission set.
@@ -141,8 +165,8 @@ only a trusted operator should receive this permission set.
 IAM Identity Center → **AWS accounts** → select the target account →
 **Assign users or groups** → select **Groups**.
 
-Assign \`geolife-deployers\` → \`GeoLifeDevDeployer\` and
-\`geolife-operators\` → \`GeoLifeDevOperator\`. Assign groups, not the login
+Assign `geolife-deployers` → `GeoLifeDevDeployer` and
+`geolife-operators` → `GeoLifeDevOperator`. Assign groups, not the login
 directly. The portal displays two roles the user can switch between.
 
 If you modify the inline policy later, re-provision the permission set for
@@ -152,7 +176,7 @@ the target AWS account if the console requests it.
 
 Install AWS CLI v2 and Session Manager plugin. Run:
 
-\`\`\`bash
+```bash
 aws configure sso --profile geolife-deployer
 # Choose the AWS access portal start URL, its SSO region, target account
 # and GeoLifeDevDeployer permission set.
@@ -164,20 +188,20 @@ aws sts get-caller-identity --profile geolife-deployer
 
 aws sso login --profile geolife-operator
 aws sts get-caller-identity --profile geolife-operator
-\`\`\`
+```
 
 To plan or apply Terraform, explicitly choose the temporary deployer role:
 
-\`\`\`bash
+```bash
 export AWS_PROFILE=geolife-deployer
 export AWS_REGION=ap-southeast-1
 terraform -chdir=infra/terraform init
 terraform -chdir=infra/terraform validate
 terraform -chdir=infra/terraform plan -out=tfplan
 # Stop; review cost, resources, permissions and plan before apply.
-\`\`\`
+```
 
-For SSM sessions later, use \`AWS_PROFILE=geolife-operator\`.
+For SSM sessions later, use `AWS_PROFILE=geolife-operator`.
 Never share the portal password, MFA code, AWS access keys, CLI SSO token
 cache, auth SQLite file, credentials, Terraform state or GPS cache in chat.
 
@@ -187,7 +211,7 @@ cache, auth SQLite file, credentials, Terraform state or GPS cache in chat.
   **not** automatically stop charges.
 - Prefer a dedicated **project AWS member account** for stronger account-level
   billing/permission isolation when your organization supports one.
-- \`terraform apply\` is **operator-only**, after reviewing plan and expenses.
+- `terraform apply` is **operator-only**, after reviewing plan and expenses.
 - PR #73 does not create IAM identities/roles, run apply or upload data.
 - Historical GeoLife HOME/OFFICE data must not be uploaded to AWS before an
   independent privacy/permission decision. The first AWS demo is synthetic-only.
