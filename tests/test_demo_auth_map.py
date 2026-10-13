@@ -178,3 +178,58 @@ def test_map_endpoints_are_described_by_openapi_and_are_bearer_protected(demo_se
     assert schema["components"]["schemas"]["MapLocation"]["properties"]["latitude"]
     assert "/demo" not in schema["paths"]
     assert "GEOLIFE_DEMO_AUTH_DB" not in str(schema)
+
+
+
+def test_authenticated_canary_100_percent_and_baseline_rollback(demo_setup, monkeypatch):
+    """Account-scoped endpoints route real model variants; no anonymous bypass."""
+    token = login("demo_000", "a-strong-demo-password-000")
+    headers = auth(token)
+    monkeypatch.setenv("GEOLIFE_PRIVATE_DEMO", "1")
+    monkeypatch.setenv("GEOLIFE_ROLLOUT_MODE", "canary")
+    monkeypatch.setenv("GEOLIFE_CANARY_PERCENT", "100")
+    monkeypatch.setenv("GEOLIFE_CANARY_SALT", "a-private-demo-hmac-test-salt")
+    monkeypatch.setenv("GEOLIFE_RELEASE_ID", "test-release-sha")
+    for route, kwargs in [
+        ("/v2/me/dataset-inferences", {}),
+        ("/v2/me/inferences", {"json": {"points": [
+            {"timestamp_utc": "2009-01-05T13:00:00Z",
+             "latitude": 39.9042, "longitude": 116.4074}
+        ]}}),
+    ]:
+        response = client.post(route, headers=headers, **kwargs)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["model_version"] == "cp2-v2-dbscan-100m"
+        assert body["routing_mode"] == "canary"
+        assert body["release_id"] == "test-release-sha"
+        assert body["dataset_user_id"] == "000"
+
+    assert client.post("/v2/inferences", json={"points": [{
+        "timestamp_utc": "2009-01-05T13:00:00Z",
+        "latitude": 39.9, "longitude": 116.4
+    }]}).status_code == 404
+
+    monkeypatch.setenv("GEOLIFE_ROLLOUT_MODE", "baseline")
+    for route in ("/v2/me/dataset-inferences",):
+        body = client.post(route, headers=headers).json()
+        assert body["model_version"] == "cp2-v2-complete-link-200m"
+        assert body["routing_mode"] == "baseline"
+
+
+def test_authenticated_canary_sticky_account_routing(demo_setup, monkeypatch):
+    from geolife.api.v2 import selected_model_for_token
+    monkeypatch.setenv("GEOLIFE_ROLLOUT_MODE", "canary")
+    monkeypatch.setenv("GEOLIFE_CANARY_PERCENT", "50")
+    monkeypatch.setenv("GEOLIFE_CANARY_SALT", "independent-private-demo-sticky-routing-salt")
+    token = login("demo_000", "a-strong-demo-password-000")
+    expected = selected_model_for_token("demo-account:demo_000")
+    a = client.post("/v2/me/dataset-inferences", headers=auth(token))
+    b = client.post("/v2/me/dataset-inferences", headers=auth(token))
+    c = client.post("/v2/me/inferences", headers=auth(token), json={"points": [{
+        "timestamp_utc": "2009-01-05T13:00:00Z",
+        "latitude": 39.9042, "longitude": 116.4074
+    }]})
+    assert all(r.status_code == 200 for r in (a, b, c))
+    assert {r.json()["model_version"] for r in (a, b, c)} == {expected}
+    assert {r.json()["routing_mode"] for r in (a, b, c)} == {"canary"}
