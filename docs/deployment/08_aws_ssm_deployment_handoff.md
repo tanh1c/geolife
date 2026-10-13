@@ -238,6 +238,25 @@ container with the last-known-good digest; verify `/v2/model-info` and
 authenticated inference output. This is **app-level routing after a restart**,
 not ALB weighted traffic or zero-downtime rolling canary.
 
+## 5b. Measure authenticated latency (from LOCAL over SSM tunnel)
+
+With the port forward still open on `http://127.0.0.1:18000`, run the
+synthetic-only benchmark. Password is prompted, never stored in CLI argv;
+bearer token is not included in the aggregate JSON output.
+
+```bash
+python scripts/benchmark_authenticated_demo.py \
+  --url http://127.0.0.1:18000 \
+  --account demo_000 --requests 50 --warmup 5
+```
+
+The benchmark records sync client-observed p50/p95/p99 and model counts after
+authentication, and revokes the token at completion. The SSM tunnel contributes
+network overhead. **One sticky account samples only its selected variant**.
+To compare baseline/canary, repeat across multiple synthetic accounts and with
+the explicitly restarted `GEOLIFE_ROLLOUT_MODE` configuration. Don't claim
+an actual 90/10 traffic split from just one account or invent latency results.
+
 ## 6. Monitor and tear down
 
 ```bash
