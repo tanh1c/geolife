@@ -101,7 +101,8 @@ git switch feature/track-b1-aws-deployment
 git pull --ff-only origin feature/track-b1-aws-deployment
 
 # Same Terraform directory/workspace, no new backend:
-terraform -chdir=infra/terraform state list
+# Data-source entries may also appear; filter to managed resources:
+terraform -chdir=infra/terraform state list | Where-Object { $_ -notmatch '^data\\.' }
 
 # Optional additional local backup, outside Git repo:
 $backup = Join-Path $HOME "geolife-terraform-state-backup.json"
@@ -109,7 +110,7 @@ terraform -chdir=infra/terraform state pull | Set-Content -Path $backup -Encodin
 # Protect this file and delete securely only once recovery is complete.
 ```
 
-Expected state list (4 addresses):
+Expected **managed-resource** state entries (4 addresses):
 
 ```text
 aws_cloudwatch_log_group.api
