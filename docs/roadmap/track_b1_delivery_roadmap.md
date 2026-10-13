@@ -91,7 +91,7 @@ Additional TODO before internet-facing use: external auth and HTTPS ingress poli
 
 - [x] Local browser/synthetic account, new PLT, HOME, abstention and map interactions tested by operator (2026-10-13); Python CI and Docker smoke also PASS.
 - [x] Prepare `scripts/modal_real_data_e2e.py` and synthetic auditor tests on serving branch. **This is tooling only, not Modal proof.**
-- [ ] Execute `python scripts/modal_real_data_e2e.py` on Modal Jupyter against trusted private CP1 cache, obtain sanitized `"status": "PASS"` report.
+- [x] **Real-data E2E PASS (2026-10-13, operator-provided Modal output)**: frozen CP1/CP2 counts (5,821 stays, 136 stay users, HOME 27, OFFICE 16; 2,015 locations, 716 recurring, 104 recurring users), 4/4 user-case types, authenticated map parity, no cross-ID override, session revocation and synthetic new-GPS path. See `docs/deployment/06_modal_real_data_e2e_result.md`.
 - [ ] Review internal-only security and privacy restrictions on disclosure of even 3-decimal HOME/OFFICE map coordinates before approving merge.
 - [ ] Review/merge PR #72; only after that begin AWS deployment work on a separate branch.
 
