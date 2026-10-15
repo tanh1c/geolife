@@ -4340,3 +4340,36 @@ After Stage10i's **25/31** same-TRAIN-anchor recurrence conditional on future un
 **Operator-reported Modal Stage10j PASS**, 70% parity with Stage10i PASS. TRAIN fractions 60/70/80 emitted 40/44/43 candidate anchors; future-time observable 40/43/40; uniquely spatially observable 34/31/29; same selected TRAIN anchor 27/25/21; spatially unresolved 6/12/11. HOME same / unique 19/22, 17/21, 16/20; OFFICE 8/12, 8/10, 5/9. These are correlated cutoff sensitivity checks, not semantic accuracy, independent replication or v2 score validation.
 
 **Stage10k implemented (pending private Modal run):** `analysis/10k_paired_anchor_common_future_audit.py` rebuilds frozen TRAIN-only CP2 at 60/70/80, checks exact Stage10j aggregate parity, compares user-label emission transitions and cross-cluster TRAIN member geometry without comparing arbitrary location IDs, and evaluates both models over the SAME later-cutoff FUTURE stays per pair. Reports separate time, spatial, geometry-uncertain and anchor-reappearance groups with private user rows retained only on Modal Volume. Synthetic tests added; no independent GPS semantic truth or production changes.
+
+
+## 2026-10-15 — Stage 10k measured; paired cutoffs separate location identity and observability
+
+**Operator-reported Modal Stage10k COMPLETE, Stage10j parity PASS.**
+Pairs 60→70, 70→80, 60→80 have 38/38, 42/42, 36/36
+shared-emission TRAIN anchors geometry-compatible across all-member <=200m
+tests (zero partial/separated). Emission transitions are respectively
+early-only/late-only 2/6, 2/1, 4/7, hence candidate admission is
+cutoff-sensitive even when shared selected places are geometrically stable.
+
+All analyses hold identical FUTURE stays within each pair: 1656 for 60→70;
+1157 for 70→80 and 60→80. Among both-emitted time-observed anchors:
+37/40/35 pairs; spatially unique in *both* frozen TRAIN models 27/24/22,
+in neither 10/10/8; 70→80 has 1 early-only and 5 late-only spatial support.
+Same-anchor recurrence on paired time cohort (both/early-only/late-only/neither):
+22/1/0/14, 19/1/2/18, 19/1/0/15. On the **both-spatial** subset:
+22/1/0/4, 19/0/1/4, 19/0/0/3. OFFICE 70→80 common horizon has
+5/15 same anchor reappearances in *each* model, not evidence of the
+unpaired Stage10j 80% fall being caused by identity drift.
+
+**Interpretation:** Shared anchor physical geometry is stable under
+conservative 200m operational definition. Changes in emitted candidates,
+FUTURE length/composition and spatial resolvability contribute to apparent
+cutoff sensitivity. None of this establishes semantic HOME/OFFICE correctness,
+calibration, evidence v2 superiority, significance or independent replication.
+Keep frozen CP2/v1, original 27 HOME/16 OFFICE full-history and AWS unchanged.
+
+GitHub CI after Stage10k first implementation failed only a synthetic
+partial-overlap fixture (`39.9017` degrees latitude remained within
+200m of both artificial members); corrected fixture to `39.90185`.
+Actual Stage10k private Modal run had already passed; full CI rerun
+status must be checked separately.
