@@ -4373,3 +4373,23 @@ partial-overlap fixture (`39.9017` degrees latitude remained within
 200m of both artificial members); corrected fixture to `39.90185`.
 Actual Stage10k private Modal run had already passed; full CI rerun
 status must be checked separately.
+
+
+## 2026-10-15 — Stage 10l TRAIN-only v1/v2 paired spatial comparison implemented
+
+Implemented `analysis/10l_train_only_v1_v2_spatial_comparison.py` and synthetic
+tests, CI PASS. At the frozen retrospective 70% TRAIN split, rebuild Stage10h
+CP2 v1 components and check Stage10f candidate/score parity. Use the existing
+unmodified experimental v2 formula `cbrt(C*O*R)*sqrt(H)`, with C from a
+genuine TRAIN eligible runner-up only, O/H computed from TRAIN local relevant
+dates, and **new** R from 9 deterministic TRAIN-only date-dropout refits
+(10/20/30% x three seeds). Do not reuse full-history Stage05 R and do not
+fill missing C on singleton-eligible candidates (33/44 at 70% prior result).
+Join Stage10i FUTURE spatial outcomes and Stage10j 70% aggregate parity only
+AFTER score construction; compare v1/v2 ranks only on exactly the same v2
+scorable and future-uniquely-spatially-observable candidates. Suppress pairwise
+recurrence ranking when fewer than five reappeared or five other-anchor
+outcomes. This evaluates observed physical-anchor recurrence, **not** semantic
+HOME/OFFICE accuracy, calibration, a probability or independent replication.
+Private files remain Modal; Stage10l real Modal execution **pending**.
+No CP1 rerun, CP2 production/v1/AWS/tier changes.
