@@ -1008,3 +1008,66 @@ dependencies including `timezonefinder==9.0.0`. Synthetic-only test:
 No CP1 rerun, future GPS fit, evidence score redesign, semantic accuracy
 assertion, production/AWS changes, or promotion of v2 tiers. Results pending
 actual private Modal execution.
+
+
+## Stage 10k — Measured paired anchor/common-FUTURE results (2026-10-15)
+
+**Operator-reported real Modal Stage10k COMPLETE — Stage10j aggregate parity PASS.**
+Frozen complete-link 200m CP2 was refit independently on TRAIN 60/70/80;
+the later cutoff's identical FUTURE stay multiset was evaluated under both
+TRAIN geometry models in each pair. These are repeated users and correlated
+retrospective comparisons, not independent replication or semantic truth.
+
+| Pair | Shared future stays | Both emitted | Early-only / late-only emitted | Both emitted: strictly geometry-compatible | Both emitted: partial / separated |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 60→70 | 1,656 | 38 | 2 / 6 | 38/38 | 0 / 0 |
+| 70→80 | 1,157 | 42 | 2 / 1 | 42/42 | 0 / 0 |
+| 60→80 | 1,157 | 36 | 4 / 7 | 36/36 | 0 / 0 |
+
+**Interpretation:** Conditional on being emitted in both folds, selected TRAIN
+HOME/OFFICE clusters remain fully pairwise compatible under the predeclared
+200m criterion, rather than showing large geographic relocation. This does
+not mean identical cluster membership, exactly identical coordinates, true
+semantic HOME/OFFICE labels, or stable emission at all cutoffs.
+User-label candidate admission remains cutoff-sensitive: 60→80 retained only
+36 of 47 user-label keys in the union (4 early-only, 7 late-only).
+
+| Pair | Both-emitted with common future time window | Both spatially assessable | Only earlier / only later / neither spatially assessable | Paired same-anchor: both / earlier only / later only / neither |
+| --- | ---: | ---: | ---: | ---: |
+| 60→70 | 37 | 27 | 0 / 0 / 10 | 22 / 1 / 0 / 14 |
+| 70→80 | 40 | 24 | 1 / 5 / 10 | 19 / 1 / 2 / 18 |
+| 60→80 | 35 | 22 | 1 / 4 / 8 | 19 / 1 / 0 / 15 |
+
+Paired recurrence columns are conditional on **both emitted, compatible
+geometry, and common observed relevant local-time window**, including
+spatially unresolved cases as non-recurrence. On the smaller subset where
+**both** frozen TRAIN geometries have qualified unique spatial support:
+- 60→70: n=27, both 22, early-only 1, late-only 0, neither 4.
+- 70→80: n=24, both 19, early-only 0, late-only 1, neither 4.
+- 60→80: n=22, both 19, early-only 0, late-only 0, neither 3.
+
+Crucial OFFICE 70→80 common-FUTURE matched-emission comparison:
+16 OFFICE anchors emitted at both cutoffs; 15 time observable. Exactly
+5/15 returned to the chosen anchor under each TRAIN geometry, with four
+both-reappeared, one earlier-only and one later-only. Therefore the Stage10j
+unpaired OFFICE recurrence drop at 80% does **not** establish degradation of
+the same anchor on the same FUTURE horizon. HOME 70→80 common time group
+has 15 earlier and 16 later same-anchor returns (25 pairs).
+
+Spatial eligibility itself changes with TRAIN geometry even on identical
+GPS FUTURE stays: 70→80, 24/40 spatially assessable in both models, 1/40
+only early, 5/40 only late, 10/40 neither. Spatially unresolved cases are
+predominantly unmatched-to-TRAIN locations under strict geometry; they do
+not prove user mobility change, semantic misclassification, or GPS error.
+Label-level small denominators and outcome dependence prohibit claims of
+statistical significance or evidence-score improvements.
+
+**Decision:** Stage10k paired diagnostic completed. Preserve frozen
+production CP2 full-history 27 HOME / 16 OFFICE and original v1 evidence.
+Evidence v2 scalar is **not** validated for promotion: study has no
+independently labeled semantic HOME/OFFICE truth and lacks a predeclared,
+TRAIN-only head-to-head v1/v2 comparison on a reliably assessable cohort.
+Next research should first establish a trustworthy common FUTURE outcome
+protocol with missingness/abstention explicitly measured and, ideally,
+external labeled or independently collected data. Do not introduce future
+observations into TRAIN feature generation, or silently relax geometry.
