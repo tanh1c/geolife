@@ -19,6 +19,7 @@ from .v2 import router as v2_router
 from .metrics import instrument_requests, protected_metrics
 from .security import secure_http
 from .demo import router as demo_router
+from .recommendation import router as destination_router
 
 
 app = FastAPI(
@@ -199,6 +200,9 @@ def internal_metrics(request: Request):
 
 # Authenticated GeoLife dataset/new-GPS demo. HTML contains no data or secrets.
 app.include_router(demo_router)
+
+# Synthetic-only destination MVP is off by default and uses demo account AuthN.
+app.include_router(destination_router)
 
 @app.get("/demo", include_in_schema=False)
 def geolife_demo_ui():
