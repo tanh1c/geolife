@@ -740,3 +740,114 @@ estimation, stratified spatial matching audit, TRAIN-only robustness R
 for sparse HOME, or genuine semantic ground-truth validation. Stage10h
 is component *description* on a 70/30 retrospective holdout, **not**
 v2 formula adoption or a feature-importance causal experiment.
+
+
+## Stage 10h — Measured TRAIN-only v1 component decomposition
+
+**Operator-reported private Modal run completed.**
+`train_only_component_parity=true` against all 44 Stage10f
+TRAIN-fitted emitted candidates; 43 have observable FUTURE
+label windows and 25 show >=1-date exact TRAIN-anchor recurrence.
+Peer dominance, defined only when a second TRAIN-eligible
+location exists, is available for **11/44** (HOME 5, OFFICE 6).
+For the **33 singleton TRAIN-eligible ranks** the frozen v1
+`share_margin = top_share - 0 = top_share` is a known CP2
+policy convention, NOT a separately measured competing
+place. Thus `v1 = (2*S+H)/3` for these singletons and
+margin cannot be interpreted as independent corroboration.
+
+Selected conditional median TRAIN features (aggregate only;
+reappears = 25, not reappears = 18 across the label mixture):
+
+| TRAIN feature | Reappears | Not reappears |
+| --- | ---: | ---: |
+| Frozen v1 evidence | 0.797806 | 0.687676 |
+| Relevant-window dwell share (S) | 0.799735 | 0.660261 |
+| Share margin (M) | 0.697787 | 0.575030 |
+| Saturating date support (H) | 1.0 | 0.8 |
+| Observed opportunity date coverage (O) | 0.666667 | 0.674242 |
+| Conditional peer dominance (C) | 0.904487 (only peers) | suppressed |
+
+**Within-label** median coverage is higher among reappearing
+than non-reappearing candidates (HOME 0.846154 vs 0.732143;
+OFFICE 0.555556 vs 0.485294), despite pooled O medians
+0.666667 vs 0.674242 reversing direction. The pool therefore
+cannot be treated as evidence of no temporal-opportunity effect.
+HOME median H is 0.8 in both groups, while OFFICE median H
+is 1.0 vs 0.8. This is descriptive on different small
+subsets, not causal feature importance or statistical significance.
+
+TRAIN singleton group: HOME 22 (13 later recur) with
+median S/M 0.918217 in those who recur vs 0.812859
+in those not observed again; OFFICE singleton 11 (10
+assessable, 5 recur) with S/M medians 0.661880 vs
+0.459741. These equal S/M values are **arithmetic
+duplication** under singleton margin behavior, not extra evidence.
+The multiple-eligible groups (HOME 5, OFFICE 6) have
+suppressed conditioned medians due to sample size.
+
+**Decision:** Frozen production `evidence_strength`, complete-link
+clustering, full-history 27 HOME / 16 OFFICE emissions and
+Stage08a/08c research candidate tiers stay unchanged. Do not
+replace v1 or optimize scalar v2 yet; v2 Stage10a–10d
+was full-period and was NOT evaluated as a TRAIN-only
+predictor. Stage10h verifies its *TRAIN feature lineage*
+and the need for missingness-aware C without claiming v2
+predictive superiority.
+
+## Stage 10i — FUTURE spatial opportunity audit (next)
+
+Stage 10f marked future time-window *observability*
+using GPS HOME-night / OFFICE-weekday overlap even when
+a future stay could not be assigned uniquely to any
+TRAIN location. Given only 595/1656 future stays
+uniquely matched anywhere, Stage 10g/10h anchor
+nonreappearance is confounded by **spatial** observation
+in addition to temporal opportunity.
+
+`analysis/10i_future_spatial_observability.py`
+reruns the strictly TRAIN-only frozen CP2 inference
+and the unchanged future **evaluation-only** spatial
+alignment, asserting exact Stage10f cached candidate
+identities, v1 score, window and same-anchor date counts.
+For each TRAIN-emitted candidate and label-specific
+local behavior window it separately counts:
+
+- `future_time_observable`: >=1 future relevant
+  local behavior date with >=600s GPS overlap;
+- `future_unique_spatial_observable`: >=1 such
+  date with >=600s of future GPS assigned to
+  some uniquely compatible TRAIN anchor;
+- `future_spatially_unresolved`: future time observed,
+  but **zero** uniquely spatially supported future
+  behavior dates;
+- `future_same_anchor_reappears`: later window
+  matches the original TRAIN candidate;
+- among those without exact recurrence, cases with
+  no unique train-location support and cases with
+  sufficient support for an OTHER unique train anchor.
+
+No ambiguous or unmatched future stay is forced into
+an existing anchor. As a result, the output clarifies
+whether a missing future same-anchor observation may
+be **unassessable spatially** despite being assessable
+in time. This remains an imperfect proxy; location
+change and GPS sampling effects are not semantically labeled.
+
+On the trusted Modal Jupyter environment after fetching
+the research branch:
+
+```bash
+PYTHONPATH=/tmp/geolife-evidence-v2-stage10a/src \
+python /tmp/geolife-evidence-v2-stage10a/analysis/10i_future_spatial_observability.py \
+  --cache-root /mnt/geolife-data/cache/cp2_v2 \
+  --stays-cache /mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl \
+  --train-fraction 0.70
+```
+
+Private output:
+`10_evidence_v2_offline/future_spatial_observability_private.pkl`.
+Only the aggregate printed JSON or
+`10_evidence_v2_offline/future_spatial_observability_aggregate.json`
+is appropriate to share. No raw GPS/user/coordinates,
+no automatic HOME/OFFICE label correction.
