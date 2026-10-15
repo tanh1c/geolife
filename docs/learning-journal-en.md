@@ -1417,3 +1417,26 @@ Lesson: exposure-aware inference can improve coverage, but the right mechanism
 depends on failure mode. Sparse HOME benefits from opportunity-normalized
 support; dense HOME benefits from relative concentration; OFFICE still needs a
 strong robustness filter.
+
+
+## 2026-10-15 — A working restricted cloud demo is not the same as public production readiness
+
+Since the October 13 report, Track B1 progressed from **AWS infrastructure ready** to an **operator-reported authenticated synthetic FastAPI demonstration running on EC2 through private SSM port forwarding**. A digest-pinned ECR image was deployed to a loopback-bound Docker service, and private authentication, health, CloudWatch logging, the baseline→100% canary→rollback loop, and a synthetic latency harness were exercised.
+
+Client-observed synthetic p50/p95/p99 via SSM: baseline 127/157/179 ms (50/50 responses), 100% DBSCAN canary 146/273/512 ms (50/50), and post-rollback baseline 127/201/234 ms (10/10). This is a narrow, single-sticky-account, non-concurrent test over an SSM tunnel; it does not validate a multi-account 90/10 rollout or justify generalized latency conclusions. In particular, a model difference in this one small test is not causal proof of performance superiority.
+
+The earlier CloudWatch logs command failure came from Git Bash MSYS path argument rewriting and was fixed with \`MSYS_NO_PATHCONV=1\`; widening IAM permissions would have addressed the wrong problem. The demo remains internal with no public endpoint and no GeoLife private historical cache on AWS. EC2 shutdown and AWS cost status must be checked separately.
+
+Lesson: distinguish synthetic CI correctness, real restricted-runtime smoke tests, narrow performance observations and production readiness. Diagnose shell/tooling issues separately from IAM service authorization.
+
+## 2026-10-15 — Inconclusive score comparisons can be a sound research stopping decision
+
+Stage10a–10l audited the proposed \`cbrt(C*O*R)*sqrt(H)\` evidence v2. On 55 full-history tiered candidates, only 21 supported the full score; 34 had just one *eligible* competing-location set member, making C structurally unavailable rather than indicating a data-join defect.
+
+At the 70/30 TRAIN/FUTURE split, 44 anchors were emitted and 43 had future relevant-hour GPS. Only 31 were uniquely spatially assessable; among those, 25 reappeared at the same selected TRAIN anchor, 6 appeared at a different TRAIN anchor, and 12 of the 43 time-observable were spatially unresolved. The conditional 25/31 (80.6%) is subject to spatial selection bias and is **not semantic HOME/OFFICE accuracy**.
+
+Nested 60/70/80 TRAIN cutoffs share users. Stage10k found all shared-emitted paired TRAIN clusters geometrically compatible at 200m (38/38, 42/42, 36/36), yet admission and future matching changed. Stage10l reconstructed scores TRAIN-only and calculated a NEW nine-mask TRAIN-only R proxy, never reusing Stage05 whole-history R. Only 11/44 emitted anchors had v2 scores; just 9 of 31 spatially assessable could be compared head-to-head (7 same anchor, 2 different anchors). This fails the predeclared minimum outcome count for paired ranking comparison. Neither v2 superiority nor v1 optimality follows.
+
+An interpretability note for v1: when a ranker has no eligible runner-up, its filled top-two margin M equals share S, making the frozen heuristic \`(2*S+H)/3\` rather than three independent information sources. That is worth documenting without silently changing production.
+
+Lesson: keep data observability, exact-anchor recurrence and independently verified semantic-label correctness separate. Expose location concentration/support, observed opportunity and TRAIN-only identity stability as distinct diagnostics; preserve abstention. End the audit instead of optimizing an unsupported scalar on nine selected cases. Next research should examine upstream file assembly and the HOME/OFFICE eligibility waterfall before parameter relaxation, and seek independent labels before semantic accuracy or calibrated confidence claims.
