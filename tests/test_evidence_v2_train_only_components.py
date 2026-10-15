@@ -82,7 +82,7 @@ def test_reconstruct_train_only_v1_components_from_frozen_cp2():
 def test_stage10h_rejects_tampered_v1_score_and_train_anchor():
     stage, stays, outcomes, _ = _prepared()
     changed = outcomes.copy()
-    changed["train_evidence_strength"] += .01
+    changed["train_evidence_strength"] *= .95
     with pytest.raises(ValueError, match="score parity"):
         stage.build_train_only_features(stays, changed)
     changed = outcomes.copy()
