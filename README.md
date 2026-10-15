@@ -263,9 +263,11 @@ It uses `/mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.p
 
 Authenticated inference uses `/v2/me/inferences` (new GPS) or `/v2/me/dataset-inferences` (authorized private GeoLife cache). HTTP responses set `Cache-Control: no-store` and safety headers; declared bodies over 3 MiB are rejected. **This does not replace HTTPS/restricted ingress, limits for chunked uploads, independent account/permission review or user-data privacy protection.** Review the [pre-merge security assessment](docs/deployment/07_security_review_pre_merge.md) before deploying. No approval for a public AWS service has been given.
 
-## Checkpoint 2 AWS SSM-only demo — development branch
+## Checkpoint 2 AWS SSM-only demo — restricted internal research
 
-AWS infrastructure is being prepared on `feature/track-b1-aws-deployment` (PR #73); **nothing has been provisioned in the AWS account**. Terraform prepares a private ECR repo, one short-lived SSM-managed EC2, zero inbound security-group rules, IAM permissions for SSM/ECR pull, and a 7-day CloudWatch Logs group. No AWS public HTTP endpoint is part of this stage.
+**Operator-reported acceptance on 2026-10-15 (PR #73):** Terraform's five project resources were provisioned; a digest-pinned Docker image was pushed to ECR and served on the SSM-managed EC2 loopback interface. Authenticated synthetic-GPS inference, /health and /demo, CloudWatch log events, baseline → 100% DBSCAN canary → baseline rollback, and client-observed p50/p95/p99 via the local SSM tunnel were demonstrated. See the PR #73 acceptance summary and the [AWS handoff](docs/deployment/08_aws_ssm_deployment_handoff.md). This is **not** a public endpoint, independent production-performance benchmark, permission to deploy historic GeoLife private data, or proof of real 90/10 multi-account routing. The EC2 state after the requested shutdown has **not** been independently verified; billable EBS/ECR/log/IPv4 resources may persist.
+
+Terraform provisions a private ECR repo, one short-lived SSM-managed EC2, zero-inbound security group, ECR lifecycle policy and a 7-day CloudWatch Logs group. No AWS public HTTP endpoint is part of this stage.
 
 Both authenticated routes, `POST /v2/me/inferences` and `POST /v2/me/dataset-inferences`, now use account-sticky HMAC routing for complete-link 200m vs DBSCAN 100m when canary mode is enabled. Default remains the frozen complete-link baseline. Rollback requires restart/recreation of the container. The app reports chosen variant, routing mode and release ID; this is application routing, **not** an AWS ALB traffic-weighted deployment.
 
