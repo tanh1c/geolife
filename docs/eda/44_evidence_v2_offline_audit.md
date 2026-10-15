@@ -913,3 +913,38 @@ A stricter validation would also require disjoint later
 participants, temporal cutoffs fixed without future-activity
 timeline knowledge, and labeled semantics if accuracy is
 the scientific question.
+
+
+### Stage 10j script and Modal invocation
+
+Implemented `analysis/10j_cutoff_sensitivity.py`, with synthetic
+tests in `tests/test_evidence_v2_cutoff_sensitivity.py`. It reuses
+the existing frozen CP1 stays and independently refits CP2 using
+TRAIN-only histories for 60%, 70% and 80% of observed UTC arrival
+dates. It reuses the Stage10i future-window spatial opportunity
+definitions and checks Stage10f time/recurrence parity at each
+cutoff. Full evaluation is only **retrospective**, uses correlated
+repeated participants, and has no label correctness ground truth.
+
+In the trusted Modal notebook environment, fetch the latest
+`feature/evidence-v2-offline-audit` checkout, then run:
+
+```bash
+PYTHONPATH=/tmp/geolife-evidence-v2-stage10a/src \
+python /tmp/geolife-evidence-v2-stage10a/analysis/10j_cutoff_sensitivity.py \
+  --stays-cache /mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl \
+  --cache-root /mnt/geolife-data/cache/cp2_v2
+```
+
+The output is **aggregate-only** and saved privately to
+`10_evidence_v2_offline/cutoff_sensitivity_aggregate.json`.
+Only share the printed JSON, not any underlying GPS/identities.
+No AWS EC2, new Stay Point Detection or full EDA rerun is needed.
+
+**Acceptance:** The 70% row should match earlier Stage10f/10i
+aggregates (44 TRAIN emitted, 43 FUTURE-time-observable,
+31 FUTURE-unique-spatial-observable, 25 exact-anchor recurrences,
+12 spatially unresolved); if these numbers diverge, halt and
+investigate version/cache/protocol differences before interpreting
+other cutoffs. The 60% and 80% rows are *new* and must not
+be predicted, invented or treated as independent trials.
