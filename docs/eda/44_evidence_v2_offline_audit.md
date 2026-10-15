@@ -142,3 +142,67 @@ against future observations or independent semantic ground truth. Stage-05
 full-period dropout must not be re-used as independent temporal validation.
 The first private pass is a feature-lineage/coverage audit, NOT a proof the
 new formula is better.
+
+## Stage 10a — First Modal private-cache audit (operator-reported, 2026-10-15)
+
+The operator successfully cloned commit `b134913`, passed all six cache preflight
+checks, and ran the Stage 10a adapter on the frozen private Modal Volume.
+Candidate-tier count parity: **55/55** (= HOME_CORE 27, OFFICE_CORE 16,
+HOME_PROBABLE 5, HOME_SPARSE_CANDIDATE 4, OFFICE_ROBUST_CANDIDATE 3).
+**Only 21/55 (38.2%)** obtained a full evidence-v2 heuristic; **34/55
+(61.8%)** could not be scored under the strict four-component formula.
+No coordinates/identifiers were exported.
+
+| label / tier / regime | candidates | scorable | observed median v2 |
+| --- | ---: | ---: | ---: |
+| HOME_CORE DENSE | 16 | 7 | 0.859201 |
+| HOME_CORE MEDIUM | 11 | 0 | suppressed / unavailable |
+| HOME_PROBABLE DENSE | 5 | 4 | suppressed (under 5 scored) |
+| HOME_SPARSE_CANDIDATE SPARSE | 4 | 0 | suppressed / unavailable |
+| OFFICE_CORE DENSE | 11 | 7 | 0.674558 |
+| OFFICE_CORE MEDIUM | 5 | 1 | suppressed |
+| OFFICE_ROBUST_CANDIDATE DENSE | 3 | 2 | suppressed |
+
+All 34 unscorable rows were reported under the Stage 10a *single-priority*
+`missing_or_invalid_runner_up` reason. This reflects the adapter's
+conservative interpretation of Stage-08b's filled-zero competitor; it is
+**not** evidence that an emitted or near-miss location was semantically wrong.
+The single-priority `v2_status` might mask simultaneous gaps in other
+components (for instance, Stage-05 cannot produce an equivalent fixed-window
+dropout R for the four 2-of-2 sparse HOME candidates).
+
+**Interpretation / decision:** a full v2-score comparison against all
+HOME/OFFICE tiers would be strongly selected toward candidates with an
+observed runner-up; notably 0/11 MEDIUM HOME_CORE candidates are scorable.
+**Do not replace evidence v1, impute missing runner-up as zero, assign a
+probability, or promote tiers based on the 21 observed scores.**
+Medians on the 7 DENSE HOME and 7 DENSE OFFICE scored cases cannot establish
+general ranking quality or true semantic accuracy.
+
+## Stage 10b — Multi-cause missingness audit (next, no EDA rerun)
+
+New `analysis/10b_evidence_v2_missingness_audit.py` reuses the Stage-10a
+`candidate_scored_private.pkl` already written to the trusted Modal Volume.
+It reports **independent, overlapping** feature availability counts for
+missing runner-up, invalid top-2 values, invalid observation opportunity,
+and missing/invalid candidate-identity stability. It never prints private
+user rows or coordinates; only aggregate JSON.
+
+After updating the research clone on Modal (or cloning a new checkout), run:
+
+```bash
+python /tmp/geolife-evidence-v2-stage10a/analysis/10b_evidence_v2_missingness_audit.py \
+  --cache-root /mnt/geolife-data/cache/cp2_v2
+```
+
+The final output is also saved on the private Volume as
+`10_evidence_v2_offline/feature_availability_aggregate.json`. Send back only
+that aggregate JSON. Stage 10b diagnoses availability: **it does not
+change the proposed v2 formula, candidate tiers, frozen production, or test
+time-separated semantic accuracy.**
+
+**Next design decision after diagnostics:** determine whether absent
+runner-up means an eligible singleton and propose an explicitly
+missingness-aware feature representation/alternative score. Do not
+equate no measured runner-up with a true zero competing destination.
+Use independent chronological holdouts for ranking validation.
