@@ -1,6 +1,10 @@
 # Track B1 — MLE delivery roadmap (post-EDA pivot)
 
-Updated: 2026-10-12. Status: **IMPLEMENTATION PLAN, NOT A CLAIM OF DEPLOYMENT**.
+Updated: 2026-10-12. This page preserves the **original post-EDA delivery plan / historical status at pivot**.
+
+**Current checkpoint (2026-10-15; operator-reported):** private FastAPI Docker demo is now running on EC2 through SSM, synthetic authenticated inference and CloudWatch log events verified. **AWS p50/p95/p99 benchmark, authenticated canary and rollback remain unverified.** IAM/log access requires no new policy: an earlier Git Bash CloudWatch CLI failure was MSYS path conversion. Frozen production HOME 27 / OFFICE 16 remains unchanged. For current priorities, proposed `evidence_strength_v2`, separate Stage 08a–08c candidate tiers and future private destination recommendation, see **[post-AWS-serving roadmap](2026-10-15_evidence_v2_candidate_tiers_destination_recommendation.md)**. No public endpoint, no historical GeoLife data on AWS.
+
+The below status table is a dated baseline; do not interpret its old “not deployed” rows as the live AWS state.
 
 ## Objective and scope
 
