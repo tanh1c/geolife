@@ -1,7 +1,7 @@
 # GeoLife S1 — Private synthetic-first destination recommendation MVP
 
 **Date:** 2026-10-15.  
-**Status:** implemented as a guarded development research prototype; CI and local run status must be recorded separately. **Not** a production recommender, HOME/OFFICE truth, public API, user OAuth integration or deployed AWS service.  
+**Status:** implemented as a guarded development research prototype; first corrected-head Python CI and Docker smoke **PASS** on 2026-10-15 (head `762bdce0`, prior to this docs-only status update). GitHub CI uses synthetic fixtures; no local/AWS/Modal operator run is claimed. **Not** a production recommender, HOME/OFFICE truth, public API, user OAuth integration or deployed AWS service.  
 **Priority source:** agreed post-AWS roadmap 2026-10-15 and unified Track B1 plan (PR #75, not yet merged when S1 started). The original Track B1 Checkpoint 3 SQS, monitoring and drift requirements remain mandatory for declaring the full track complete.
 
 ## 1. Question and boundary
@@ -61,7 +61,7 @@ python -m pytest -q tests/test_destination_recommendation.py tests/test_destinat
 python scripts/evaluate_destination_synthetic.py
 ```
 
-Expected CLI: a JSON **aggregate** with `experiment=s1_synthetic_first_next_destination_first_heldout`, `evaluation_queries=4`, `novel_heldout_targets >=1`, non-null `methods.contextual/frequency/recency`, and `production_ready=false`. Do **not** interpret fixture Hit@3 as a measured GeoLife result.
+Expected CLI: a JSON **aggregate** with `experiment=s1_synthetic_first_next_destination_first_heldout`, `evaluation_queries=4`, `novel_heldout_targets >=1`, non-null `methods.contextual/frequency/recency`, and `production_ready=false`. Do **not** interpret fixture Hit@3 as a measured GeoLife result. Python CI validates the method and API assertions; running this CLI locally is an optional independent reproduction to view aggregate synthetic values.
 
 Manual HTTP is **optional** after the automated tests pass. Use **only local synthetic accounts** with the existing private demo provisioning runbook (never hardcode/share passwords). Start a single private local app with `GEOLIFE_DEMO_AUTH_DB` set to a protected absolute SQLite path and `GEOLIFE_ENABLE_SYNTHETIC_RECOMMENDER=1`, then:
 
@@ -76,10 +76,10 @@ Never paste an actual bearer token, credentials, auth DB, raw coordinates or Ter
 
 | S1 gate | Current implemented design |
 | --- | --- |
-| Deterministic Top-3 with user-scoped history, causal timestamp boundary | Implemented; needs verified test run |
-| Frequency & recency comparators on identical synthetic holdout | Implemented; needs verified test run |
-| Hit@1 / Hit@3 / Recall@3 / no-suggestion aggregate, cold-start accounting | Implemented; needs verified test run |
-| 401 unauthorized, flag-disabled 404, no cross-owner place IDs, no numeric score/GPS | Tests included; needs verified test run |
+| Deterministic Top-3 with user-scoped history, causal timestamp boundary | Implemented; Python CI PASS (synthetic) |
+| Frequency & recency comparators on identical synthetic holdout | Implemented; Python CI PASS (synthetic) |
+| Hit@1 / Hit@3 / Recall@3 / no-suggestion aggregate, cold-start accounting | Implemented; Python CI PASS (synthetic) |
+| 401 unauthorized, flag-disabled 404, no cross-owner place IDs, no numeric score/GPS | Implemented; Python CI PASS (synthetic) |
 | Immutable CP1/CP2 baselines, Evidence v1 and current AWS | No changes made |
 | Actual private Modal data / Stage06 trip transition integration | **NOT DONE / deliberate non-goal of S1** |
 | Web UI visual Top-3 / user confirmation | **NOT DONE** |
