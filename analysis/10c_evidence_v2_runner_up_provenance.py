@@ -40,7 +40,7 @@ def audit_runner_up(
 ) -> pd.DataFrame:
     """Return PRIVATE per-candidate audit (never print/commit this DataFrame)."""
     cfg = config or HomeOfficeConfig()
-    missing = BASE_COLUMNS - scored.columns
+    missing = BASE_COLUMNS.difference(scored.columns)
     if missing:
         raise ValueError(f"Missing scored columns: {sorted(missing)}")
     required = {
