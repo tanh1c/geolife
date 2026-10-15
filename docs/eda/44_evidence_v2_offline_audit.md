@@ -546,3 +546,101 @@ and exposure strata, investigate sparse 2/2 separately, and repeat across
 multiple temporal cutoffs or new users. Do not claim semantic accuracy,
 ROC-AUC/precision, calibration or superiority of the proposed
 `cbrt(C*O*R)*sqrt(H)` formula without valid independent evidence.
+
+
+## Stage 10f — Measured TRAIN-only future anchor reappearance
+
+**Operator-reported Modal run completed**, with TRAIN-only CP2 complete-link
+clusters and no refitting locations using FUTURE GPS. The historical CP1
+dataset includes 136 users with stays; **114 users retained TRAIN stays**.
+Across these training users, frozen CP2 emitted **44** anchors (HOME 27,
+OFFICE 17); the TRAIN-only count and identities are **not** expected to
+match the full-period HOME 27 / OFFICE 16 reference.
+
+| Outcome | HOME | OFFICE | Total |
+| --- | ---: | ---: | ---: |
+| TRAIN emitted anchors | 27 | 17 | 44 |
+| Later HOME-night / OFFICE-weekday window assessable | 27 | 16 | 43 |
+| Same TRAIN anchor reappeared in later relevant window on >=1 supported date | 17 | 8 | 25 |
+| Assessable but not observed again under strict geometry + time-window | 10 | 8 | 18 |
+| Later window unassessable | 0 | 1 | 1 |
+| TRAIN only one eligible anchor | 22 | 11 | 33 |
+| TRAIN multiple eligible anchors | 5 | 6 | 11 |
+
+**Conditional observed anchor reappearance** = 25/43 (58.1%) overall,
+17/27 (63.0%) HOME and 8/16 (50.0%) OFFICE, each **conditional on a
+future observed relevant local time window**. This is **NOT** verified
+HOME/OFFICE semantic accuracy or percentage confidence. Reappearance
+threshold is only one later behavior date at the same TRAIN location
+with >=600 seconds relevant local-window observation; it is not a
+strong multi-day routine persistence test.
+
+Spatial alignment of **all 1,656 FUTURE stays**, including stays outside
+HOME/OFFICE time windows: **595 uniquely matched** (35.9%),
+**859 unmatched** (51.9%) and **202 ambiguous** (12.2%).
+The denominator is future stays, NOT 44 emitted anchor predictions.
+Reasons for unmatched include previously unseen places, changed
+behavior, GPS uncertainty and conservative 200m-to-every-TRAIN-member
+matching. Ambiguous means more than one TRAIN cluster is compatible:
+do not coerce an arbitrary anchor identity. **18/43 failures to observe
+the anchor again cannot be equated to 18 false semantic labels.**
+
+Three USERS (not necessarily three stays) had a stay crossing their
+training cutoff; these stays were excluded. No full-history Stage10a
+tier/score or Stage05 dropout was used to make the TRAIN-only
+predictions, so Stage10f is a valid retrospective behavioral
+reappearance check within the predeclared split. The split is still
+based on the complete observed timeline, not a deployed online model
+at a calendar-fixed cutoff. Spatial matching assumptions and
+small office cohorts limit generalization.
+
+**Decision:** do not replace CP2's v1 score, install the hypothetical
+geometric Evidence v2, promote Stage08c tiers or call any of these
+percentages semantic accuracy. Keep this as evidence of future
+behavioral observability/anchor persistence and inspect ranking
+comparisons using ONLY TRAIN-derived features.
+
+## Stage 10g — Frozen TRAIN evidence v1 vs future reappearance (next)
+
+`analysis/10g_train_score_recurrence_audit.py` **does not re-run GPS/CP2**
+and reads ONLY
+`10_evidence_v2_offline/train_only_forward_candidates_private.pkl`
+created by Stage10f. Its predeclared *exploratory* comparisons include:
+
+- TRAIN CP2 `evidence_strength` median among candidate anchors
+  observed again vs not observed again, **only among future assessable**,
+  with a five-row suppression threshold;
+- the same conditional 1-date matching for HOME, OFFICE and
+  TRAIN singleton-vs-multiple-eligible anchor groups;
+- a **secondary stricter** time-window diagnostic: require >=2 future
+  observed relevant dates to assess and >=2 same-anchor future
+  relevant dates to mark recurrence. Do not confuse this with the
+  earlier one-date definition;
+- TRAIN support-day and future observed-window date counts to reveal
+  differences in observation opportunity.
+
+No v2 score is tested: Stage10a/10d v2 and Stage05 dropout features
+were built on full history and cannot be used as leakage-free TRAIN
+predictors. This is **not** a supervised score optimization, label
+probability calibration, ROC accuracy benchmark or proof of v1
+generalization. Even a difference in median scores can be driven by
+strict spatial matching and uneven future observation.
+
+On the existing trusted Modal environment (after updating the
+separate research checkout):
+
+```bash
+python /tmp/geolife-evidence-v2-stage10a/analysis/10g_train_score_recurrence_audit.py \
+  --cache-root /mnt/geolife-data/cache/cp2_v2
+```
+
+Only aggregate printed JSON and
+`10_evidence_v2_offline/train_only_score_recurrence_aggregate.json`
+can be shared. Never print/upload candidate user IDs or private
+per-user pickle artifacts.
+
+Next deeper work (not implemented by 10g): identify the contribution
+of spatial non-matching specifically within future label windows,
+and test train-only temporal/competitor components against later
+recurrence using independent date cutoffs. Preserve abstention when
+future GPS does not allow a valid spatial identity match.
