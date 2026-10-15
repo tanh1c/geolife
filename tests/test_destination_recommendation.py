@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from geolife.recommendation import Visit, suggest_destinations, evaluate_last_event
+from geolife.recommendation import Visit, suggest_destinations, evaluate_first_heldout
 from geolife.recommendation.fixtures import fixture_visits
 
 
@@ -84,7 +84,7 @@ def test_strict_timezones_bad_config_and_tie_determinism():
 def test_holdout_aggregate_and_novel_place_accounting():
     fixture = fixture_visits()
     assert len(fixture) == 4 * 21 * 2
-    report = evaluate_last_event(fixture)
+    report = evaluate_first_heldout(fixture)
     assert report["evaluation_queries"] == 4
     assert report["novel_heldout_targets"] >= 1
     assert report["positive_targets_per_query"] == 1
@@ -109,4 +109,4 @@ def test_heldout_boundary_is_strict():
         Visit("a", "somewhere", _time(3)),
     ]
     with pytest.raises(ValueError, match="strict time boundary"):
-        evaluate_last_event(visits)
+        evaluate_first_heldout(visits)
