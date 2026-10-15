@@ -79,3 +79,28 @@ def test_missing_history_and_input_validation(auth_fixture):
                       headers=owner).status_code == 422
     assert client.get(URL, params={"when": "not-a-time"},
                       headers=owner).status_code == 422
+
+
+def test_local_synthetic_html_off_by_default_no_embedded_private_data(auth_fixture):
+    assert client.get("/destination-demo").status_code == 404
+    auth_fixture.setenv("GEOLIFE_ENABLE_SYNTHETIC_RECOMMENDER", "1")
+    response = client.get("/destination-demo")
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    csp = response.headers["Content-Security-Policy"]
+    assert "frame-ancestors 'none'" in csp
+    assert "connect-src 'self'" in csp
+    assert "tile.openstreetmap.org" not in csp
+    assert "/v2/me/destination-suggestions" in response.text
+    assert "Top-3" in response.text
+    assert "textContent = item.place_ref" in response.text
+    assert "geolife-data" not in response.text
+    assert "a-strong-demo-password" not in response.text
+    assert "39.904" not in response.text
+    assert "longitude" not in response.text
+
+
+def test_recommendation_route_is_in_openapi_but_static_html_is_not(auth_fixture):
+    schema = client.get("/openapi.json").json()["paths"]
+    assert "/v2/me/destination-suggestions" in schema
+    assert "/destination-demo" not in schema
