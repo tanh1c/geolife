@@ -1,6 +1,6 @@
-# Stage 10 — Evidence v2 offline audit (research-only, pre-validation)
+# Stage 10 — Evidence v2 offline audit (research-only; historical protocol)
 
-**Status:** implementation scaffold with synthetic unit tests, **no GeoLife private-data evaluation yet**, no change to frozen CP1/CP2, API, IAM, Docker or AWS. This branch is separate from the AWS deployment PR #73.
+**Current status (2026-10-15):** Stage 10a–10l research audit completed on the operator's trusted Modal Volume. Evidence v2 is **NOT** validated or promoted; frozen CP2/v1 and AWS remain unchanged. **Read the decision-first summary:** [Stage 10 final assessment and closure](45_evidence_v2_final_decision.md). Sections below retain their historical implementation/pending-run language as a chronological research log, not the present status. This branch is separate from AWS deployment PR #73.
 
 ## Research question
 
@@ -1141,3 +1141,36 @@ user-label identifiers and stays only in Modal Volume.
 **Status:** code/synthetic CI PASS; private Modal actual evaluation pending.
 No rerun of CP1, no production CP2/score or AWS change. The original
 full-history 27 HOME/16 OFFICE frozen baseline remains untouched.
+
+
+## Stage 10l — Observed outcome and research closure (2026-10-15)
+
+**Operator-reported real Modal Stage10l PASSED** with Stage10i/10j 70% parity,
+TRAIN-only feature lineage and nine strictly TRAIN-only date-ablation masks.
+No Stage05 all-history robustness `R` entered the scorer.
+
+| Label / group | TRAIN emitted | FUTURE time | FUTURE unique spatial | V2 scorable among spatial | Same / other TRAIN anchor on scorable |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| HOME | 27 | 27 | 21 | 5 | 4 / 1 |
+| OFFICE | 17 | 16 | 10 | 4 | 3 / 1 |
+| **Overall** | **44** | **43** | **31** | **9** | **7 / 2** |
+| TRAIN eligible singleton | 33 | 32 | 22 | 0 | 0 / 0 |
+| TRAIN eligible multiple | 11 | 11 | 9 | 9 | 7 / 2 |
+
+Strict v2 score available for **11/44 emitted**; 33/44 singleton-eligible
+candidates lack C. Among FUTURE spatially observable, **22/31 cannot be
+scored by v2**. Therefore the common v1/v2 comparison has only 9 cases,
+including **2 other-anchor outcomes**, insufficient for the protocol's
+>=5 per outcome ranking-concordance requirement; both concordance values
+remain `null`. `R_train_mask` median 0.777778 overall (1.0 multiple;
+0.666667 singleton) is **not** the Stage05 all-history R.
+No semantic correctness or advantage of v1/v2 established.
+
+**FINAL DECISION:** Stage10 research audit CLOSED with **NO evidence-v2
+production promotion**. Preserve CP2 27 HOME / 16 OFFICE full-history,
+original v1 heuristic, Stage08c tiers and deployed infrastructure.
+Do not open Stage10m solely for score tuning on this selected cohort.
+Detailed bilingual-friendly decision and external research roadmap:
+[`45_evidence_v2_final_decision.md`](45_evidence_v2_final_decision.md).
+Private GPS/user rows stay on Modal Volume. This is a research-stop decision,
+not a PR merge or AWS action.
