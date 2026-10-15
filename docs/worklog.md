@@ -4393,3 +4393,43 @@ outcomes. This evaluates observed physical-anchor recurrence, **not** semantic
 HOME/OFFICE accuracy, calibration, a probability or independent replication.
 Private files remain Modal; Stage10l real Modal execution **pending**.
 No CP1 rerun, CP2 production/v1/AWS/tier changes.
+
+
+## 2026-10-15 — Stage 10 research decision CLOSED (10a–10l)
+
+**Operator-reported actual Stage10l Modal aggregate: PASS, 70% Stage10i/10j
+parity.** TRAIN 44 emitted / 43 with FUTURE behavior-window GPS / 31 with
+unique spatial support / 25 with same selected TRAIN anchor. Only
+11/44 emitted anchors have a genuine eligible TRAIN runner-up and a valid
+train-only `cbrt(C*O*R_train_mask)*sqrt(H)`; 33/44 are structurally
+unscorable with missing C. On the fixed 31-anchor future spatially
+observable subset, only **9** are v2-scorable (HOME 5, OFFICE 4),
+with 7 exact-anchor reappearances and 2 other-TRAIN-anchor observations.
+Head-to-head pairwise ranking-concordance could **not** be estimated under
+the >=5 each outcome protocol, so there is **no v2-v1 superiority result**.
+The new 9-mask TRAIN-only R is not the Stage05 full-history robustness R.
+No semantic HOME/OFFICE ground truth, probability calibration or independent
+participant replication was measured.
+
+**Synthesis:** 10a–d: 21/55 full-history-tier candidates scorable, 34/55
+confirmed truly sole-eligible under the relevant ranker; 10f–i: 12/43
+FUTURE-time-observable anchors lacked unique FUTURE spatial resolution;
+10j: 60/70/80 cutoffs share users and expose composition/observability
+sensitivity; 10k: 38/38, 42/42, 36/36 common emissions geometrically
+compatible at <=200m, although candidate emission and matching change.
+None of these rates are semantic accuracy or independent score validation.
+
+**FINAL ADR:** Research Stage10a–10l complete as offline evidence audit.
+Do not promote the v2 scalar or Stage08c research candidate tiers.
+Preserve frozen full-history CP2 27 HOME/16 OFFICE, original evidence v1,
+complete-link 200m, API and AWS. Do not run 10m simply to optimize a scalar
+on nine selected FUTURE candidates. The next distinct research problem is
+data trajectory assembly + coverage/eligibility waterfall and controlled
+relaxation of strict HOME/OFFICE gates, with prospective evaluation and
+independent ground truth when available, **not yet authorized in this PR**.
+
+**Definitive report:** `docs/eda/45_evidence_v2_final_decision.md`.
+Historical stage-by-stage audit: `docs/eda/44_evidence_v2_offline_audit.md`.
+Private files never leave Modal. Synthetic CI/Docker smoke do not reproduce
+real private GeoLife observations. PR #74 remains a research PR, not merged
+or a deployment instruction.
