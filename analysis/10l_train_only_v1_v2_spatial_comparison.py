@@ -77,9 +77,14 @@ def _reference70(stage10j: dict) -> dict:
 
 
 def _geom_members(semantic: pd.DataFrame, candidate) -> pd.DataFrame:
+    location_id = (
+        candidate.train_location_id
+        if hasattr(candidate, "train_location_id")
+        else candidate.location_id
+    )
     return semantic.loc[
         semantic["user_id"].astype(str).eq(str(candidate.user_id))
-        & semantic["location_id"].eq(int(candidate.location_id))
+        & semantic["location_id"].eq(int(location_id))
     ]
 
 
