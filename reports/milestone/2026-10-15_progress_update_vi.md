@@ -12,14 +12,14 @@
 
 ### Serving và kiểm thử mô hình
 
-- **PR #72 đã merge vào \`main\`**: FastAPI v2, Docker, UI bản đồ có đăng nhập và phân quyền tài khoản nội bộ; hỗ trợ GPS mới (\`JSON\`/\`.plt\`) và private GeoLife cache theo account được cấp quyền; có quản lý phiên, thu hồi phiên và bảo vệ đường inference không xác thực trong demo restricted.
+- **PR #72 đã merge vào `main`**: FastAPI v2, Docker, UI bản đồ có đăng nhập và phân quyền tài khoản nội bộ; hỗ trợ GPS mới (`JSON`/`.plt`) và private GeoLife cache theo account được cấp quyền; có quản lý phiên, thu hồi phiên và bảo vệ đường inference không xác thực trong demo restricted.
 - Hai biến thể thật: **complete-link 200 m (baseline)** và **DBSCAN 100 m (candidate)**. Có authenticated account-sticky routing, canary và rollback; E2E trên private Modal cache đã được người vận hành báo PASS (HOME, OFFICE, recurring-abstain và no-stay).
 
 ### AWS infrastructure và triển khai sync demo
 
-- IAM user \`geolife-ops\` đăng nhập bằng phiên tạm thời, không dùng root/long-lived access keys; phân quyền bằng IAM groups/inline policies, EC2 instance profile chỉ đủ SSM, ECR pull và CloudWatch Logs. **Không triển khai IAM Identity Center**.
-- Terraform đã provision **5 tài nguyên**: EC2 \`c7i-flex.large\`, ECR repository, ECR lifecycle policy, CloudWatch Logs group và Security Group **zero inbound**, outbound TCP/443. EC2 SSM **Online trong lúc kiểm thử**.
-- **Mốc mới so với bản 13/10:** đã build/push Docker image lên ECR, chạy FastAPI container trên EC2 loopback và truy cập bằng **SSM port forwarding**. Kiểm tra \`/health\` và \`/demo\` trả HTTP 200; yêu cầu protected không xác thực trả HTTP 401; synthetic account \`demo_000\` chạy được inference. CloudWatch \`/geolife/dev/api\` đã có log events.
+- IAM user `geolife-ops` đăng nhập bằng phiên tạm thời, không dùng root/long-lived access keys; phân quyền bằng IAM groups/inline policies, EC2 instance profile chỉ đủ SSM, ECR pull và CloudWatch Logs. **Không triển khai IAM Identity Center**.
+- Terraform đã provision **5 tài nguyên**: EC2 `c7i-flex.large`, ECR repository, ECR lifecycle policy, CloudWatch Logs group và Security Group **zero inbound**, outbound TCP/443. EC2 SSM **Online trong lúc kiểm thử**.
+- **Mốc mới so với bản 13/10:** đã build/push Docker image lên ECR, chạy FastAPI container trên EC2 loopback và truy cập bằng **SSM port forwarding**. Kiểm tra `/health` và `/demo` trả HTTP 200; yêu cầu protected không xác thực trả HTTP 401; synthetic account `demo_000` chạy được inference. CloudWatch `/geolife/dev/api` đã có log events.
 - Kiểm thử **baseline → 100% DBSCAN canary → rollback baseline** bằng synthetic requests qua SSM đều PASS. Latency client-observed, đơn vị ms:
 
 | Chế độ | HTTP thành công | p50 | p95 | p99 |
@@ -48,9 +48,9 @@
 ## 3. Công việc tiếp theo theo roadmap
 
 1. **Hoàn thiện handoff AWS sync:** rà soát và quyết định merge PR #73; kiểm tra trạng thái EC2/EBS/ECR/CloudWatch và cost/budget, giữ Terraform state an toàn. Nếu cần, kiểm thử sticky 90/10 với nhiều synthetic accounts; không lặp lại bài 100% canary đã PASS chỉ để có thêm log.
-2. **Triển khai async proof of concept:** \`POST /v2/jobs\` → lưu synthetic payload trong private encrypted TTL storage → đưa **job ID/pointer, không đưa GPS** vào SQS → worker xử lý, retry/idempotency/DLQ → \`GET /v2/jobs/{job_id}\` có xác thực. So sánh sync/async latency và error/timeout.
+2. **Triển khai async proof of concept:** `POST /v2/jobs` → lưu synthetic payload trong private encrypted TTL storage → đưa **job ID/pointer, không đưa GPS** vào SQS → worker xử lý, retry/idempotency/DLQ → `GET /v2/jobs/{job_id}` có xác thực. So sánh sync/async latency và error/timeout.
 3. **Bổ sung observability và demo pack:** metrics latency/error/abstention theo model, CloudWatch dashboard, replay drift được ghi rõ **simulated_offline_replay**, kiến trúc, canary/rollback, cost và teardown evidence.
-4. **EDA tiếp theo, tách riêng serving:** audit nối các file \`.plt\` và chronology/duplicate/gap; dựng **CP1→CP2 eligibility waterfall** để tìm nơi mất HOME/OFFICE coverage; sau đó mới làm sensitivity một ngưỡng mỗi lần trên baseline cố định. Chưa tự động nới production gates hay promote các tier research.
+4. **EDA tiếp theo, tách riêng serving:** audit nối các file `.plt` và chronology/duplicate/gap; dựng **CP1→CP2 eligibility waterfall** để tìm nơi mất HOME/OFFICE coverage; sau đó mới làm sensitivity một ngưỡng mỗi lần trên baseline cố định. Chưa tự động nới production gates hay promote các tier research.
 
 ## 4. Tham chiếu
 
