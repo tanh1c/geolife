@@ -644,3 +644,99 @@ of spatial non-matching specifically within future label windows,
 and test train-only temporal/competitor components against later
 recurrence using independent date cutoffs. Preserve abstention when
 future GPS does not allow a valid spatial identity match.
+
+
+## Stage 10g — Measured frozen TRAIN v1 score and FUTURE recurrence
+
+**Operator-reported private Modal run (2026-10-15):** `Stage 10g completed`.
+It reused only Stage10f outcomes derived from frozen **TRAIN-only** CP2
+HOME/OFFICE emissions. Observed exact-anchor future reappearance at
+>=1 local behavior-window support date was **25/43 (58.1395%)** among
+43 future-assessable anchors; **14/36 (38.8889%)** passed the separate
+>=2-future-observation-dates and >=2-future-anchor-dates test.
+
+| TRAIN label | emitted | 1-date future observed / reappeared | 2-date future observed / reappeared | v1 median if reappears (1-day) | v1 median if not |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| HOME | 27 | 27 / 17 | 21 / 10 | 0.866667 | 0.809177 |
+| OFFICE | 17 | 16 / 8 | 15 / 4 | 0.691932 | 0.637519 |
+| Total (pooled) | 44 | 43 / 25 | 36 / 14 | 0.797806 | 0.687676 |
+
+**Descriptive only:** The v1 TRAIN evidence medians are greater for
+future-reappearing than for future-unobserved anchors in both labels;
+the observed difference is HOME +0.057490 and OFFICE +0.054413.
+The pooled difference +0.110130 should **not** be interpreted as an
+improvement over the per-label estimates: HOME and OFFICE have
+different score distributions, recurrence baselines and denominators.
+There are only 43 future-assessable anchors, potentially with
+correlated HOME/OFFICE labels across users; no statistical uncertainty,
+independent repeated cutoff, calibration, semantic truth or causal
+feature attribution has been established.
+
+**TRAIN singleton/multiple eligible comparisons:**
+HOME singleton 13/22 recurrence within >=1 later relevant date,
+multiple eligible 4/5; OFFICE singleton 5/10, multiple eligible 3/6.
+HOME multiple-eligible anchors have median TRAIN support **10 days**
+versus 4 days among singleton HOME anchors, so the recurrence
+difference cannot be ascribed to having a rival anchor. Small subgroup
+outcome-conditioned medians are appropriately suppressed.
+
+**Important limitation:** The 1-day and 2-day recurrence percentages
+refer to **different eligible future-observation subsets**. For
+instance, 25/43 vs 14/36 is not a matched-sample degradation rate.
+Moreover, 859/1656 FUTURE stays were unmatched and 202/1656 had
+ambiguous train-anchor spatial compatibility under Stage10f's strict
+200m rule. Thus non-reappearance cannot be equated to false semantic
+HOME or OFFICE classification.
+
+**Decision:** Keep original frozen `evidence_strength` v1 for
+production. Do not claim better than v2: the old experimental Stage10a
+v2 score uses full-history evidence and was NOT tested in Stage10g.
+The observed v1 median separation motivates comparing its individual
+TRAIN-only ingredients, not optimizing a scalar yet.
+
+## Stage 10h — TRAIN-only v1 component decomposition (next)
+
+New `analysis/10h_train_only_component_audit.py` reads the trusted
+private frozen CP1 stay cache and Stage10f's private TRAIN candidate
+outcomes. It **rebuilds CP2 only on the earlier TRAIN fold**, then
+computes and retains these TRAIN-only quantities:
+
+- `train_dwell_share` (v1 S), `train_share_margin` (v1 M)
+  and `train_support_factor` (v1 H) with exact frozen
+  `v1=(S+M+H)/3` parity checks;
+- local HOME-night / weekday-OFFICE train observation opportunity
+  dates and `train_observed_date_coverage`, keeping all FUTURE
+  observations out of candidate features;
+- `train_relative_peer_dominance` ONLY when >=2 locations meet
+  the TRAIN eligible ranker; singleton has `null`, **never C=1**.
+
+The script checks every TRAIN candidate key, v1 score, support count
+and eligible location count against the saved Stage10f private output
+and stops on any mismatch. It prints **only aggregate median components**
+for all future-assessable, reappeared and non-reappeared subsets by
+HOME/OFFICE and TRAIN singleton/multiple eligible status, suppressing
+group medians with fewer than five observations.
+
+Run in Modal after updating the separate research checkout:
+
+```bash
+PYTHONPATH=/tmp/geolife-evidence-v2-stage10a/src \
+python /tmp/geolife-evidence-v2-stage10a/analysis/10h_train_only_component_audit.py \
+  --stays-cache /mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl \
+  --cache-root /mnt/geolife-data/cache/cp2_v2 \
+  --train-fraction 0.70
+```
+
+The existing `timezonefinder==9.0.0` dependency is required because
+TRAIN CP2 clustering uses original IANA timezone resolution. Private
+candidate-level data is saved only as
+`10_evidence_v2_offline/train_only_components_private.pkl`;
+send only the printed JSON, also saved as
+`train_only_components_aggregate.json`. No raw GPS, coordinate,
+user ID or private per-candidate row should be posted.
+
+**Still not done:** independent across-cutoff replication, uncertainty
+estimation, stratified spatial matching audit, TRAIN-only robustness R
+for sparse HOME, or genuine semantic ground-truth validation. Stage10h
+is component *description* on a 70/30 retrospective holdout, **not**
+v2 formula adoption or a feature-importance causal experiment.
