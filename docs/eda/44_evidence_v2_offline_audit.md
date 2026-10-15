@@ -452,3 +452,98 @@ Global all-period location IDs or Stage-10a full-period labels must not
 be smuggled in as training predictions. Even success on this surrogate
 evaluation does **not** prove semantic HOME/OFFICE correctness without
 verified semantic ground truth.
+
+
+## Stage 10e — Measured chronological UTC feasibility (operator-reported)
+
+The operator executed the 70/30 retrospective UTC arrival-date preflight
+and returned `Stage 10e completed`, aggregate-only. **52/55 (94.5%)**
+full-history candidate hypotheses meet the coarse proxy of at least three
+earlier observed UTC dates plus two later observed UTC dates:
+
+| Full-history tier (post-hoc stratum only) | Pass both UTC proxies | Total |
+| --- | ---: | ---: |
+| HOME_CORE | 27 | 27 |
+| OFFICE_CORE | 16 | 16 |
+| HOME_PROBABLE | 5 | 5 |
+| OFFICE_ROBUST_CANDIDATE | 3 | 3 |
+| HOME_SPARSE_CANDIDATE | 1 | 4 |
+| **Total** | **52** | **55** |
+
+Aggregate: 54/55 meet early UTC support; 52/55 meet late UTC support;
+three HOME_CORE cases had stays crossing the per-user cutoff, correctly
+excluded from both folds. **This is NOT 52 validated predictions**:
+the tiers were selected with full history and dates are UTC proxy
+observations, not HOME-night/OFFICE-weekday-window opportunities. Sparse
+HOME cannot be judged by a pooled dense-majority result; only 1 of 4
+passes the coarse preflight.
+
+**Decision:** sufficiently many historical core cases exist to justify
+a TRAIN-only forward-validation experiment, but do not evaluate the existing
+Stage10a/10d full-history scores on future data as if they were train-time
+predictions.
+
+## Stage 10f — TRAIN-only spatial/time-window reappearance (next)
+
+`analysis/10f_train_only_forward_validation.py` performs a **new
+independent temporal-behavior evaluation on ALL 136 CP1 stay users**,
+without using the selected full-history Stage10a candidate list as input:
+
+1. Split each user's cached CP1 stays by the same predeclared first 70%
+   distinct UTC arrival dates, leaving the last 30% for FUTURE; exclude
+   stays crossing cutoff, never use later timestamps or GPS to fit train.
+2. Run frozen `HomeOfficeConfig()` and complete-link 200 m clustering
+   **only on TRAIN**, and execute the exact CP2 HOME/OFFICE emit gates and
+   v1 train evidence heuristic, within the new TRAIN namespace.
+3. For each FUTURE GPS stay, resolve IANA local time but **do not re-cluster**:
+   assign to a unique training anchor only when the future stay lies within
+   200 m of **every training stay centroid** in the cluster (complete-link
+   compatible extension). Unknown or multiply compatible stays abstain
+   from assignment.
+4. Evaluate whether the already-emitted TRAIN anchor reappears in the
+   matching later HOME-night or OFFICE-weekday window, counting a relevant
+   date only with at least 600 s observed overlap; report future-window
+   observation opportunity separately from absence of matched recurrence.
+5. Print only aggregate `train_emitted_candidates`,
+   `future_window_assessable`,
+   `future_same_anchor_reappears`, and unmatched/ambiguous assignments,
+   grouped by HOME/OFFICE. Keep full row-level assessment and cutoff
+   timestamps private inside the Modal Volume.
+
+The outcome tests **same physical place and relevant-hour reappearance**,
+not verified semantic label correctness. Some real future HOME/OFFICE
+locations may fail conservative 200 m alignment due to GPS jitter,
+relocation or changed activity; no unmatched stay is forcibly relabeled.
+No new global 27/16 emission count is promised for the 70% TRAIN slice.
+Neither Stage10a full-history tiers nor Stage05 full-period dropout stability
+are used as predictor inputs. A 70/30 retrospective date cutoff does
+consult the observation timeline to choose the test period; therefore
+this is **retrospective temporal testing**, not a prospective online
+service simulation.
+
+**Modal Jupyter / Terminal** (existing checkout; after fetching latest
+research branch):
+
+```bash
+python /tmp/geolife-evidence-v2-stage10a/analysis/10f_train_only_forward_validation.py \
+  --stays-cache /mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl \
+  --cache-root /mnt/geolife-data/cache/cp2_v2 \
+  --train-fraction 0.70
+```
+
+Ensure `PYTHONPATH=/tmp/geolife-evidence-v2-stage10a/src` and the
+frozen CP2 dependency `timezonefinder==9.0.0` are available.
+
+Private outputs:
+`10_evidence_v2_offline/train_only_forward_candidates_private.pkl`,
+`train_only_forward_partitions_private.pkl`.
+
+Share only `10_evidence_v2_offline/train_only_forward_aggregate.json`
+or the printed aggregate JSON, **not** any private pkl/user/stay records.
+
+**Still later, not Stage10f:** compare predeclared *TRAIN-only* evidence
+rankings against future identity/window recurrence, include all abstentions
+and exposure strata, investigate sparse 2/2 separately, and repeat across
+multiple temporal cutoffs or new users. Do not claim semantic accuracy,
+ROC-AUC/precision, calibration or superiority of the proposed
+`cbrt(C*O*R)*sqrt(H)` formula without valid independent evidence.
