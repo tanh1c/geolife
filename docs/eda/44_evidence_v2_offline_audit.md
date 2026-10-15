@@ -206,3 +206,84 @@ runner-up means an eligible singleton and propose an explicitly
 missingness-aware feature representation/alternative score. Do not
 equate no measured runner-up with a true zero competing destination.
 Use independent chronological holdouts for ranking validation.
+
+## Stage 10b — Measured multi-cause availability on the trusted Modal Volume
+
+**Operator-reported, 2026-10-15:** `Stage 10b completed`; 55
+candidate hypotheses, 21 with complete proposed v2 scores. The independent
+feature-blocker totals were:
+
+| Blocker | Number |
+| --- | ---: |
+| Missing runner-up | 34 |
+| Invalid top / known runner-up value | 0 |
+| Invalid observed opportunity | 0 |
+| Missing/invalid identity stability | 4 |
+| Multiple simultaneous blockers | 4 |
+
+**All four** missing stability values belong to Stage-08c's sparse 2-of-2
+HOME tier, and overlap with the missing-runner-up subset. Thus the exact
+34 unscorable rows cannot be explained by missing stability alone, and
+no invalid opportunity exposure was found.
+
+Regime-level patterns: HOME_CORE MEDIUM 11/11 missing runner-up (0/11
+scorable); HOME_CORE DENSE 9/16; OFFICE_CORE DENSE 4/11; OFFICE_CORE
+MEDIUM 4/5; HOME_PROBABLE DENSE 1/5; OFFICE_ROBUST_CANDIDATE DENSE 1/3;
+sparse HOME 4/4 (plus missing stability 4/4). These counts indicate a
+nonrandom availability problem and prohibit interpreting the 21 observed
+scores as a representative sample.
+
+**Policy remains frozen:** no changes to production score, semantic labels
+or Stage-08c candidate acceptance, no fabricated 0% competitor, no
+calibrated accuracy claims.
+
+## Stage 10c — Exact eligible-runner-up provenance audit (next)
+
+Stage 10c is implemented in `analysis/10c_evidence_v2_runner_up_provenance.py`.
+Stage 08b's `share_margin` stores a **zero-filled** runner-up when only
+one eligible location exists in the relevant ranker. A near-zero
+`top_share - share_margin` is therefore ambiguous without revisiting
+the candidate eligibility set. Instead of guessing a zero competitor,
+Stage 10c reconstructs the frozen CP2-v2 spatial representation from
+the **existing 5,821 trusted CP1 stays** (not raw PLT, no stay-detection
+rerun, no full notebook-EDA rerun), and rebuilds only the location-window
+features and exact eligible ranking:
+
+- HOME_CORE / HOME_PROBABLE / OFFICE_CORE / OFFICE_ROBUST_CANDIDATE:
+  fixed-window rank with frozen `min_dates=3`;
+- HOME_SPARSE_CANDIDATE: Stage-08b unconstrained raw rank with
+  `stay_count >= 2`, window dwell > 0, and **no** minimum dates.
+
+The audit checks exact CP1/CP2 reference totals, the candidate location
+namespace, top share and runner-up share for every one of the 55 candidates.
+If any candidate mismatches, it **fails closed** rather than reporting
+a misleading count. The output distinguishes
+`sole_eligible_location` from `has_eligible_runner_up` and exports
+only aggregate counts. Even a singleton rank does **not** prove the
+person has no alternative destination: it only says no *other observed*
+location passed that label's specific evidence gates.
+
+Use a Modal Jupyter Python cell to fetch the latest research branch in its
+separate checkout and then run:
+
+```bash
+python /tmp/geolife-evidence-v2-stage10a/analysis/10c_evidence_v2_runner_up_provenance.py \
+  --cache-root /mnt/geolife-data/cache/cp2_v2 \
+  --stays-cache /mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl
+```
+
+Input: existing trusted private `candidate_scored_private.pkl` and
+`stays_baseline_v1.pkl`. Output, staying only on the private Volume:
+
+```text
+10_evidence_v2_offline/runner_up_provenance_private.pkl
+10_evidence_v2_offline/runner_up_provenance_aggregate.json
+```
+
+Do **not** upload either private pickle or per-user details. Share only
+the aggregate JSON if the parity checks pass. This audit does **not**
+modify `evidence_strength_v2`, CP2 inference, data privacy controls
+or the deployed API. After the result, compare a missingness-aware,
+factorized evidence representation rather than naively forcing every
+case through a relative-top-two geometric mean; separate sparse HOME
+stability evaluation remains necessary.
