@@ -4283,3 +4283,17 @@ Response hardening now includes `Cache-Control: no-store`, nosniff, no-referrer,
 Local Windows PowerShell operator ran `python scripts/benchmark_authenticated_demo.py --url http://127.0.0.1:18000 --account demo_000 --requests 50 --warmup 5` through the authenticated SSM tunnel against the previously deployed ECR-digest-pinned private FastAPI service. Sanitized result reported **50/50 HTTP 200 (success_rate 1.0)**, **50/50 `cp2-v2-complete-link-200m` baseline**, client-observed **p50 127.035 ms**, **p95 157.093 ms**, **p99 179.160 ms**, **mean 130.205 ms**. Only synthetic GPS points were used. These values include client/network/SSM tunnel overhead; they are not real GeoLife-data or concurrent-load benchmarks, and one sticky account cannot test canary traffic percentages.
 
 **Gate update:** baseline AWS authenticated sync benchmark = **PASS** (operator-reported). Pending: controlled `GEOLIFE_ROLLOUT_MODE=canary` test that actually selects DBSCAN 100 m (first use 100% canary with one synthetic account), explicit **recreate + baseline rollback**, and optional multi-account 10% HMAC traffic split validation. Leave model/privacy/IAM/Terraform unchanged. Verify image digest unchanged and CloudWatch continues working; preserve original root-only runtime env (including salt) without copying secrets to logs/repo. Stop EC2 when idle to reduce credit usage.
+
+## 2026-10-15 — AWS authenticated baseline → 100% canary → rollback E2E (operator-reported)
+
+Operator completed the controlled three-stage rollout against the same private, digest-pinned AWS EC2 service over an authenticated **SSM tunnel**, with only **synthetic GPS** and one provisioned account `demo_000`. Results below are **operator-reported** client-observed latency (includes the SSM/client network), not public-endpoint, concurrent-load or real GeoLife-data measurements.
+
+| Stage | HTTP success | Routed model | p50 ms | p95 ms | p99 ms |
+| --- | --- | --- | ---: | ---: | ---: |
+| Baseline | 50/50 HTTP 200 | `cp2-v2-complete-link-200m`: 50/50 | 127 | 157 | 179 |
+| Canary 100% | 50/50 HTTP 200 | `cp2-v2-dbscan-100m`: 50/50 | 146 | 273 | 512 |
+| After rollback | 10/10 HTTP 200 | `cp2-v2-complete-link-200m`: 10/10 | 127 | 201 | 234 |
+
+After rollback: `/health` HTTP 200; `/v2/model-info` reports `routing_mode=baseline` and `canary_percent=10`. In baseline mode, configured 10% is **not active canary allocation**. Verified: routing switches to DBSCAN at 100% and switches back to frozen complete-link after restart/rollback. The canary run showed higher observed tail latency (p95/p99) than the 50-request baseline run; sample size, tunnel, and test conditions preclude attributing this to the algorithm as a general performance conclusion.
+
+**Track B1 AWS private synthetic sync deployment, canary-path and rollback smoke gates: PASS (operator-reported).** Remaining distinct gate: if demonstrating a genuine 90/10 account-sticky split, test across sufficiently many **synthetic accounts** (not many requests from one account); no 90/10 distribution claim is made. Other backlog: concurrent load/async SQS, drift/replay dashboard, public security requirements and independent latency validation. PR #73 remains unmerged until explicitly reviewed/approved. No change to IAM, Terraform, frozen CP1/CP2 or historical-data privacy posture. Stop EC2 when no longer needed to reduce credits; EBS/ECR/log costs may persist.
