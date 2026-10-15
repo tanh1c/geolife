@@ -1071,3 +1071,73 @@ Next research should first establish a trustworthy common FUTURE outcome
 protocol with missingness/abstention explicitly measured and, ideally,
 external labeled or independently collected data. Do not introduce future
 observations into TRAIN feature generation, or silently relax geometry.
+
+
+## Stage 10l — TRAIN-only Evidence v1/v2 head-to-head (implemented; Modal pending)
+
+**Purpose:** Compare original v1 and experimental Evidence v2 score ordering
+against **same-FUTURE-anchor observed recurrence**, not semantic HOME/OFFICE
+truth. The protocol is frozen to retrospective 70% TRAIN/30% FUTURE split,
+CP2 complete-link 200m, and >=600 seconds per local relevant observation
+date. Reuse trusted private Stage10f and Stage10i outcomes, and Stage10j
+aggregate 70% parity; no complete-history predictors.
+
+**TRAIN features:** Rebuild Stage10h S (top relevant dwell share),
+M (top-minus-second relevant share), H=min(TRAIN support/5,1), O=TRAIN
+support/observed relevant opportunity and C=top/(top+eligible runner-up).
+Recheck exact Stage10f candidate identity, v1 score, support and count
+parity. For sole TRAIN eligible locations, C is structurally unavailable;
+do NOT set C=1 or C=0. Production v1's M=S in singleton cases remains
+unchanged in this diagnostic. Historical 70% TRAIN emitted cohort was
+44 anchors with 33 singletons, 11 multi-eligible candidates.
+
+**TRAIN stability R:** The previously proposed v2 scalar used Stage05
+all-history dropout-derived R, which would leak into this evaluation.
+Stage10l instead predeclares a NEW train-only proxy `R_train_mask`: remove
+10%, 20%, or 30% of each emitted user's TRAIN observed UTC arrival dates
+using 3 deterministic independent masks per rate (stable SHA256-derived
+seeds), refit the frozen HOME/OFFICE emission/cluster algorithm in each
+of 9 masks and count the same label emitted at an original-TRAIN-compatible
+(all cross-cluster-member distances <=200m) location. Failed emission counts
+as not retained. This R is **not** identical to Stage05 reliability.
+
+**Scoring:** Use the existing `analysis/10_evidence_v2_experiment.py`
+unmodified formula `cbrt(C*O*R_train_mask)*sqrt(H)` to score candidates
+with a genuine eligible TRAIN competitor. No C imputation, v2 refit,
+threshold optimization or FUTURE feature tuning.
+
+**Matched comparison:** AFTER training, join Stage10i private FUTURE
+time-window and unique spatial match outcomes to identical Stage10f emitted
+candidate IDs, and hard-check Stage10i aggregate vs the Stage10j 70% checkpoint.
+Explicitly count ALL train emitted, FUTURE time observed, FUTURE unique-spatial
+observed, spatially unresolved, v2 scorable and unavailable groups. Only
+v2-scorable & uniquely FUTURE-spatially-observable candidate rows are
+eligible for v1-v2 head-to-head. Report pairwise descriptive concordance
+against >=1-day same-TRAIN-anchor observation only if both same-anchor
+and other TRAIN-anchor groups have >=5 observations in the same cohort;
+otherwise null. Sparse v2 coverage is itself a study result, not an
+invitation to fill C or generalize to all users. No significance, semantic
+accuracy or confidence calibration is inferred.
+
+**Existing Modal Jupyter checkout** (update research branch first):
+
+```bash
+PYTHONPATH=/tmp/geolife-evidence-v2-stage10a/src \
+python /tmp/geolife-evidence-v2-stage10a/analysis/10l_train_only_v1_v2_spatial_comparison.py \
+  --stays-cache /mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl \
+  --cache-root /mnt/geolife-data/cache/cp2_v2
+```
+
+Required Modal Volume artifacts:
+`10_evidence_v2_offline/train_only_forward_candidates_private.pkl` (10f),
+`future_spatial_observability_private.pkl` (10i),
+`cutoff_sensitivity_aggregate.json` (10j), and 5,821 trusted CP1 stays
+for 136 users. Dependency `timezonefinder==9.0.0` must be present.
+Only share output
+`10_evidence_v2_offline/train_only_v1_v2_paired_aggregate.json`;
+the corresponding `train_only_v1_v2_paired_private.pkl` has sensitive
+user-label identifiers and stays only in Modal Volume.
+
+**Status:** code/synthetic CI PASS; private Modal actual evaluation pending.
+No rerun of CP1, no production CP2/score or AWS change. The original
+full-history 27 HOME/16 OFFICE frozen baseline remains untouched.
