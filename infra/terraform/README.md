@@ -1,6 +1,6 @@
 # Terraform — GeoLife AWS SSM-only demo
 
-**Checkpoint 2 source configuration (not deployed).** This Terraform root now
+**Checkpoint 2 config and operator-reported internal AWS acceptance (2026-10-15).** Terraform was applied to provision the scoped SSM-only demo resources; a digest-pinned synthetic-only FastAPI image was demonstrated via encrypted SSM port-forwarding, with private authentication, CloudWatch logs, 100% DBSCAN canary, and rollback verified. This is not a public or production deployment. EC2 state after requested shutdown, remaining billable resources and current Terraform drift must still be independently verified; keep local state safe. The instructions below are a reusable setup/teardown runbook, not a claim that AWS has no resources. This Terraform root now
 provisions one **short-lived internal** EC2 host, a private ECR repository,
 CloudWatch Logs, a **pre-created SSM EC2 instance profile**, and a **zero-ingress**
 security group. AWS resource creation happens only when the operator reviews a
