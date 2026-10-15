@@ -4263,3 +4263,194 @@ Code review identified a real API surface mismatch: the newly authenticated demo
 Response hardening now includes `Cache-Control: no-store`, nosniff, no-referrer, anti-framing/permissions headers and consent UI CSP. Declared HTTP request bodies over 3 MiB receive 413; streaming/chunked upload limits remain an **ingress** requirement, along with HTTPS, firewall, rate limits, secrets/permissions and data-retention policy. Added tests in `tests/test_security_private_demo.py` and updated Docker smoke expectations for restricted mode.
 
 **Review outcome:** candidate for *internal research merge only*, conditional on last-commit CI/Docker PASS and explicit reviewer acknowledgment. **Not approved** for public deployment of historical GeoLife user locations or identity verification. Full severity and residual findings in `docs/deployment/07_security_review_pre_merge.md`. No merge or AWS provisioning performed by this change.
+
+## 2026-10-15 — Stage 10a Evidence-v2 private candidate coverage audit
+
+**Operator-reported Modal run:** research commit `b134913`, six trusted upstream Stage-05/08a/08b/08c private artifact files found, adapter run completed without re-running CP1 or EDA. Exactly 55 same-namespace research candidate hypotheses passed parity: HOME_CORE 27, OFFICE_CORE 16, HOME_PROBABLE 5, HOME_SPARSE_CANDIDATE 4, OFFICE_ROBUST_CANDIDATE 3. Experimental full `cbrt(C*O*R)*sqrt(H)` evidence score available **21/55 (38.2%)**, unavailable **34/55 (61.8%)**, all unscorable reported in Stage10a as `missing_or_invalid_runner_up` under its single-priority reason encoding. HOME_CORE: 7/27; OFFICE_CORE: 8/16; HOME_PROBABLE: 4/5; sparse HOME: 0/4; robust OFFICE: 2/3. Notably MEDIUM HOME_CORE has **0/11** fully scorable; case selection is nonrandom. Reported score median HOME_CORE DENSE 0.859201 (7 eligible), OFFICE_CORE DENSE 0.674558 (7 eligible); do **not** interpret these as calibrated probabilities or comparative accuracy.
+
+**Decision:** keep production CP2, existing evidence score, frozen 27/16 emission and separate experimental tiers untouched. The unobserved runner-up is not necessarily a true zero rival and cannot be imputed as zero just to increase score coverage. Stage 10a reports one prioritized blocker, masking simultaneous missing robustness for 2-of-2 sparse HOME. Added Stage 10b multi-cause feature-availability audit (read existing private scored pickle, aggregate-only JSON, no user IDs/coordinates). Next operator action is only to update the research clone and run Stage10b on the Modal Volume, not rerun EDA, sync private files to local or start AWS. Independent temporal validation and principled no-runner-up handling are still pending; the proposed Evidence v2 is not adopted. Full measured aggregate and interpretation: `docs/eda/44_evidence_v2_offline_audit.md`.
+
+## 2026-10-15 — Stage 10b multi-cause blockers confirmed; Stage 10c runner-up provenance prepared
+
+Operator executed Stage 10b on the existing private Modal scored cache; aggregate **55 candidate rows**, **21 scorable**, **34 missing runner-up**, **0 invalid top/runner-up**, **0 invalid opportunity**, **4 missing identity-stability**, and **4 cases with multiple blockers**. All four simultaneous cases are Stage-08c 2-of-2 sparse HOME candidates: missing both runner-up and comparable frozen fixed-window dropout stability. The 34 missing runner-up cases include HOME_CORE MEDIUM 11/11; therefore an observed full-score-only v2 comparison would strongly select for users with eligible competing places, not representative HOME/OFFICE accuracy. None of these counts establish a false semantic label.
+
+Inspection of frozen CP2 `_top_candidate` and Stage 08b `_unconstrained_top_candidate` confirms the implementation **fills a missing eligible second-ranked location with zero when calculating share margin**. Stage10a intentionally represented `top_share - share_margin == 0` as unknown, not a zero-probability competitor. Need distinguish *only one observed eligible location* versus a top-2 computation/lineage mismatch before designing a missingness-aware evidence score.
+
+**New Stage 10c research audit:** `analysis/10c_evidence_v2_runner_up_provenance.py` recreates *only CP2 location/feature ranking* from the existing frozen 5,821 trusted CP1 stays, checks 136 users / 2,015 locations / HOME 27 / OFFICE 16 parity, then verifies all 55 candidate identities and share values using the exact Stage08b raw-vs-eligible gate, distinguishing sole eligible location from an actual eligible runner-up. Inputs stay on Modal and only aggregate result is printable. Synthetic unit tests added; real Volume execution **pending**. No CP1 stay detector rerun, no EDA notebook sweep, no AWS. **No change** to `evidence_strength_v1`, v2 formula hypothesis or production candidate emission. Supporting docs: `docs/eda/44_evidence_v2_offline_audit.md`.
+
+## 2026-10-15 — Stage 10c 34 singleton locations verified; Stage 10d factorized evidence prepared
+
+**Operator-reported real private Modal results:** Stage 10c successfully reconstructed the CP2 frozen location representation from the trusted 5,821 CP1 stays, verified complete **candidate_namespace_parity=true**, and independently confirmed that all **34 of 34** formerly missing `runner_up_share` cases are genuinely `sole_eligible_location` under their HOME/OFFICE ranking policy (CP2-v2 frozen min-date gate, or Stage-08b raw HOME gate for sparse 2-of-2). The other **21** candidates have a valid eligible second. Breakdown: HOME_CORE DENSE 9/7, MEDIUM 11/0; HOME_PROBABLE DENSE 1/4; HOME_SPARSE_CANDIDATE 4/0; OFFICE_CORE DENSE 4/7, MEDIUM 4/1; OFFICE_ROBUST_CANDIDATE DENSE 1/2 (singleton / with peer). The Stage 10c Modal runtime initially lacked `timezonefinder==9.0.0`, which the operator installed before the successful run. This proves **observed eligible candidate-set status**, not true semantic accuracy or that the individual has only one real-world location.
+
+**Model decision:** Keep frozen CP2 and `evidence_strength_v1` unchanged. The proposed `cbrt(C*O*R)*sqrt(H)` scalar gives a nonrandom 21/55 subset. Do not fill singleton C with 1 or treat median v2 scores as calibrated confidence. Stage 10d (`analysis/10d_evidence_v2_factorized_profile.py`) reports temporal coverage/support, identity stability and conditional top-2 dominance separately. It uses private existing 10a/10c caches, enforces exact join/availability parity and prints aggregate-only JSON; synthetic tests added. **Stage 10d private evaluation not run yet; no new benchmark or accuracy result claimed.** Next after feature profile: design independent temporal holdout and compare baseline/ablation alternatives without leaking private user rows. See `docs/eda/44_evidence_v2_offline_audit.md`.
+
+## 2026-10-15 — Stage 10d factorized evidence measured; Stage 10e chronological feasibility preflight
+
+**Operator-reported real Modal Stage 10d PASS:** 55/55 factorized candidates passed the Stage10a/10c identity contract; `temporal_available=55`, `identity_stability_available=51`, `peer_dominance_available=21`, old hypothetical scalar full-score availability 21, and exactly 34 known `sole_eligible_location` candidates. HOME_CORE DENSE (n=16) median observation coverage 0.684659, support 1, R 1, conditional peer dominance 0.864435 (7 with peers); HOME_CORE MEDIUM (n=11) coverage 1, support .8, R .888889, no peer dominance (0/11 with peer); HOME_PROBABLE DENSE (n=5) median coverage .294118 despite support and R medians 1. OFFICE_CORE DENSE (n=11) coverage .565217, support 1, R 1, conditional C .810376 (7 peers); OFFICE_CORE MEDIUM (n=5) coverage .666667, support .8, R 1 (C suppressed: only one observed peer). Small groups' component medians suppressed as planned. **These are not accuracy or statistical ranking comparisons**; no ground-truth semantic labels, and components can have different denominators.
+
+**Decision:** keep existing production score and 27 HOME/16 OFFICE frozen emission unchanged. Factorized dimensions are preferable for transparent research diagnostics while the original proposed geometric v2 score is structurally missing for 34 singleton rankers. Do not fill singleton dominance with 1 or call score a calibrated percentage. Stage05 dropout R was derived from full-history stays and is **not** an independent TRAIN-only feature for forward evaluation.
+
+**Next preflight:** `analysis/10e_forward_holdout_preflight.py` performs a leakage-conscious *feasibility-only* 70/30 chronological split of per-user distinct observed UTC arrival dates from the existing trusted frozen CP1 5,821 stays, excluding cutoff-crossing stays; it reports per-tier early/future UTC-date support counts **not** model performance or HOME/OFFICE local-date support. Candidate membership in Stage10d itself was selected using full history, so no predictive result is claimed from this preflight. Real prospective-style benchmark requires fit CP2 locations on TRAIN only, train-only evidence and non-refitting spatial alignment of FUTURE stays; compare candidate exact identity retention and local-time behavior, without claiming semantic correctness. Reuse private Modal artifacts, never expose users/coordinates, no AWS restart or CP1 extraction rerun. See `docs/eda/44_evidence_v2_offline_audit.md`.
+
+## 2026-10-15 — Stage 10e forward feasibility measured; TRAIN-only Stage 10f prepared
+
+**Stage 10e measured on trusted private Modal Volume (operator-reported):** `candidate_rows=55`, `train_3_utc_dates_proxy=54`, `future_2_utc_dates_proxy=52`, `both_train_and_future_proxy=52`, and `candidates_with_cutoff_crossing_stays=3` (three HOME_CORE candidate rows each with at least one cutoff-crossing stay; this is **not** a count of crossing stays). Proxy by full-history tier: HOME_CORE 27/27, OFFICE_CORE 16/16, HOME_PROBABLE 5/5, OFFICE_ROBUST_CANDIDATE 3/3, **HOME_SPARSE_CANDIDATE only 1/4**. This does NOT establish 52 train-detectable/accurate predictions: the full-period candidate tiers were selected with future observations; UTC day sufficiency is not label-specific local-window evidence. Any stays crossing the cutoff are excluded from both folds by design; the aggregate only identifies three affected candidate rows. Unreliable sparse support requires independent treatment, not generalization from dense observations.
+
+**New isolated Stage 10f:** `analysis/10f_train_only_forward_validation.py` fits frozen complete-link CP2 and HOME/OFFICE emission strictly on each user's 70%-date TRAIN history, assigns FUTURE stays to frozen TRAIN clusters conservatively (max distance to all members <=200m, only one admissible anchor; ambiguous/unmatched abstain), then checks whether those TRAIN emitted anchors reappear within the appropriate future local-night/weekday work window (>=600s behavior-date observation). The task does NOT use full-period Stage 10a/08c candidate tiers or full-history dropout R as predictor inputs. Reports aggregate train-emitted counts, future observed opportunity, reappearance and spatial matching statuses; private detailed rows remain only on Modal. This is **temporal same-place behavioral persistence**, not independent semantic ground truth, app destination hit-rate or calibrated confidence, and prospective online validation is not claimed. CI synthetic tests; actual Modal run pending. Production, PR #73 AWS serving, original 27/16 global baseline and Stage08c tiers unchanged. Full protocol in `docs/eda/44_evidence_v2_offline_audit.md`.
+
+## 2026-10-15 — Stage 10f TRAIN-only future reappearance measured; Stage 10g v1 score audit prepared
+
+**Operator-reported Modal real-cache Stage 10f:** on the frozen CP1 stays, chronological 70/30 per-user UTC arrival-date split and frozen CP2 train-only clustering/inference yielded **114 TRAIN-stay users**, **44 TRAIN-emitted labels** = HOME 27 / OFFICE 17, **43 with a later observable HOME-night or weekday OFFICE relevant local window**, **25 with the same TRAIN anchor appearing at least one future relevant date (>=600s)**, and 1 OFFICE unassessable. HOME 17/27 future assessable/emitted and later reappeared; OFFICE 8/16 assessable later reappeared (one of 17 emitted unassessable). Totals 25/43 = 58.1% **conditional observed physical-anchor recurrence**, NOT true HOME/OFFICE correctness, v1 prediction calibration, general service hit-rate or proof of stable multiday routine. TRAIN candidate ranker had only one eligible location in 33/44 cases (HOME 22/27, OFFICE 11/17). This is distinct from full-history Stage10c's 34/55 singletons.
+
+All **1,656** FUTURE stays (not limited to HOME/OFFICE behavior hours) had 595 unique matches to training clusters, 859 unmatched and 202 ambiguous under conservative complete-link-to-every-TRAIN-member <=200m. Thus only 35.9% are uniquely matched, and 64.1% cannot be uniquely linked; future anchor non-recurrence mixes spatial matching limits, unseen mobility patterns and true temporal non-observation. Three users had crossing-cutoff stays excluded, not necessarily only three crossing stays. TRAIN-only HOME 27 / OFFICE 17 must **not** be conflated with original full-history HOME 27 / OFFICE 16; distinct training scope/identities. No future observations or full-history candidate tiers/dropout R were used to select/fit TRAIN clusters/labels.
+
+**Decision:** Stage10f establishes a retrospective behavior-reappearance outcome, not semantic truth. Retain production CP2 v1, 27/16 frozen full-history emission, and opt-in research tiers. Before comparing Evidence v2 vs v1, restrict predictors to TRAIN-derived measurements; never reuse Stage10a–10d full-history scores as if calculated before FUTURE. Added Stage10g `analysis/10g_train_score_recurrence_audit.py` to report aggregate observed 1-date/2-date future recurrence by label and TRAIN-eligible-singleton status and compare TRAIN v1 score medians among assessable reappeared vs not reappeared, with 5-row group suppression. It reads only Stage10f trusted private candidate outputs, not raw GPS or full-history scored table; **Stage10g real Modal run pending**. Follow up with diagnostic decomposition of future spatial matching within label windows and independent cutoff replication before considering any score/policy change. See `docs/eda/44_evidence_v2_offline_audit.md`.
+
+## 2026-10-15 — Stage 10g TRAIN v1 forward recurrence measured; Stage 10h factor audit prepared
+
+**Operator-reported Stage 10g Modal run completed:** Stage 10f's existing private TRAIN-only outcomes (44 emitted candidates, 43 future-assessable, HOME 27/27 and OFFICE 16/17) yielded 25/43 (58.1%) >=1 later relevant-window date same-anchor reappearances and 14/36 (38.9%) on the *different >=2-future-opportunity-dates* denominator with >=2 same-anchor dates. HOME 1-day 17/27 (63%), 2-day 10/21 (47.6%); OFFICE 1-day 8/16 (50%), 2-day 4/15 (26.7%). Train v1 evidence medians among later-reappeared vs non-reappeared: HOME **0.866667 vs 0.809177** (difference +0.057490), OFFICE **0.691932 vs 0.637519** (+0.054413); pooled 0.797806 vs 0.687676 (+0.110130) reflects mixture of label distributions and cannot be construed as an independently controlled effect. This is **single-retrospective-split anchor reappearance**, not semantic truth, accuracy, probability calibration, confidence intervals or v2 superiority. Strict future matching produces many unassigned/ambiguous stays; failure to reappear can reflect matching or observability, not necessarily wrong location semantics.
+
+TRAIN-ranked HOME multiple-eligible: 4/5 >=1-date recurrence vs HOME singleton 13/22, but HOME multiple-eligible had median support 10 days versus 4 in singleton group, strongly confounding any ranking inference; OFFICE multiple-eligible 3/6 versus singleton 5/10. Limited subgroup counts and suppressed medians prohibit definitive ordering.
+
+**Decision:** keep production frozen HOME 27/OFFICE 16 and v1 evidence formula. Stage 10h `analysis/10h_train_only_component_audit.py` (synthetic CI tests) reconstructs strictly TRAIN-only frozen CP2 source components S=dwell share, M=margin, H=dates saturation and label-native observation coverage O (plus conditional peer C when TRAIN has >=2 eligible places), joins existing Stage10f FUTURE outcomes with strict TRAIN candidate and score/eligibility parity, reports only small-group-suppressed aggregate medians. Missing peer dominance remains unavailable, never set to C=1. No full-history Stage10a/10d feature, full-history R, or future GPS used for training predictors. **Stage10h private Modal run not yet done**; multiple-cutoff/robustness, spatial error-source audit and semantic labels remain open. Reference: `docs/eda/44_evidence_v2_offline_audit.md`.
+
+## 2026-10-15 — Stage 10h TRAIN components measured; Stage 10i spatial opportunity audit
+
+**Stage 10h operator-reported Modal run successful:** exact v1 TRAIN component and candidate lineage parity with Stage10f `train_only_component_parity=true` for 44 TRAIN emitted candidates, 43 with relevant FUTURE-window GPS, 25 with same-anchor >=1-date recurrence, **11/44 TRAIN peer-dominance features available** (HOME 5, OFFICE 6), and 33 eligible singletons. TRAIN frozen v1 formula `(S+M+H)/3` gives `M=S` on singleton rankers (missing eligible second-share is zero-filled by CP2), so the same observed dwell share is effectively counted twice: `(2*S+H)/3` for 33/44. This is a documented current-policy choice, **not independent margin evidence**; no production policy was changed.
+
+Pooled conditional TRAIN medians for reappeared (n=25) vs non-reappeared (n=18): v1 0.797806 vs 0.687676; dwell S 0.799735 vs 0.660261; margin M 0.697787 vs 0.575030; support H 1 vs .8; observation coverage O .666667 vs .674242. In HOME O is .846154 vs .732143, OFFICE .555556 vs .485294: within both labels higher recurrence-group O, despite pooled median O reversing with group composition. HOME median H is .8 vs .8, OFFICE 1 vs .8. Peer dominance conditional medians for non-recurrence cohorts suppressed (too few observed peers). Thus the descriptive median differences are not causal component contributions, statistical significance, calibrated accuracy or proof that either the existing v1 or hypothetical v2 is optimal.
+
+**Next problem:** Stage10f FUTURE time-window assessability counts all GPS observations with relevant local overlap, including unmatched/ambiguous spatial assignment to TRAIN clusters; across all 1,656 future stays only 595 unique matches were possible, 859 unmatched, 202 ambiguous. Missing exact TRAIN-anchor recurrence can be due to inability to spatially resolve, not definite wrong semantics. New isolated `analysis/10i_future_spatial_observability.py` audits FUTURE HOME-night/OFFICE-weekday window support >=600s/date that matches **some unique TRAIN anchor** versus merely observed relevant time, and identifies non-recurrence without any unique spatial support vs with observations assigned to another TRAIN anchor. It reuses 70/30 split, TRAIN-only complete-link clustering, strict Stage10f original output parity and trustworthy private Modal caches, exports aggregate-only JSON; tests are synthetic only. **Stage10i actual private execution pending**. No full-history Stage10a/10d leakage, no CP1 rerun, no AWS/production changes. See `docs/eda/44_evidence_v2_offline_audit.md`.
+
+## 2026-10-15 — Stage 10i spatially assessable FUTURE outcomes
+
+**Operator-reported Modal Stage 10i PASS:** 44 TRAIN-only emitted HOME/OFFICE, 43 with observable FUTURE label-local behavior-window GPS, but **only 31/43** have >=1 future relevant day with >=600 seconds GPS uniquely matching some frozen TRAIN cluster. Within 31 spatially assessable anchors, **25** had >=1-date exact same TRAIN candidate reappearance and **6** did not return to the selected TRAIN anchor but were observed at a different uniquely matched TRAIN anchor. Other **12** were future time-window observed but had **no** qualified unique spatial match to any TRAIN location. HOME counts: emitted 27, FUTURE time 27, spatially resolvable 21, same 17, other 4, unresolved 6. OFFICE counts: emitted 17, FUTURE time 16, spatially resolvable 10, same 8, other 2, unresolved 6. So 12/18 of prior Stage10f apparent FUTURE non-reappearances were **spatially unresolved**, not justified as semantic classification errors; the remaining six also do not establish incorrect HOME/OFFICE identity. Conditional strict anchor reappearance 25/31 (80.6%) is a **future spatially selected subset**, not accuracy, overall recurrence, or calibrated evidence. Stage10f's 25/43 (58.1%) remains the relevant time-observation denominator; changing denominators changes interpretation and should not be misrepresented as improved model performance.
+
+**Decision:** Explicitly distinguish FUTURE relevant time observation, uniquely assignable spatial support to any TRAIN location, and exact TRAIN anchor recurrence; never use FUTURE observability in TRAIN predictors. Frozen production complete-link CP2, 27 HOME/16 OFFICE full-history labels, v1 evidence formula, research tiers and AWS deployment remain unchanged. Prior Stage10h scores are exploratory and confounded by spatial censoring. Next protocol: predeclared TRAIN-only 60/70/80 per-user observed-UTC-date cutoff sensitivity, each with spatially stratified FUTURE outcomes; shared participants mean these are correlated checks, not independent validation or confidence intervals. See `docs/eda/44_evidence_v2_offline_audit.md`.
+
+## 2026-10-15 — Stage 10j cutoff sensitivity code prepared
+
+After Stage10i's **25/31** same-TRAIN-anchor recurrence conditional on future unique spatial opportunity (HOME 17/21, OFFICE 8/10; 12 of 18 previous time-assessable non-recurrences lacked any unique TRAIN-location support), implemented `analysis/10j_cutoff_sensitivity.py` and synthetic-only tests. Stage10j will refit frozen CP2 locations and HOME/OFFICE emissions using **only TRAIN** at predeclared 60/70/80 percentages of each user's observed UTC arrival dates, then compute relevant FUTURE time-window observation, unique spatial support to frozen TRAIN locations, and exact selected anchor reappearance using the unchanged Stage10i logic. The script checks Stage10f vs Stage10i parity at each cutoff and prints aggregate-only JSON. Modal real-cache execution is **pending**.
+
+**Scientific boundary:** repeated 60/70/80 cutoffs share people and nested stay histories, hence are correlated sensitivity checks, not independent tests, 3x more participants, p-values or independent calibration validation. The same spatial matching geometry (complete-link compatible 200m) and frozen HOME/OFFICE emission gates are held fixed; no tuning against future outcomes. A 70% checkpoint should reproduce Stage10i 44 emitted/43 time observable/31 uniquely spatial observable/25 reappeared/12 unresolved. Other cutoffs need real execution, and the study does not establish semantic truth. Frozen production CP2 and AWS unchanged.
+
+
+## 2026-10-15 — Stage 10j measured; Stage 10k paired audit prepared
+
+**Operator-reported Modal Stage10j PASS**, 70% parity with Stage10i PASS. TRAIN fractions 60/70/80 emitted 40/44/43 candidate anchors; future-time observable 40/43/40; uniquely spatially observable 34/31/29; same selected TRAIN anchor 27/25/21; spatially unresolved 6/12/11. HOME same / unique 19/22, 17/21, 16/20; OFFICE 8/12, 8/10, 5/9. These are correlated cutoff sensitivity checks, not semantic accuracy, independent replication or v2 score validation.
+
+**Stage10k implemented (pending private Modal run):** `analysis/10k_paired_anchor_common_future_audit.py` rebuilds frozen TRAIN-only CP2 at 60/70/80, checks exact Stage10j aggregate parity, compares user-label emission transitions and cross-cluster TRAIN member geometry without comparing arbitrary location IDs, and evaluates both models over the SAME later-cutoff FUTURE stays per pair. Reports separate time, spatial, geometry-uncertain and anchor-reappearance groups with private user rows retained only on Modal Volume. Synthetic tests added; no independent GPS semantic truth or production changes.
+
+
+## 2026-10-15 — Stage 10k measured; paired cutoffs separate location identity and observability
+
+**Operator-reported Modal Stage10k COMPLETE, Stage10j parity PASS.**
+Pairs 60→70, 70→80, 60→80 have 38/38, 42/42, 36/36
+shared-emission TRAIN anchors geometry-compatible across all-member <=200m
+tests (zero partial/separated). Emission transitions are respectively
+early-only/late-only 2/6, 2/1, 4/7, hence candidate admission is
+cutoff-sensitive even when shared selected places are geometrically stable.
+
+All analyses hold identical FUTURE stays within each pair: 1656 for 60→70;
+1157 for 70→80 and 60→80. Among both-emitted time-observed anchors:
+37/40/35 pairs; spatially unique in *both* frozen TRAIN models 27/24/22,
+in neither 10/10/8; 70→80 has 1 early-only and 5 late-only spatial support.
+Same-anchor recurrence on paired time cohort (both/early-only/late-only/neither):
+22/1/0/14, 19/1/2/18, 19/1/0/15. On the **both-spatial** subset:
+22/1/0/4, 19/0/1/4, 19/0/0/3. OFFICE 70→80 common horizon has
+5/15 same anchor reappearances in *each* model, not evidence of the
+unpaired Stage10j 80% fall being caused by identity drift.
+
+**Interpretation:** Shared anchor physical geometry is stable under
+conservative 200m operational definition. Changes in emitted candidates,
+FUTURE length/composition and spatial resolvability contribute to apparent
+cutoff sensitivity. None of this establishes semantic HOME/OFFICE correctness,
+calibration, evidence v2 superiority, significance or independent replication.
+Keep frozen CP2/v1, original 27 HOME/16 OFFICE full-history and AWS unchanged.
+
+GitHub CI after Stage10k first implementation failed only a synthetic
+partial-overlap fixture (`39.9017` degrees latitude remained within
+200m of both artificial members); corrected fixture to `39.90185`.
+Actual Stage10k private Modal run had already passed; full CI rerun
+status must be checked separately.
+
+
+## 2026-10-15 — Stage 10l TRAIN-only v1/v2 paired spatial comparison implemented
+
+Implemented `analysis/10l_train_only_v1_v2_spatial_comparison.py` and synthetic
+tests, CI PASS. At the frozen retrospective 70% TRAIN split, rebuild Stage10h
+CP2 v1 components and check Stage10f candidate/score parity. Use the existing
+unmodified experimental v2 formula `cbrt(C*O*R)*sqrt(H)`, with C from a
+genuine TRAIN eligible runner-up only, O/H computed from TRAIN local relevant
+dates, and **new** R from 9 deterministic TRAIN-only date-dropout refits
+(10/20/30% x three seeds). Do not reuse full-history Stage05 R and do not
+fill missing C on singleton-eligible candidates (33/44 at 70% prior result).
+Join Stage10i FUTURE spatial outcomes and Stage10j 70% aggregate parity only
+AFTER score construction; compare v1/v2 ranks only on exactly the same v2
+scorable and future-uniquely-spatially-observable candidates. Suppress pairwise
+recurrence ranking when fewer than five reappeared or five other-anchor
+outcomes. This evaluates observed physical-anchor recurrence, **not** semantic
+HOME/OFFICE accuracy, calibration, a probability or independent replication.
+Private files remain Modal; Stage10l real Modal execution **pending**.
+No CP1 rerun, CP2 production/v1/AWS/tier changes.
+
+
+## 2026-10-15 — Stage 10 research decision CLOSED (10a–10l)
+
+**Operator-reported actual Stage10l Modal aggregate: PASS, 70% Stage10i/10j
+parity.** TRAIN 44 emitted / 43 with FUTURE behavior-window GPS / 31 with
+unique spatial support / 25 with same selected TRAIN anchor. Only
+11/44 emitted anchors have a genuine eligible TRAIN runner-up and a valid
+train-only `cbrt(C*O*R_train_mask)*sqrt(H)`; 33/44 are structurally
+unscorable with missing C. On the fixed 31-anchor future spatially
+observable subset, only **9** are v2-scorable (HOME 5, OFFICE 4),
+with 7 exact-anchor reappearances and 2 other-TRAIN-anchor observations.
+Head-to-head pairwise ranking-concordance could **not** be estimated under
+the >=5 each outcome protocol, so there is **no v2-v1 superiority result**.
+The new 9-mask TRAIN-only R is not the Stage05 full-history robustness R.
+No semantic HOME/OFFICE ground truth, probability calibration or independent
+participant replication was measured.
+
+**Synthesis:** 10a–d: 21/55 full-history-tier candidates scorable, 34/55
+confirmed truly sole-eligible under the relevant ranker; 10f–i: 12/43
+FUTURE-time-observable anchors lacked unique FUTURE spatial resolution;
+10j: 60/70/80 cutoffs share users and expose composition/observability
+sensitivity; 10k: 38/38, 42/42, 36/36 common emissions geometrically
+compatible at <=200m, although candidate emission and matching change.
+None of these rates are semantic accuracy or independent score validation.
+
+**FINAL ADR:** Research Stage10a–10l complete as offline evidence audit.
+Do not promote the v2 scalar or Stage08c research candidate tiers.
+Preserve frozen full-history CP2 27 HOME/16 OFFICE, original evidence v1,
+complete-link 200m, API and AWS. Do not run 10m simply to optimize a scalar
+on nine selected FUTURE candidates. The next distinct research problem is
+data trajectory assembly + coverage/eligibility waterfall and controlled
+relaxation of strict HOME/OFFICE gates, with prospective evaluation and
+independent ground truth when available, **not yet authorized in this PR**.
+
+**Definitive report:** `docs/eda/45_evidence_v2_final_decision.md`.
+Historical stage-by-stage audit: `docs/eda/44_evidence_v2_offline_audit.md`.
+Private files never leave Modal. Synthetic CI/Docker smoke do not reproduce
+real private GeoLife observations. PR #74 remains a research PR, not merged
+or a deployment instruction.
+
+
+## 2026-10-15 — Post-13/10 milestone reconciliation: AWS sync demo, Stage 10 audit closure, next roadmap
+
+**Two separate tracks advanced since the 2026-10-13 presentation draft.** This entry reconciles operator-reported real runs with GitHub PR status; it does not conflate deployment with semantic accuracy.
+
+**Track B1, AWS / serving (PR #73, open; PR #72 merged):**
+- Deployed digest-pinned ECR Docker image to a single AL2023 EC2 `c7i-flex.large` in Singapore under an SSM-only internal demo design (operator-reported). Terraform manages five resources: EC2, ECR repository, ECR lifecycle policy, CloudWatch Logs group and zero-ingress Security Group; the scoped EC2 IAM role/instance profile and IAM groups are provisioned separately, not via Terraform.
+- SSM Online during acceptance, Docker FastAPI bound to EC2 loopback, no inbound SG rules; `/health` and `/demo` returned HTTP 200 through local encrypted SSM port-forwarding, unauthenticated protected request HTTP 401, and authenticated `demo_000` synthetic GPS inference completed. No historical GeoLife private stays/locations were copied to AWS. CloudWatch `/geolife/dev/api` / `geolife-demo` received log events. Git Bash log-read failure was shell argument/path conversion (`MSYS_NO_PATHCONV=1`), **not** missing IAM permission.
+- Authenticated **single-account synthetic** p50/p95/p99 (milliseconds) through SSM: baseline (complete-link 200m) **127/157/179**, 50/50 HTTP successes; canary **100%** DBSCAN 100m **146/273/512**, 50/50 successes; rollback baseline **127/201/234**, 10/10 successes. Post-rollback `/health` 200, `/v2/model-info` baseline. These are not concurrent-load or real GeoLife latency results; one sticky account does **not** validate 90/10 routing. Do not generalize model-performance differences from this single short harness.
+- CI and Docker smoke both PASS at current PR #73 head `b5528042`; **PR #73 remains open** and AWS is not public/production. Actual EC2 state **after requested shutdown is unverified**; EC2/EBS/public IPv4/ECR/CloudWatch costs must be checked via scoped AWS CLI/console; never claim that the instance was stopped/destroyed without verification.
+
+**Stage 10 research / Evidence v2 (PR #74, open):**
+- Stage10a–d audited 55 tiered candidate hypotheses: 21/55 have complete v2 evidence; 34/55 missing C because the ranker has **only one eligible** location, not because of a join bug. Stage10e–i forward 70/30 TRAIN/FUTURE produced 44 TRAIN anchors, 43 temporally observable, 31 unique spatially observable, 25 same anchor, 6 other TRAIN anchor, 12 unresolved despite relevant-time GPS. These are observational recurrence diagnostics **not semantic HOME/OFFICE accuracy**.
+- Stage10j cutoffs 60/70/80 and Stage10k same-horizon paired comparison found 38/38, 42/42, 36/36 geometry-compatible anchors among those emitted at both paired cuts; candidate emission, observation horizon and spatial eligibility still changed. Stage10l reconstructed TRAIN-only v1/v2 plus 9 TRAIN-only ablation-mask stability trials; only 11/44 anchors have v2 score, only 9/31 FUTURE spatially observable anchors can be directly compared (7 reappear/2 other). Ranking concordance **not estimable** with only two other-anchor examples. No v2-superiority, calibration, probability or true semantic-label validity claim.
+- Decision: **CLOSE Stage10 as research audit; do not promote experimental `cbrt(C*O*R)*sqrt(H)`**; retain complete-link CP2, 5,821 stays, 27 HOME / 16 OFFICE, v1 score and abstentions. Synthetic CI/Docker smoke PASS on PR #74 head `ceddc4f` prior to these docs-only additions; final docs head checks should be rechecked. No production, AWS, private-cache transfer or tier migration.
+- Canonical research decision: `docs/eda/45_evidence_v2_final_decision.md`; presentation-ready update: `reports/milestone/2026-10-15_progress_update_vi.md`.
+
+**Roadmap reconciliation (original post-EDA B1 roadmap from 2026-10-12 was a planning snapshot):** sync AWS private demo/canary 100%/rollback and client-side synthetic latency are now measured. Pending: human review/merge PR #73 and #74; optional multi-account 90/10 sticky allocation validation; async `POST /v2/jobs`→private encrypted payload/result storage with SQS *pointer-only* worker→`GET /v2/jobs/{id}`, TTL/idempotency; CloudWatch/Prometheus metric collection/dashboard and marked *offline simulated* drift replay; privacy/security gates and cost teardown. Defer broad CP1/CP2 gate relaxation until a separate upstream trajectory stitching + eligibility waterfall audit, using frozen baseline as control.
+
+**Conventions:** operator-reported Modal/AWS observations are distinct from synthetic GitHub CI. Neither restricted SSM demo nor retrospective recurrence implies public production readiness, independent label truth or release approval. Preserve Terraform state and stay-level privacy.
