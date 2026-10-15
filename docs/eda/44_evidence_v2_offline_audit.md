@@ -359,3 +359,96 @@ independent *future-period* identity-retention test, when the original
 period has exactly one eligible location? Until that study, report a
 multi-dimensional evidence profile and candidate tier, **not a percent
 confidence nor a cross-tier calibrated quality ranking**.
+
+
+## Stage 10d — Measured factorized evidence on private Modal data
+
+Operator reported `Stage 10d completed`, exact Stage 10a/10c private
+candidate namespace match, and an aggregate report with:
+
+- `candidate_rows=55`, **temporal availability 55/55**;
+- **identity stability available 51/55**, the four unavailable all
+  `HOME_SPARSE_CANDIDATE` under the mismatched Stage-05 >=3-day fixed-window
+  dropout regime;
+- **relative peer dominance available 21/55** (the 21 candidates having an
+  observed eligible second location; the other 34 are proven singletons of
+  the eligibility set);
+- **old experimental scalar formula available 21/55**; it is not adopted.
+
+Selected medians (aggregate-only; suppressed when fewer than five
+observations in a group or for a given component):
+
+| Tier / exposure | observed-date coverage | support factor | identity stability | conditional peer dominance |
+| --- | ---: | ---: | ---: | ---: |
+| HOME_CORE DENSE (n=16) | 0.684659 | 1 | 1 | 0.864435 (7 observed peers) |
+| HOME_CORE MEDIUM (n=11) | 1 | 0.8 | 0.888889 | unavailable |
+| HOME_PROBABLE DENSE (n=5) | 0.294118 | 1 | 1 | suppressed (4 peers) |
+| OFFICE_CORE DENSE (n=11) | 0.565217 | 1 | 1 | 0.810376 (7 peers) |
+| OFFICE_CORE MEDIUM (n=5) | 0.666667 | 0.8 | 1 | suppressed (1 peer) |
+
+`HOME_SPARSE_CANDIDATE` (n=4) and `OFFICE_ROBUST_CANDIDATE` (n=3)
+have component-level median values withheld due to the predeclared
+five-observation minimum, not due to a claim about quality.
+
+**Interpretation / decision:** Support factor saturating at >=5 dates
+cannot by itself distinguish `HOME_PROBABLE` DENSE with observed-date
+coverage median 0.294118 from HOME_CORE DENSE median 0.684659. Likewise,
+full formula missingness is a peer-eligibility structural issue,
+not necessarily weak HOME/WORK evidence. Component-level medians may be
+computed on different subsets and must not be interpreted as comparative
+HOME/OFFICE accuracy, statistical significance or calibrated probabilities.
+
+No scalar `evidence_strength_v2` replacement, change to frozen production
+HOME=27 / OFFICE=16, or automatic candidate-tier promotion is approved.
+
+## Stage 10e — Forward-holdout feasibility only (next operator task)
+
+Before attempting to estimate out-of-time candidate retention, we must
+verify enough earlier/later observational support **without leaking future
+stays into training features or spatial clustering**. Current Stage 10a–10d
+feature sets and Stage-05 dropout stability use the full historical period;
+therefore they cannot be treated as fully past-only predictor features for
+a forward holdout.
+
+`analysis/10e_forward_holdout_preflight.py` reads *existing trusted* private
+`stays_baseline_v1.pkl` and the Stage 10d factorized candidate
+cache. It makes a retrospective, predeclared **70%/30% split of each
+user's distinct observed UTC arrival dates**, excludes stays crossing
+the cutoff, and reports only an aggregate feasibility breakdown by tier.
+These are **UTC observational proxy counts**, not label-specific
+HOME-night/weekday-OFFICE opportunity days and not evidence that the
+training period would have emitted the same candidate. A user/tier
+with at least 3 earlier UTC dates + 2 future UTC dates is counted as
+`both_train_and_future_proxy`, not `correctly predicted`.
+
+Run on the existing trusted Modal Volume after updating the separate
+research checkout:
+
+```bash
+python /tmp/geolife-evidence-v2-stage10a/analysis/10e_forward_holdout_preflight.py \
+  --cache-root /mnt/geolife-data/cache/cp2_v2 \
+  --stays-cache /mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl
+```
+
+The script checks frozen 5,821-stay/136-user counts and the existing
+55 candidate-tier counts, prints **only aggregate JSON**, and saves on
+the private Modal Volume:
+
+```text
+10_evidence_v2_offline/forward_holdout_feasibility_private.pkl
+10_evidence_v2_offline/forward_holdout_feasibility_aggregate.json
+```
+
+For **later actual forward validation** (not implemented here):
+(1) resolve IANA local-time behavior opportunity dates strictly from TRAIN
+stays; (2) fit CP2 complete-link clusters on TRAIN only and select new
+TRAIN-specific candidates/tiers; (3) derive temporal/stability evidence
+only using TRAIN; (4) assign FUTURE stays to the fitted training locations
+using a predeclared spatial alignment/tolerance without refitting clusters
+on future data; (5) score exact identity recurrence and HOME/OFFICE
+time-window behavior in FUTURE, with abstention and missingness;
+(6) stratify by label, sparse/dense and no-peer eligibility.
+Global all-period location IDs or Stage-10a full-period labels must not
+be smuggled in as training predictions. Even success on this surrogate
+evaluation does **not** prove semantic HOME/OFFICE correctness without
+verified semantic ground truth.
