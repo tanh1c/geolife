@@ -471,8 +471,7 @@ earlier observed UTC dates plus two later observed UTC dates:
 | **Total** | **52** | **55** |
 
 Aggregate: 54/55 meet early UTC support; 52/55 meet late UTC support;
-three HOME_CORE cases had stays crossing the per-user cutoff, correctly
-excluded from both folds. **This is NOT 52 validated predictions**:
+three HOME_CORE candidate rows involve at least one stay crossing the per-user cutoff; such stays are excluded from both folds. The aggregate does not provide the exact number of crossing stays. **This is NOT 52 validated predictions**:
 the tiers were selected with full history and dates are UTC proxy
 observations, not HOME-night/OFFICE-weekday-window opportunities. Sparse
 HOME cannot be judged by a pooled dense-majority result; only 1 of 4
