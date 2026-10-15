@@ -135,7 +135,10 @@ def test_private_adapter_rejects_lineage_mismatch():
 def test_private_adapter_rejects_candidate_location_drift():
     stage = _module()
     frames = _synthetic_inputs()
-    frames["diagnostics"].loc[0, "eligible_location_id"] = 999
+    target = frames["home_expansion"].iloc[0]["user_id"]
+    frames["diagnostics"].loc[
+        frames["diagnostics"]["user_id"].eq(target), "eligible_location_id"
+    ] = 999
     with pytest.raises(ValueError, match="same-namespace"):
         stage.build_candidate_features(**frames)
 
