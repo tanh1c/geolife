@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, Path, Request
+import os
+
+from fastapi import FastAPI, Path, Request, HTTPException
 from importlib.resources import files
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse
@@ -207,6 +209,17 @@ app.include_router(destination_router)
 @app.get("/demo", include_in_schema=False)
 def geolife_demo_ui():
     return FileResponse(str(files("geolife.api").joinpath("static", "demo.html")), media_type="text/html")
+
+
+@app.get("/destination-demo", include_in_schema=False, tags=["synthetic-private-recommendation"])
+def synthetic_destination_demo_ui():
+    """Render only static instructions; no user data until account auth."""
+    if os.getenv("GEOLIFE_ENABLE_SYNTHETIC_RECOMMENDER", "") != "1":
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(
+        str(files("geolife.api").joinpath("static", "destination_demo.html")),
+        media_type="text/html",
+    )
 
 # Last registered is outermost: restrict legacy routes before reading GPS bodies.
 app.middleware("http")(secure_http)
