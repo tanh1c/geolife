@@ -948,3 +948,63 @@ aggregates (44 TRAIN emitted, 43 FUTURE-time-observable,
 investigate version/cache/protocol differences before interpreting
 other cutoffs. The 60% and 80% rows are *new* and must not
 be predicted, invented or treated as independent trials.
+
+
+## Stage 10j — Measured multi-cutoff observability sensitivity (2026-10-15)
+
+Operator-reported real Modal execution PASSED with exact Stage10i parity at 70%.
+The shared 114 TRAIN-stay users across splits do **not** constitute independent replicates.
+
+| TRAIN/FUTURE | emitted | future time | unique spatial | same TRAIN anchor | unresolved |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 60/40 | 40 | 40 | 34 | 27 | 6 |
+| 70/30 | 44 | 43 | 31 | 25 | 12 |
+| 80/20 | 43 | 40 | 29 | 21 | 11 |
+
+HOME recurrence among spatially assessable: 19/22, 17/21, 16/20;
+OFFICE: 8/12, 8/10, 5/9. Denominators and candidate identities change.
+These are retrospective strict anchor-recurrence diagnostics, **not** HOME/OFFICE
+semantic accuracy, independently validated probabilities or evidence v2 gains.
+Do not modify deployed CP2 (full-period 27 HOME/16 OFFICE), v1 scoring or AWS.
+
+## Stage 10k — Paired anchor identity & common FUTURE sensitivity (implementation)
+
+`analysis/10k_paired_anchor_common_future_audit.py` refits the **unchanged**
+complete-link 200m CP2 on per-user 60/70/80 TRAIN folds. It hard-fails unless
+all three results exactly reproduce the existing private Stage10j aggregate.
+For 60→70, 70→80, and 60→80:
+- Compare candidate emission transitions on the same `(user_id, label)` keys.
+  Do not equate `location_id` integers across independently clustered folds.
+- For candidates emitted at both cutoffs, compute all pairwise distances between
+  TRAIN cluster members: all <=200m = strictly compatible; all >200m = fully
+  separated; partial overlap = uncertain. This is operational geometry, not
+  an independently verified semantic location identity.
+- Project exactly the later cutoff's FUTURE stays into **both** frozen TRAIN
+  location models (same per-user future dates, time-window definition and
+  GPS observations). Verify UTC-stay multiset nesting, no future refit, and
+  identical time-window opportunity counts per user-label.
+- Report common-FUTURE time observability, unique spatial opportunity in each
+  model, one/both/neither spatial support, conditional recurrence discordance
+  for strictly compatible clusters, and unmatched/ambiguous relevant-window
+  overlap categories for spatially unresolved candidates. Do not interpret
+  unmatched alone as proof of new travel or spatial error; it is unresolved.
+- Keep private user-label paired diagnostics inside the trusted Modal Volume
+  at `10_evidence_v2_offline/paired_anchor_common_future_private.pkl`.
+  The only shareable artifact is
+  `10_evidence_v2_offline/paired_anchor_common_future_aggregate.json`.
+  Some label-level cells may be small: do not publish user-row results.
+
+**Running on existing Modal Jupyter checkout** (after updating branch):
+```bash
+PYTHONPATH=/tmp/geolife-evidence-v2-stage10a/src \
+python /tmp/geolife-evidence-v2-stage10a/analysis/10k_paired_anchor_common_future_audit.py \
+  --stays-cache /mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.pkl \
+  --cache-root /mnt/geolife-data/cache/cp2_v2
+```
+
+Requires Stage10j aggregate JSON in trusted Modal Volume, same pinned
+dependencies including `timezonefinder==9.0.0`. Synthetic-only test:
+`pytest -q tests/test_evidence_v2_paired_anchor_common_future.py`.
+No CP1 rerun, future GPS fit, evidence score redesign, semantic accuracy
+assertion, production/AWS changes, or promotion of v2 tiers. Results pending
+actual private Modal execution.
