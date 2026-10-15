@@ -71,3 +71,74 @@ Avoid printing or committing the input CSV, private user rows, any `auth.sqlite3
 Sources: `docs/eda/41_home_coverage_expansion.md`, `docs/eda/42_exposure_bias_audit.md`, `docs/eda/43_exposure_aware_policy.md`, `docs/eda/34_near_miss_office_audit.md`, `docs/eda/26_factorized_work_profiles.md`, and the post-AWS roadmap in PR #73.
 
 **Next operator task:** run the synthetic tests on local, then prepare the private feature-lineage adapter in Modal. No AWS deployment, canary restart or EC2 cost is needed.
+
+## Modal private-cache adapter (Stage 10a; implemented, not yet executed on real data)
+
+The adapter `analysis/10a_evidence_v2_private_adapter.py` uses exactly the
+existing *trusted* cache files produced by `notebooks/05_home_office_reliability_validation.ipynb`,
+`08a_home_coverage_expansion.ipynb`, `08b_exposure_bias_audit.ipynb`,
+and `08c_exposure_aware_policy.ipynb`. It does **not** rescan raw GPS or re-run
+CP1/CP2. These inputs are inside `/mnt/geolife-data/cache/cp2_v2/`:
+
+```text
+05_home_office_reliability_validation/dropout_details_private.pkl
+08a_home_coverage_expansion/home_expansion_evidence_private.pkl
+08b_exposure_bias_audit/gate_diagnostics_private.pkl
+08c_exposure_aware_policy/sparse_home_support_candidates_private.pkl
+08c_exposure_aware_policy/dense_home_concentration_candidates_private.pkl
+08c_exposure_aware_policy/dense_office_near_miss_candidates_private.pkl
+```
+
+Dropout stability `R` is the **Stage-05 fixed-window exact-candidate
+retention over all nine predeclared dropout trials** (3 dropout rates × 3
+seeds). A missing/partial set or a mismatch of candidate identity gives
+`R=unavailable`. For `HOME_SPARSE_CANDIDATE`, the fixed-window Stage-05
+ranker requires 3 dates and cannot produce the 2-of-2 case: `R` is
+**deliberately unavailable**, so the full v2 score stays unavailable. No
+fake `R=1` or guessed 70% confidence.
+
+The `runner_up_share` is reconstructed from Stage-08b eligible share/margin
+or raw share/margin according to the candidate policy. Stage-08b fills a
+missing runner-up with zero when computing margin: when margin equals top
+share the adapter keeps **runner-up unknown**, and the v2 score is unavailable.
+This is a known feature-coverage limitation, not evidence that the candidate
+is wrong. Stable candidate identity is checked against the same CP2-v2
+location namespace; Stage 08a probable identity must match Stage 08c dense
+HOME. Cohort parity requires 27 HOME_CORE, 16 OFFICE_CORE, +5 probable HOME,
++4 sparse HOME, +3 robust OFFICE; **any drift stops the run**.
+
+### Run in the existing Modal Jupyter environment
+
+Use a terminal in Modal where the GeoLife private Volume is already mounted.
+Clone the research branch into a **separate new checkout** to avoid changing
+the existing `/root/geolife` main checkout used by older notebooks:
+
+```bash
+git clone --depth 1 --branch feature/evidence-v2-offline-audit \
+  https://github.com/tanh1c/geolife.git /tmp/geolife-evidence-v2
+
+python /tmp/geolife-evidence-v2/analysis/10a_evidence_v2_private_adapter.py \
+  --cache-root /mnt/geolife-data/cache/cp2_v2
+```
+
+Preconditions: Python environment already has numpy and pandas; do not
+`pip install` or rerun all notebooks unless these dependencies are actually
+missing. The trusted `.pkl` files are read-only inputs (pickle must never come
+from untrusted uploads). The adapter creates **only on the private Volume**:
+
+```text
+10_evidence_v2_offline/candidate_features_private.pkl
+10_evidence_v2_offline/candidate_scored_private.pkl
+10_evidence_v2_offline/aggregate_summary.json
+```
+
+It prints aggregate-only JSON containing group counts, score coverage, and
+non-small-group median evidence scores (minimum 5 rows by default); no
+user ID or coordinate is printed. Send only this sanitized JSON back for
+review. **Do not print/upload any private pickle or per-user row.**
+
+**Interpretation:** even with this adapter, v2 has **not** been validated
+against future observations or independent semantic ground truth. Stage-05
+full-period dropout must not be re-used as independent temporal validation.
+The first private pass is a feature-lineage/coverage audit, NOT a proof the
+new formula is better.
