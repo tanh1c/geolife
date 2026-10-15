@@ -1,6 +1,8 @@
 # AWS Checkpoint 2 — SSM-only single-host deployment handoff
 
-**Status: IaC + authenticated-canary code prepared. No AWS resources created.**
+**Current status (2026-10-15): restricted AWS sync serving demo ACCEPTANCE PASS, operator-reported.** Terraform provisioned the scoped five resources; an ECR digest-pinned image ran authenticated synthetic inference on EC2 with local SSM port forwarding, /health and /demo successful, protected unauthenticated requests rejected, and CloudWatch logs observed. Baseline (50/50 HTTP success, p50/p95/p99=127/157/179ms), 100% DBSCAN canary (50/50, 146/273/512ms), and rollback baseline (10/10, 127/201/234ms) were tested over SSM. The numbers are client-observed, single-account, non-concurrent synthetic tests: **90/10 multi-account split, public release, external performance, real GeoLife cache and async SQS remain unverified/not authorized**. After the operator requested instance shutdown, exact EC2/EBS/ECR/IPv4/log billing/state has NOT been independently verified. **Do not reapply Terraform or redeploy merely because the historical runbook below includes uncompleted checkboxes.** Preserve state and verify the live account before any AWS operation.
+
+**Historical runbook:** The following instructions document how to provision/reproduce/teardown the restricted demo. They are **not** a claim that no AWS resource has ever been created.
 
 **Free plan operator:** If creating an AWS Organization would forfeit your remaining Free Tier credits, do not enable IAM Identity Center's organization instance. Instead use the existing scoped IAM user, MFA and temporary `aws login` from the [Free-plan IAM alternative](10_aws_free_plan_iam_user_bootstrap.md). The Identity Center setup below is only for already-established AWS Organizations.
 The design is a **short-lived internal research demonstration**, deliberately not a public HTTPS API.
