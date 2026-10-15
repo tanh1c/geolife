@@ -125,7 +125,7 @@ def suggest_destinations(
     ]
 
 
-def evaluate_last_event(
+def evaluate_first_heldout(
     visits: Sequence[Visit], *, train_fraction: float = 0.70
 ) -> dict[str, object]:
     """One next-place test event per eligible synthetic owner.
