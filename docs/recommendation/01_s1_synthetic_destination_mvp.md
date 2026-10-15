@@ -72,6 +72,36 @@ Authorization: Bearer <test-only-private-session-token>
 
 Never paste an actual bearer token, credentials, auth DB, raw coordinates or Terraform state in chat. Synthetic tests are sufficient to validate API ownership and disabled-by-default policy; no immediate local rerun is necessary if GitHub CI passes.
 
+## 5B. Optional local browser demo (Windows PowerShell, synthetic only)
+
+**This is the only step that requires your local machine if you want to visually inspect the demo.** Python CI already verifies route/AuthN in automated tests. **No AWS/Modal/ECR/EC2 access is needed.** The browser page and data are entirely fictional and contain no map tiles, real GPS, or HOME/OFFICE evidence scores.
+
+Run in your repo clone with Python environment installed (PowerShell):
+
+```powershell
+git fetch origin
+git switch feature/destination-s1-synthetic-recommender
+python -m pip install -e ".[dev]"
+
+# Create a private test account DB outside the repo, on your own machine:
+New-Item -ItemType Directory -Force "$HOME\geolife-private" | Out-Null
+$authDb = "$HOME\geolife-private\demo.sqlite3"
+python scripts/provision_demo_users.py --db $authDb --user-id 000
+# Type a fresh 12+-character TEST password at the terminal prompt.
+# If your DB already contains demo_000, do not reprovision/reset it.
+
+$env:GEOLIFE_DEMO_AUTH_DB = $authDb
+$env:GEOLIFE_ENABLE_SYNTHETIC_RECOMMENDER = "1"
+$env:GEOLIFE_PRIVATE_DEMO = "1"
+python -m uvicorn geolife.api.app:app --host 127.0.0.1 --port 8000
+```
+
+In your own browser: **http://127.0.0.1:8000/destination-demo**. Log in as `demo_000` using the password you just created, keep the default synthetic `when=2026-09-24T08:00:00+07:00`, and click **Xem Top-3 gợi ý**.
+
+Expected: up to 3 fictional `s0_*` destination refs, visible ordinal rank and plain-language reasons, no number presented as confidence/probability. The page's token stays in transient JavaScript memory (not `localStorage`); logout revokes session. The page itself is disabled (404) when the opt-in flag is unset. No external JS/map/CDN is loaded, and the endpoint remains AuthN-protected.
+
+**Important:** `demo_000` is a *synthetic internal account*. Its configured `dataset_user_id=000` association only satisfies the existing demo auth schema; this recommender **never queries or returns** participant 000's history. Do not reuse credentials or claim data ownership. Shut down this localhost service with Ctrl+C; remove local test DB when no longer needed. Do not expose port 8000 to the Internet.
+
 ## 6. Acceptance and next gate
 
 | S1 gate | Current implemented design |
@@ -82,7 +112,8 @@ Never paste an actual bearer token, credentials, auth DB, raw coordinates or Ter
 | 401 unauthorized, flag-disabled 404, no cross-owner place IDs, no numeric score/GPS | Implemented; Python CI PASS (synthetic) |
 | Immutable CP1/CP2 baselines, Evidence v1 and current AWS | No changes made |
 | Actual private Modal data / Stage06 trip transition integration | **NOT DONE / deliberate non-goal of S1** |
-| Web UI visual Top-3 / user confirmation | **NOT DONE** |
+| Synthetic web UI visual Top-3 | **IMPLEMENTED: off-by-default localhost demo page**; requires optional local browser inspection |
+| Real user-confirmed place CRUD/consent history | **NOT DONE** |
 | Multi-account real Cognito, public API and security review | **NOT DONE; separate approval** |
 | Independently validated ranking quality on non-synthetic data | **NOT DONE** |
 
