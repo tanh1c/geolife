@@ -12,12 +12,12 @@ Reported by operator (local AWS/Modal verification, not independently executed b
 - Docker image is pinned to ECR digest `sha256:a8ffb7a871616ecb7000772ca9ccdbc79a8cdaa65a21462c6baafce6421bdef5`.
 - SSM is Online; authenticated synthetic `demo_000` browser flow, `/health` and `/demo` work; anonymous protected request is rejected.
 - CloudWatch group `/geolife/dev/api` has log events in stream `geolife-demo`. An earlier Git Bash CLI error was **MSYS path conversion** of `/geolife/dev/api`, **not missing IAM permission**; it was resolved by `MSYS_NO_PATHCONV=1`. **Do not widen IAM** based on that incident.
-- **Measured AWS baseline (operator-reported; synthetic, SSM tunnel):** 50/50 HTTP 200, complete-link 200 m chosen for every request, p50 127.035 ms, p95 157.093 ms, p99 179.160 ms, mean 130.205 ms. These values include SSM and client network latency, and do not establish concurrent-load or GeoLife historical-data performance. **Still outstanding:** canary that actually selects DBSCAN, 10% split across enough accounts, and explicit baseline rollback following container recreation.
+- **AWS baseline → canary 100% → rollback smoke: PASS (operator-reported, synthetic, SSM tunnel).** Baseline: 50/50 HTTP 200, complete-link 50/50, p50/p95/p99 **127/157/179 ms**. Canary 100%: 50/50 HTTP 200, DBSCAN 50/50, **146/273/512 ms**. Rollback: 10/10 HTTP 200, complete-link 10/10, **127/201/234 ms**. Post-rollback `/health` = 200 and `/v2/model-info` reports `baseline` with configured `canary_percent=10` (inactive under baseline mode). Tunnel/client latency included; tests are single-account, not concurrent or real-user workload. 100% canary tail latency was higher in this run, without a general causal performance conclusion. **Still unverified:** actual 90/10 account-sticky split across multiple synthetic accounts.
 - GeoLife historical coordinates/private CP1 cache are **not** deployed to AWS. This is *not* a public API or a production user-identity system.
 - PR #72 (restricted authenticated serving/demo) merged; PR #73 (AWS/deployment) remains open.
 - EC2, EBS, public IPv4, logs and ECR may consume AWS credits while present/running. Preserve local Terraform state; stop compute when not actively testing.
 
-**Next operator checkpoint, BEFORE model work:** baseline authenticated benchmark is complete; next run a controlled **100% canary smoke with demo_000** (DBSCAN path), then **recreate/rollback to baseline**. If validating true 10% traffic allocation, provision many synthetic accounts and analyze model choice per account; a single sticky account cannot demonstrate percentage allocation. Preserve the current deploy digest, auth DB and private salt, do not rebuild/re-push unnecessarily. The complete operator runbook is `docs/deployment/08_aws_ssm_deployment_handoff.md`.
+**Next operator checkpoint:** baseline, 100% DBSCAN canary and rollback were demonstrated through SSM. Review the resulting evidence and PR #73 CI/release scope. If a real 10% deployment allocation is required for Checkpoint 2, provision enough synthetic accounts and measure per-account routing under `canary_percent=10` (a single sticky account cannot estimate the split); label this as a separate, pending acceptance gate. Avoid keeping EC2 running merely to re-run existing baseline/100% smoke; when idle, stop it. Only after delivery priorities are cleared begin the private/offline `evidence_strength_v2` investigation. Keep pinned ECR digest, auth DB, secrets, Terraform state and restricted network unchanged. See `docs/deployment/08_aws_ssm_deployment_handoff.md`.
 
 ## 1. Decisions frozen — do not silently change
 
@@ -98,12 +98,12 @@ Example: at 07:00 on a weekday, suggest a frequently chosen destination (possibl
 
 ## 5. Priority, handoff and explicit non-goals
 
-1. **NOW — close AWS serving gate:** Run `scripts/benchmark_authenticated_demo.py` over an active local SSM tunnel (`/v2/me/inferences`, **synthetic only**); record p50/p95/p99, status/model count. Verify authenticated canary with adequate synthetic accounts (single account cannot verify 90/10), container restart and rollback to baseline/digest; do not leak passwords/tokens/salts. Confirm existing CloudWatch stream without changing IAM. Complete PR #73 review/merge after evidence and shut down EC2 when idle.
+1. **NOW — close AWS release review:** Baseline latency, DBSCAN at 100% canary, rollback, SSM-only auth and CloudWatch stream have **operator-reported PASS** evidence. Preserve and review it in PR #73; verify CI and secure internal-only scope. **Pending separately:** optional/acceptance-dependent 90/10 account-sticky distribution across many synthetic accounts, which was **not** measured by the one-account 100% canary smoke. Do not claim public deployment, production-grade performance or concurrent-load coverage. Stop EC2 when idle and review billable leftovers. Merge PR #73 only with explicit human approval.
 2. **NEXT — research-only score/candidate study:** separate branch/PR; build offline candidate feature table, define missingness and score variants, preserve frozen baseline, run independent temporal robustness checks and write aggregate evaluation.
 3. **LATER — destination module:** build versioned internal ranking API and synthetic demonstrations; evaluate future-trip ranking independently of semantic label accuracy.
 4. **DEFER — public exposure / SQS / product launch:** follow agreed Track B1 milestones, security/identity/privacy/billing reviews and separate authorization. No blanket IAM grants, public port openings or historical GeoLife release.
 
-**Current local first step (Windows PowerShell):**
+**Reproduction reference only — baseline benchmark already completed (Windows PowerShell):**
 
 ```powershell
 $env:AWS_PROFILE = "geolife-terraform"
@@ -119,4 +119,4 @@ Keep that terminal open; in a **second** PowerShell terminal at repo root, only 
 python scripts/benchmark_authenticated_demo.py --url http://127.0.0.1:18000 --account demo_000 --requests 50 --warmup 5
 ```
 
-Password is entered interactively; share only sanitized benchmark JSON. With one sticky synthetic account, model counts reflect that account's assigned variant, not rollout-wide 10% traffic. Stop after baseline benchmark to review results before editing EC2 `runtime.env` for canary.
+**Historical benchmark instructions (already completed):** Password is entered interactively; share only sanitized benchmark JSON. One sticky synthetic account samples one model, not rollout-wide 10% traffic. The baseline/100%-canary/rollback tests above are complete; do not repeat them or edit the private `runtime.env` unless conducting a new, explicitly scoped acceptance test.
