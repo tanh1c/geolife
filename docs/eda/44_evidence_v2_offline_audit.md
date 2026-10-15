@@ -851,3 +851,65 @@ Only the aggregate printed JSON or
 `10_evidence_v2_offline/future_spatial_observability_aggregate.json`
 is appropriate to share. No raw GPS/user/coordinates,
 no automatic HOME/OFFICE label correction.
+
+
+## Stage 10i — Measured future time-vs-spatial observability
+
+**Operator-reported private Modal execution completed**, 2026-10-15.
+TRAIN-only frozen 70/30 candidate/label parity with Stage10f passed.
+All 44 emitted TRAIN candidates retained; 43 had FUTURE GPS in a
+relevant HOME-night or OFFICE-weekday behavior window, but only **31
+of those 43** had at least one future relevant behavior date with
+>=600 seconds of GPS uniquely compatible with *some* frozen TRAIN
+complete-link-200m location. Exactly 25 showed >=1-date same TRAIN
+candidate location; the other six had enough unique observations
+assigned to *other* TRAIN locations (not the originally emitted one).
+The remaining 12 were FUTURE-time-window observable but had **zero
+spatially resolvable relevant days**.
+
+| Metric | HOME | OFFICE | Total |
+| --- | ---: | ---: | ---: |
+| TRAIN emitted | 27 | 17 | 44 |
+| FUTURE relevant window observed | 27 | 16 | 43 |
+| FUTURE unique TRAIN location observable | 21 | 10 | 31 |
+| Same TRAIN anchor reappeared | 17 | 8 | 25 |
+| No same-anchor recurrence, other TRAIN location seen | 4 | 2 | 6 |
+| Time-observed but spatially unresolved | 6 | 6 | 12 |
+
+**Interpretation:** Of the 18 temporally assessable
+non-reappearances in Stage10f, 12/18 (=66.7%) are NOT uniquely
+spatially assessable, and six can be spatially mapped to an
+alternate TRAIN anchor. Under *conditioning on unique spatial
+assessability*, same-anchor reappearance is 25/31 (=80.6%);
+HOME 17/21 (=81.0%) and OFFICE 8/10 (=80.0%).
+This denominator is **selected by future GPS**, so these
+numbers are not population recurrence, prediction accuracy,
+semantic HOME/OFFICE correctness, or evidence score calibration.
+Even the six alternate-TRAIN-anchor cases may reflect incomplete
+HOME/OFFICE-specific future sampling, relocation, changed routine,
+or geometric alignment constraints rather than a wrong semantic label.
+
+**Conclusion:** Keep separate FUTURE observability types:
+(1) relevant-hour time-observed, (2) unique TRAIN-location
+spatially observed, and (3) same TRAIN location observed.
+Do not feed future-derived observability into a prediction-time
+confidence; it is an **evaluation outcome/censoring diagnostic**.
+Production CP2 and research candidate tiers remain frozen.
+Stage10h median v1 comparisons on time-only assessable anchors
+are confounded by the 12 spatially unresolved cases.
+
+## Next: Stage 10j — Predeclared multi-cutoff sensitivity
+
+Compare frozen TRAIN-only CP2 anchor reappearance under
+**60%, 70%, and 80% early observed-UTC-date splits**, with
+later local behavior-window and uniquely matched TRAIN-anchor
+observability **reported separately**. Do not tune any 200m
+matching threshold or Evidence v1/v2 formula on FUTURE
+outcomes. Keep the same complete-link training policy and
+mark cutoff-crossing stays excluded. These nested splits
+re-use the **same users**; they are correlated sensitivity
+checks, **not independent replications** or confidence intervals.
+A stricter validation would also require disjoint later
+participants, temporal cutoffs fixed without future-activity
+timeline knowledge, and labeled semantics if accuracy is
+the scientific question.
