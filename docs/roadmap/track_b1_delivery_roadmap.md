@@ -1,5 +1,7 @@
 # Track B1 — MLE delivery roadmap (post-EDA pivot)
 
+> **Current checkpoint (2026-10-15):** Original 2026-10-12 roadmap below is a historical plan. For verified-vs-pending Track B1 checkpoints, see **[2026-10-15 delivery/research status update](#2026-10-15--roadmap-checkpoint-what-is-done-and-what-remains)** at the end, [milestone report](../../reports/milestone/2026-10-15_progress_update_vi.md) and AWS [PR #73](https://github.com/tanh1c/geolife/pull/73). Stage10 offline Evidence v2 was concluded without score migration; see [Stage10 research decision](../eda/45_evidence_v2_final_decision.md). Do not treat older TODO rows as current deployment status.
+
 Updated: 2026-10-12. Status: **IMPLEMENTATION PLAN, NOT A CLAIM OF DEPLOYMENT**.
 
 ## Objective and scope
@@ -100,3 +102,29 @@ See `docs/deployment/05_modal_real_data_e2e.md`.
 ## 2026-10-13 — Restricted internal-demo security review
 
 Review: `docs/deployment/07_security_review_pre_merge.md`. The previous parallel anonymous inference endpoints are now blocked in Docker/private demo runtime (`GEOLIFE_PRIVATE_DEMO=1` or configured auth DB), while standalone v1 Python parity remains available. Added no-store/CSP/clickjacking headers, declared-content-length 3 MiB rejection, Docker regression checks, and security test coverage. **Residual public-deployment blockers:** no independently verified identity of GeoLife original participants; historical HOME/OFFICE coordinates remain sensitive even after rounding; trusted pickle supply chain; chunked body cap, TLS/restricted ingress, rate limiting, centralized account lifecycle and cloud secret/IAM controls. Merge only as internal research code after review and green CI; public AWS exposure is not approved.
+
+
+## 2026-10-15 — Roadmap checkpoint: what is done and what remains
+
+The original delivery plan above is superseded by this **factual addendum for status**; the original tasks/acceptance criteria still explain project intent. Operator-reported AWS and private Modal acceptance is distinct from GitHub CI. No private GPS dataset or production deployment is implied.
+
+| Workstream | Measured / verified by 2026-10-15 | Remaining acceptance |
+| --- | --- | --- |
+| P0 serving/FastAPI | PR #72 merged to \`main\`; authenticated internal-only FastAPI v2 map with synthetic/new-GPS and private dataset mode under scoped accounts; CP1/CP2 frozen baseline, alternate complete-link 200m vs DBSCAN 100m | Keep public security restrictions; private data not deployed to AWS |
+| P0 Docker & API CI | Python CI and Docker smoke PASS for merged PR #72 and current open PR #73 (head \`b5528042\`) | Release review/merge PR #73 only after human approval |
+| P0 AWS single-host sync serving | Operator-reported ECR digest-pinned container served authenticated synthetic inference via local SSM port-forward to EC2; SG ingress []; CloudWatch log stream populated | No public HTTPS/Internet ingress; current post-test EC2 shutdown/billing state unverified |
+| P1 authenticated rollout | Operator-reported baseline→100% DBSCAN canary→baseline rollback all succeed on one sticky synthetic account, 50/50, 50/50, 10/10 requests | **90/10 routing distribution across multiple synthetic accounts unverified**; no zero-downtime blue-green/shadow implementation |
+| P1 latency benchmark | p50/p95/p99 from client over SSM: baseline 127/157/179 ms, 100%-DBSCAN 146/273/512 ms, rollback 127/201/234 ms | Concurrent/replay load, throughput, error budget, true external network latency not measured |
+| P1 observability | App HTTP counters and latency histogram, protected internal metrics and CloudWatch log events | CloudWatch dashboard, collection of p50/p95/p99 by version, uptime/error/abstention plots and a privacy-safe simulated chronological drift replay **not deployed** |
+| P1 async jobs | Not started as deployed flow | SQS pointer-only queue, encrypted/TTL private payload and results, async worker, idempotency/retries/DLQ, polling \`/v2/jobs/{id}\`, sync-vs-async comparison |
+| Offline Evidence v2 study | Stage10a–10l operator-reported complete; [decision record](../eda/45_evidence_v2_final_decision.md); PR #74 open, CI/docker smoke PASS at prior head \`ceddc4f\` | **Do not promote** scalar v2; no new 10m on only nine comparable cases |
+| HOME/OFFICE coverage EDA | Prior Stage08a/08c tiered candidates HOME 36 / OFFICE 19 research-only; Stage09 stitching comparator 5,831 vs frozen 5,821 stays had no additional stay users or emissions | **Separate future research**: cross-file trajectory chronology/duplication audit → eligibility waterfall → controlled gate sensitivity → independent semantic labels |
+
+### Recommended next execution order
+
+1. **Finish Track B1 sync demo handoff first:** review PR #73 with current CI, preserve Terraform state/image digest and verify AWS runtime/billable assets are stopped/teardown as intended. If required by evaluator, test per-account sticky 90/10 with many synthetic accounts; a 100% canary test does not establish 90/10. Do not restart EC2 just to repeat already-passed synthetic baseline/100% tests.
+2. **Implement P1 async SQS POC** after scoped privacy/IAM/cost review: \`POST /v2/jobs\` creates a unique job ID; store a synthetic-only request in encrypted restricted TTL storage; publish job ID/pointer to SQS (never GPS bodies); worker processes idempotently; \`GET /v2/jobs/{job_id}\` requires auth; record queued/running/succeeded/failed and retry/DLQ behaviour; demonstrate against real restricted service and benchmark sync vs async. No historical per-user GeoLife private data.
+3. **Complete monitoring/mentor demo pack:** Prometheus metrics/sanitized CloudWatch logs, model/version-specific latency/error/abstain aggregates, cost/teardown proof, synthetic replay marked \`simulated_offline_replay\`, screen recording or screenshots, architecture and privacy boundaries. Do not label static GeoLife replay as live production drift.
+4. **Then reopen EDA as a separate workstream:** user-level global chronology across \`.plt\` files, duplicate overlap/stitching validity, CP1 stay-user and CP2 emission waterfall by exposure group, one-variable strict threshold sensitivity on a frozen control, outcome/abstention tracking, never automatically migrate research tiers to production. Acquire independent semantic truth for actual accuracy/scoring claims.
+
+**Roadmap decision:** Track B1 has progressed beyond “infrastructure ready” to **restricted private AWS sync demo demonstrated**. It has **not** met the full original definition of done requiring async jobs and dashboard/replay. Stage10 v2 audit is **research-closed** rather than successful score replacement. Neither PR #73 nor PR #74 should be auto-merged or used to change production policy in this documentation update.
