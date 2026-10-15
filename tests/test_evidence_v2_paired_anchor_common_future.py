@@ -40,7 +40,7 @@ def test_cross_cutoff_ids_not_used_to_decide_identity():
     old = _frame([(39.9, 116.4), (39.9001, 116.4)])
     same = _frame([(39.9001, 116.4)])
     far = _frame([(39.92, 116.4)])
-    partial = _frame([(39.9017, 116.4)])
+    partial = _frame([(39.90185, 116.4)])  # ~206m from first, ~195m from second
     assert m.anchor_geometry(old, same, threshold_m=200) == "strict_compatible"
     assert m.anchor_geometry(old, far, threshold_m=200) == "fully_separated"
     assert m.anchor_geometry(old, partial, threshold_m=200) == "partial_overlap_uncertain"
