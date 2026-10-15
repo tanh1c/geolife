@@ -2,6 +2,6 @@
 
 No historical GeoLife participant linkage or semantic HOME/OFFICE truth.
 """
-from .destination import Visit, suggest_destinations, evaluate_last_event
+from .destination import Visit, suggest_destinations, evaluate_first_heldout
 
-__all__ = ["Visit", "suggest_destinations", "evaluate_last_event"]
+__all__ = ["Visit", "suggest_destinations", "evaluate_first_heldout"]
