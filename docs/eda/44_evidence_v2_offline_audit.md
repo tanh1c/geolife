@@ -287,3 +287,75 @@ or the deployed API. After the result, compare a missingness-aware,
 factorized evidence representation rather than naively forcing every
 case through a relative-top-two geometric mean; separate sparse HOME
 stability evaluation remains necessary.
+
+## Stage 10c — Measured runner-up provenance (operator-reported, 2026-10-15)
+
+The operator ran Stage 10c successfully after installing `timezonefinder==9.0.0`
+in the Modal notebook interpreter. The frozen CP2 representation and all
+**55 candidate identities/shares passed exact namespace/ranking parity**.
+The 34 missing second-rank values found in Stage 10a/10b correspond to
+**34 candidates with precisely one eligible location** under the respective
+CP2 ranker; the other **21 candidates have an eligible runner-up**.
+They are not caused by a broken 08b → 10a join.
+
+| Tier / regime | Only one eligible location | Has eligible second |
+| --- | ---: | ---: |
+| HOME_CORE DENSE | 9 | 7 |
+| HOME_CORE MEDIUM | 11 | 0 |
+| HOME_PROBABLE DENSE | 1 | 4 |
+| HOME_SPARSE_CANDIDATE SPARSE | 4 | 0 |
+| OFFICE_CORE DENSE | 4 | 7 |
+| OFFICE_CORE MEDIUM | 4 | 1 |
+| OFFICE_ROBUST_CANDIDATE DENSE | 1 | 2 |
+| **Total** | **34** | **21** |
+
+**Important interpretation:** "one eligible location" is conditional on the
+label-specific ranker and its support-date/stay-count gates, in the history
+we managed to observe. It does **not** imply the person has only one
+real-life destination, or that competing HOME/OFFICE hypotheses have 0%
+probability. In particular, all 11 MEDIUM HOME_CORE candidates lack an
+eligible peer despite having an emitted HOME.
+
+**Decision recorded:** No production change to v1 or v2; no automatic
+`C=1` for singletons; do not create arbitrary probabilities by applying
+a different denominator. Move to separately reported factorized evidence
+dimensions with independent later temporal validation.
+
+## Stage 10d — Factorized evidence dimensions (new offline study, not a replacement)
+
+Stage 10d reads **only existing trusted private** Stage 10a `candidate_scored_private.pkl`
+and Stage 10c `runner_up_provenance_private.pkl`. It produces
+individually typed/availability-gated evidence *dimensions*, rather than
+trying to force all 55 candidates into one scalar:
+
+- `observed_date_coverage = candidate_support_days / opportunity_days`;
+- `support_factor = min(candidate_support_days / 5, 1)` (two different temporal
+  descriptions; not independent accuracy probabilities);
+- `identity_stability`, if Stage-05 exact-candidate dropout evidence exists;
+- `relative_peer_dominance = top_share / (top_share + runner_up_share)`,
+  **only** when Stage 10c proves there is a second eligible location.
+
+All rows retain `eligible_competitor_status`; a singleton's relative
+dominance is **inapplicable/unknown**, not 1.0. If Stage 10a vs Stage 10c
+candidate identity or score feature availability disagrees, stop instead
+of emitting a report. CI uses *only synthetic* fixtures.
+
+On an existing Modal Jupyter kernel, fetch the latest research branch
+into the separate checkout and run:
+
+```bash
+python /tmp/geolife-evidence-v2-stage10a/analysis/10d_evidence_v2_factorized_profile.py \
+  --cache-root /mnt/geolife-data/cache/cp2_v2
+```
+
+Private output (do not share):
+`10_evidence_v2_offline/factorized_dimensions_private.pkl`.
+
+Only share reviewed aggregate JSON printed and saved as:
+`10_evidence_v2_offline/factorized_dimensions_aggregate.json`.
+
+**Open question:** How should candidate quality be assessed under an
+independent *future-period* identity-retention test, when the original
+period has exactly one eligible location? Until that study, report a
+multi-dimensional evidence profile and candidate tier, **not a percent
+confidence nor a cross-tier calibrated quality ranking**.
