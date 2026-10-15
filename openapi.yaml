@@ -331,8 +331,108 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - HTTPBearer: []
+  /v2/me/destination-suggestions:
+    get:
+      tags:
+      - synthetic-private-recommendation
+      summary: Authenticated owner-scoped synthetic Top-3 destination suggestions
+      operationId: destination_suggestions_v2_me_destination_suggestions_get
+      parameters:
+      - name: when
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          description: Timezone-aware local date-time for the query
+          title: When
+        description: Timezone-aware local date-time for the query
+      - name: origin_place_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 64
+          - type: 'null'
+          title: Origin Place Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
 components:
   schemas:
+    DestinationResponse:
+      properties:
+        source:
+          type: string
+          const: synthetic_fixture
+          title: Source
+          default: synthetic_fixture
+        model:
+          type: string
+          const: context_ranker_s1_v0
+          title: Model
+          default: context_ranker_s1_v0
+        status:
+          type: string
+          enum:
+          - suggested
+          - abstained
+          title: Status
+        suggestions:
+          items:
+            $ref: '#/components/schemas/SuggestedPlace'
+          type: array
+          title: Suggestions
+        abstention_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Abstention Reason
+          default: null
+        note:
+          type: string
+          title: Note
+          default: "Đề xuất từ dữ liệu synthetic; không phải nhãn HOME/OFFICE xác minh."
+      type: object
+      required:
+      - status
+      - suggestions
+      title: DestinationResponse
+    SuggestedPlace:
+      properties:
+        rank:
+          type: integer
+          maximum: 3
+          minimum: 1
+          title: Rank
+        place_ref:
+          type: string
+          title: Place Ref
+        explanations:
+          items:
+            type: string
+          type: array
+          title: Explanations
+      type: object
+      required:
+      - rank
+      - place_ref
+      - explanations
+      title: SuggestedPlace
     AbstainedResult:
       properties:
         label:
