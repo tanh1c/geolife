@@ -1,6 +1,6 @@
 # Lessons Learned — GeoLife checkpoint ngày 15/10/2026
 
-Đây là bản tóm tắt các bài học để tái sử dụng trong roadmap và mentor report; diễn giải chi tiết nằm trong \`docs/learning-journal-vi.md\`, \`docs/learning-journal-en.md\`, \`docs/worklog.md\`, và \`docs/eda/45_evidence_v2_final_decision.md\`.
+Đây là bản tóm tắt các bài học để tái sử dụng trong roadmap và mentor report; diễn giải chi tiết nằm trong `docs/learning-journal-vi.md`, `docs/learning-journal-en.md`, `docs/worklog.md`, và `docs/eda/45_evidence_v2_final_decision.md`.
 
 ## 1. Luôn tách “đã chạy” khỏi “đã sẵn sàng production”
 - AWS SSM-only nội bộ đã được người vận hành chứng minh với synthetic requests, CloudWatch log events, baseline/100% canary/rollback.
@@ -12,7 +12,7 @@
 - Trong bài thử qua SSM, baseline p50/p95/p99 = 127/157/179 ms, DBSCAN 100% = 146/273/512 ms, rollback = 127/201/234 ms. Không suy ra latency tổng quát hay causal model comparison.
 
 ## 3. Debug môi trường trước khi mở IAM
-- CloudWatch Logs command thất bại do Git Bash MSYS chuyển đổi slash-argument, được giải quyết bằng \`MSYS_NO_PATHCONV=1\`.
+- CloudWatch Logs command thất bại do Git Bash MSYS chuyển đổi slash-argument, được giải quyết bằng `MSYS_NO_PATHCONV=1`.
 - Không nới IAM nếu chưa chứng minh đó thực sự là authorization error.
 
 ## 4. Missing feature không phải negative evidence
