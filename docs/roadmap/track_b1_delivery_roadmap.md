@@ -2,6 +2,8 @@
 
 Updated: 2026-10-12. This page preserves the **original post-EDA delivery plan / historical status at pivot**.
 
+> **Unified acceptance source (2026-10-15):** [Master Roadmap: full original Checkpoint 1–3 + prioritized Destination Recommendation + mentor security + dataset comparison](2026-10-15_track_b1_unified_master_roadmap.md). This historical roadmap remains for context; the unified document reconciles the required SQS/monitoring Track B1 definition of done with the agreed newer product priority, rather than silently dropping Checkpoint 3.
+
 **Current checkpoint (2026-10-15; operator-reported):** private FastAPI Docker demo is now running on EC2 through SSM, synthetic authenticated inference and CloudWatch log events verified. **AWS authenticated synthetic baseline (50/50), 100% DBSCAN canary (50/50) and rollback to baseline (10/10) are PASS (operator-reported), with p50/p95/p99 recorded in worklog. True 10% split across multiple synthetic accounts remains unverified; concurrency, public access, and real GeoLife-data performance are not claimed.** IAM/log access requires no new policy: an earlier Git Bash CloudWatch CLI failure was MSYS path conversion. Frozen production HOME 27 / OFFICE 16 remains unchanged. For current priorities, proposed `evidence_strength_v2`, separate Stage 08a–08c candidate tiers and future private destination recommendation, see **[post-AWS-serving roadmap](2026-10-15_evidence_v2_candidate_tiers_destination_recommendation.md)**. No public endpoint, no historical GeoLife data on AWS.
 
 The below status table is a dated baseline; do not interpret its old “not deployed” rows as the live AWS state.
