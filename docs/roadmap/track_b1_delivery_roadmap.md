@@ -1,6 +1,10 @@
 # Track B1 — MLE delivery roadmap (post-EDA pivot)
 
-Updated: 2026-10-12. Status: **IMPLEMENTATION PLAN, NOT A CLAIM OF DEPLOYMENT**.
+Updated: 2026-10-12. This page preserves the **original post-EDA delivery plan / historical status at pivot**.
+
+**Current checkpoint (2026-10-15; operator-reported):** private FastAPI Docker demo is now running on EC2 through SSM, synthetic authenticated inference and CloudWatch log events verified. **AWS authenticated synthetic baseline (50/50), 100% DBSCAN canary (50/50) and rollback to baseline (10/10) are PASS (operator-reported), with p50/p95/p99 recorded in worklog. True 10% split across multiple synthetic accounts remains unverified; concurrency, public access, and real GeoLife-data performance are not claimed.** IAM/log access requires no new policy: an earlier Git Bash CloudWatch CLI failure was MSYS path conversion. Frozen production HOME 27 / OFFICE 16 remains unchanged. For current priorities, proposed `evidence_strength_v2`, separate Stage 08a–08c candidate tiers and future private destination recommendation, see **[post-AWS-serving roadmap](2026-10-15_evidence_v2_candidate_tiers_destination_recommendation.md)**. No public endpoint, no historical GeoLife data on AWS.
+
+The below status table is a dated baseline; do not interpret its old “not deployed” rows as the live AWS state.
 
 ## Objective and scope
 
@@ -100,3 +104,9 @@ See `docs/deployment/05_modal_real_data_e2e.md`.
 ## 2026-10-13 — Restricted internal-demo security review
 
 Review: `docs/deployment/07_security_review_pre_merge.md`. The previous parallel anonymous inference endpoints are now blocked in Docker/private demo runtime (`GEOLIFE_PRIVATE_DEMO=1` or configured auth DB), while standalone v1 Python parity remains available. Added no-store/CSP/clickjacking headers, declared-content-length 3 MiB rejection, Docker regression checks, and security test coverage. **Residual public-deployment blockers:** no independently verified identity of GeoLife original participants; historical HOME/OFFICE coordinates remain sensitive even after rounding; trusted pickle supply chain; chunked body cap, TLS/restricted ingress, rate limiting, centralized account lifecycle and cloud secret/IAM controls. Merge only as internal research code after review and green CI; public AWS exposure is not approved.
+
+## Checkpoint 2 AWS preparation (PR #73; not deployed)
+
+Code-only implementation on `feature/track-b1-aws-deployment`: Terraform SSM-only EC2/ECR/CloudWatch architecture with no inbound ports, EC2 least-privilege ECR pull/SSM role, immutable ECR image references, guarded local ECR push script, internal SSM port-forwarding runbook, and account-sticky authenticated canary selection on both dataset and new-GPS API routes. Current frozen CP2 baseline remains the default and private GeoLife cache transfer is **not** authorized.
+
+Operator gates: account and IAM preflight, budget/cost review, choose VPC/public subnet, approve Terraform plan/apply, provision synthetic account, push ECR image, private SSM tunnel demo, canary/rollback/latency measurements and destroy resources. No AWS `apply`, ECR upload, latency number or drift result has been claimed. See `docs/deployment/08_aws_ssm_deployment_handoff.md`.

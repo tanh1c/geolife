@@ -4263,3 +4263,37 @@ Code review identified a real API surface mismatch: the newly authenticated demo
 Response hardening now includes `Cache-Control: no-store`, nosniff, no-referrer, anti-framing/permissions headers and consent UI CSP. Declared HTTP request bodies over 3 MiB receive 413; streaming/chunked upload limits remain an **ingress** requirement, along with HTTPS, firewall, rate limits, secrets/permissions and data-retention policy. Added tests in `tests/test_security_private_demo.py` and updated Docker smoke expectations for restricted mode.
 
 **Review outcome:** candidate for *internal research merge only*, conditional on last-commit CI/Docker PASS and explicit reviewer acknowledgment. **Not approved** for public deployment of historical GeoLife user locations or identity verification. Full severity and residual findings in `docs/deployment/07_security_review_pre_merge.md`. No merge or AWS provisioning performed by this change.
+
+## 2026-10-15 — AWS serving checkpoint and next evidence/recommendation decisions
+
+**Operator-reported AWS internal serving milestone:** EC2 `c7i-flex.large` running; SSM Online; zero inbound SG, HTTPS-only egress; ECR digest-pinned x86_64 Docker image serving FastAPI on EC2 loopback `127.0.0.1:8000`. Local SSM tunnel returned HTTP 200 for `/health` and `/demo`, HTTP 401 for unauthenticated protected requests; authenticated `demo_000` synthetic GPS demo worked. CloudWatch `/geolife/dev/api` / `geolife-demo` contains events. Earlier Git Bash `logs:DescribeLogStreams` failure came from MSYS `/geolife/dev/api` path rewriting, resolved with `MSYS_NO_PATHCONV=1` — **not an IAM policy defect**. No logs-policy expansion required. No real GeoLife cache transferred to AWS; no public endpoint.
+
+**Open delivery gates:** AWS authenticated synthetic p50/p95/p99, canary across multiple synthetic accounts, explicit restart/rollback to baseline, PR #73 review/merge and cost-controlled EC2 shutdown when idle. Do not claim these tests complete before operator output.
+
+**New model decision (plan only):** keep frozen CP1/CP2-v2 baseline (5,821 stays / HOME 27 / OFFICE 16) and current `evidence_strength` semantics. Existing `(share + margin + min(dates/5,1))/3` is **heuristic evidence, not calibrated probability**; it is computed after emission gates, so a formula change alone cannot recover abstentions. A separate `evidence_strength_v2` offline experiment may compare relative top-2 dominance, observed-opportunity coverage, candidate identity robustness and support saturation; proposed geometric formula is only a hypothesis requiring temporal holdouts, exposure/failure-mode audit and explicit missing-component handling. Do not replace production or display percentage correctness without real labels/calibration.
+
+**Near-label decision (plan only):** retain independent candidate tiers: Stage 08a +5 HOME_PROBABLE, Stage 08c +4 sparse HOME 2/2, Stage 08c +3 robust OFFICE from nine near-miss cases. Tiered research view HOME 36 / OFFICE 19 is **not** a new production emission count. Mobility/route/multi-anchor signatures do not automatically become OFFICE candidates. Future candidate scoring must be pre-gate and preserve each policy's provenance and abstention.
+
+**Product direction (proposal only):** a separate context-aware destination recommender using Stage-06 recurring OD/departure-time evidence, Stage-07 factorized mobility, consented user feedback, current origin/daypart, and Top-K ranking; distinct from HOME/OFFICE semantic correctness. Internal/private module first; do not open inbound EC2 or integrate GeoLife historical private coordinates into a public app.
+
+**Single source of truth / priority order:** `docs/roadmap/2026-10-15_evidence_v2_candidate_tiers_destination_recommendation.md`. **NOW:** run authenticated synthetic AWS benchmark over SSM; **NEXT:** controlled canary/rollback; **LATER:** offline evidence-v2/candidate tier study, then destination module.
+
+## 2026-10-15 — AWS authenticated synthetic sync benchmark (operator-reported)
+
+Local Windows PowerShell operator ran `python scripts/benchmark_authenticated_demo.py --url http://127.0.0.1:18000 --account demo_000 --requests 50 --warmup 5` through the authenticated SSM tunnel against the previously deployed ECR-digest-pinned private FastAPI service. Sanitized result reported **50/50 HTTP 200 (success_rate 1.0)**, **50/50 `cp2-v2-complete-link-200m` baseline**, client-observed **p50 127.035 ms**, **p95 157.093 ms**, **p99 179.160 ms**, **mean 130.205 ms**. Only synthetic GPS points were used. These values include client/network/SSM tunnel overhead; they are not real GeoLife-data or concurrent-load benchmarks, and one sticky account cannot test canary traffic percentages.
+
+**Gate update:** baseline AWS authenticated sync benchmark = **PASS** (operator-reported). Pending: controlled `GEOLIFE_ROLLOUT_MODE=canary` test that actually selects DBSCAN 100 m (first use 100% canary with one synthetic account), explicit **recreate + baseline rollback**, and optional multi-account 10% HMAC traffic split validation. Leave model/privacy/IAM/Terraform unchanged. Verify image digest unchanged and CloudWatch continues working; preserve original root-only runtime env (including salt) without copying secrets to logs/repo. Stop EC2 when idle to reduce credit usage.
+
+## 2026-10-15 — AWS authenticated baseline → 100% canary → rollback E2E (operator-reported)
+
+Operator completed the controlled three-stage rollout against the same private, digest-pinned AWS EC2 service over an authenticated **SSM tunnel**, with only **synthetic GPS** and one provisioned account `demo_000`. Results below are **operator-reported** client-observed latency (includes the SSM/client network), not public-endpoint, concurrent-load or real GeoLife-data measurements.
+
+| Stage | HTTP success | Routed model | p50 ms | p95 ms | p99 ms |
+| --- | --- | --- | ---: | ---: | ---: |
+| Baseline | 50/50 HTTP 200 | `cp2-v2-complete-link-200m`: 50/50 | 127 | 157 | 179 |
+| Canary 100% | 50/50 HTTP 200 | `cp2-v2-dbscan-100m`: 50/50 | 146 | 273 | 512 |
+| After rollback | 10/10 HTTP 200 | `cp2-v2-complete-link-200m`: 10/10 | 127 | 201 | 234 |
+
+After rollback: `/health` HTTP 200; `/v2/model-info` reports `routing_mode=baseline` and `canary_percent=10`. In baseline mode, configured 10% is **not active canary allocation**. Verified: routing switches to DBSCAN at 100% and switches back to frozen complete-link after restart/rollback. The canary run showed higher observed tail latency (p95/p99) than the 50-request baseline run; sample size, tunnel, and test conditions preclude attributing this to the algorithm as a general performance conclusion.
+
+**Track B1 AWS private synthetic sync deployment, canary-path and rollback smoke gates: PASS (operator-reported).** Remaining distinct gate: if demonstrating a genuine 90/10 account-sticky split, test across sufficiently many **synthetic accounts** (not many requests from one account); no 90/10 distribution claim is made. Other backlog: concurrent load/async SQS, drift/replay dashboard, public security requirements and independent latency validation. PR #73 remains unmerged until explicitly reviewed/approved. No change to IAM, Terraform, frozen CP1/CP2 or historical-data privacy posture. Stop EC2 when no longer needed to reduce credits; EBS/ECR/log costs may persist.

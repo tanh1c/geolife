@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Literal
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from geolife.model import HomeOfficeConfig, build_semantic_locations, infer_home_office
@@ -25,7 +25,7 @@ from .demo_auth import (
 )
 from .schemas import AbstentionReason, ClassifyRequest, GpsPoint
 from .service import raw_request_to_stay_frame
-from .v2 import BASELINE, EVIDENCE_METHOD
+from .v2 import BASELINE, EVIDENCE_METHOD, model_config, rollout_config, release_id, selected_model_for_token
 
 
 router = APIRouter(tags=["authenticated-demo"])
@@ -53,6 +53,8 @@ class DemoInferenceResponse(BaseModel):
     dataset_user_id: str
     source: Literal["dataset_cp1_cache", "new_gps"]
     model_version: str = BASELINE
+    routing_mode: Literal["baseline", "canary"] = "baseline"
+    release_id: str = "local-unversioned"
     coordinate_precision: Literal["rounded_3_decimals"] = "rounded_3_decimals"
     raw_points: int | None
     detected_stays: int
@@ -112,6 +114,7 @@ def _build_result(
     *,
     source: Literal["dataset_cp1_cache", "new_gps"],
     raw_points: int | None,
+    variant: str = BASELINE,
 ) -> DemoInferenceResponse:
     warnings = [
         "HOME/OFFICE are heuristic labels, not GeoLife ground-truth annotations.",
@@ -121,6 +124,7 @@ def _build_result(
     base = dict(
         dataset_user_id=account.dataset_user_id,
         source=source, raw_points=raw_points,
+        model_version=variant, routing_mode=rollout_config()[0], release_id=release_id(),
         detected_stays=len(stays),
         recurring_locations=0,
         predictions={
@@ -132,7 +136,7 @@ def _build_result(
     if stays.empty:
         return DemoInferenceResponse(**base)
 
-    semantic, location_summary = build_semantic_locations(stays, config=_CFG)
+    semantic, location_summary = build_semantic_locations(stays, config=model_config(variant))
     if semantic.empty:
         for v in base["predictions"].values():
             v["reason"] = AbstentionReason.INSUFFICIENT_SEMANTIC_EVIDENCE.value
@@ -145,7 +149,7 @@ def _build_result(
             v["reason"] = AbstentionReason.INSUFFICIENT_RECURRING_HISTORY.value
         return DemoInferenceResponse(**base)
 
-    selected = infer_home_office(stays, config=_CFG)
+    selected = infer_home_office(stays, config=model_config(variant))
     emitted_ids: set[int] = set()
     loc_by_id = {
         int(row.location_id): row
@@ -215,17 +219,25 @@ def demo_me(account: DemoAccount = Depends(current_account)) -> DemoAccount:
 
 @router.post("/v2/me/dataset-inferences", response_model=DemoInferenceResponse)
 def demo_dataset(
+    request: Request,
     account: DemoAccount = Depends(current_account),
 ) -> DemoInferenceResponse:
+    variant = selected_model_for_token("demo-account:" + account.account_id)
+    request.state.model_variant = variant
     stays = dataset_stays_for_account(account)
-    return _build_result(stays, account, source="dataset_cp1_cache", raw_points=None)
+    return _build_result(stays, account, source="dataset_cp1_cache", raw_points=None, variant=variant)
 
 
 @router.post("/v2/me/inferences", response_model=DemoInferenceResponse)
 def demo_new_trajectory(
-    body: DemoTrajectoryBody, account: DemoAccount = Depends(current_account),
+    body: DemoTrajectoryBody, request: Request,
+    account: DemoAccount = Depends(current_account),
 ) -> DemoInferenceResponse:
+    variant = selected_model_for_token("demo-account:" + account.account_id)
+    request.state.model_variant = variant
     stays = raw_request_to_stay_frame(
         account.dataset_user_id, ClassifyRequest(points=body.points)
     )
-    return _build_result(stays, account, source="new_gps", raw_points=len(body.points))
+    return _build_result(
+        stays, account, source="new_gps", raw_points=len(body.points), variant=variant
+    )
