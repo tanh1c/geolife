@@ -12,12 +12,12 @@ Reported by operator (local AWS/Modal verification, not independently executed b
 - Docker image is pinned to ECR digest `sha256:a8ffb7a871616ecb7000772ca9ccdbc79a8cdaa65a21462c6baafce6421bdef5`.
 - SSM is Online; authenticated synthetic `demo_000` browser flow, `/health` and `/demo` work; anonymous protected request is rejected.
 - CloudWatch group `/geolife/dev/api` has log events in stream `geolife-demo`. An earlier Git Bash CLI error was **MSYS path conversion** of `/geolife/dev/api`, **not missing IAM permission**; it was resolved by `MSYS_NO_PATHCONV=1`. **Do not widen IAM** based on that incident.
-- **NOT measured yet on AWS:** authenticated sync p50/p95/p99; canary behavior across synthetic accounts; baseline rollback following container recreation.
+- **Measured AWS baseline (operator-reported; synthetic, SSM tunnel):** 50/50 HTTP 200, complete-link 200 m chosen for every request, p50 127.035 ms, p95 157.093 ms, p99 179.160 ms, mean 130.205 ms. These values include SSM and client network latency, and do not establish concurrent-load or GeoLife historical-data performance. **Still outstanding:** canary that actually selects DBSCAN, 10% split across enough accounts, and explicit baseline rollback following container recreation.
 - GeoLife historical coordinates/private CP1 cache are **not** deployed to AWS. This is *not* a public API or a production user-identity system.
 - PR #72 (restricted authenticated serving/demo) merged; PR #73 (AWS/deployment) remains open.
 - EC2, EBS, public IPv4, logs and ECR may consume AWS credits while present/running. Preserve local Terraform state; stop compute when not actively testing.
 
-**Next operator checkpoint, BEFORE model work:** finish the existing Track B1 AWS serving acceptance: authenticated synthetic benchmark over SSM, explicit canary variant and rollback tests, privacy-safe logs / sanitized evidence. Preserve the current deploy digest and release reference, do not rebuild/re-push unnecessarily. The complete operator runbook is `docs/deployment/08_aws_ssm_deployment_handoff.md`.
+**Next operator checkpoint, BEFORE model work:** baseline authenticated benchmark is complete; next run a controlled **100% canary smoke with demo_000** (DBSCAN path), then **recreate/rollback to baseline**. If validating true 10% traffic allocation, provision many synthetic accounts and analyze model choice per account; a single sticky account cannot demonstrate percentage allocation. Preserve the current deploy digest, auth DB and private salt, do not rebuild/re-push unnecessarily. The complete operator runbook is `docs/deployment/08_aws_ssm_deployment_handoff.md`.
 
 ## 1. Decisions frozen — do not silently change
 
