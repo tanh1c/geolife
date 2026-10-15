@@ -1427,3 +1427,26 @@ Bức tranh coverage hữu ích hiện tại:
 Bài học: exposure-aware inference có thể tăng coverage, nhưng mechanism phải
 đúng theo failure mode. Sparse HOME cần normalize theo opportunity support;
 dense HOME cần relative concentration; OFFICE vẫn cần robustness filter mạnh.
+
+
+## 2026-10-15 — Một deployment đã chạy được không đồng nghĩa hệ thống đã sẵn sàng public
+
+Sau bản báo cáo 13/10, Track B1 thực sự tiến từ \`AWS Infrastructure Ready\` đến một **internal sync serving demo trên EC2 qua SSM**. Người vận hành đã build/push ECR digest-pinned image, chạy Docker FastAPI trên loopback, đi qua SSM port-forward, kiểm tra auth flow synthetic, CloudWatch logs và vòng baseline→100% canary→rollback.
+
+Benchmark SSM-authenticated chỉ là một quan sát có điều kiện: baseline 50/50 HTTP thành công với p50/p95/p99 127/157/179 ms; 100% DBSCAN canary 50/50 với 146/273/512 ms; rollback baseline 10/10 với 127/201/234 ms. Chưa đo tải đồng thời, chưa đo rollout 90/10 qua nhiều account, và request đi qua SSM tunnel nên không thể coi các latency này là production performance benchmark. Kết quả canary có tail latency cao hơn *trong bài thử này*, không đủ để khẳng định DBSCAN bản chất chậm hơn. Một tài khoản sticky routing không thể kiểm định tỷ lệ phân luồng của cả quần thể.
+
+Một lỗi đọc CloudWatch tưởng thiếu quyền lại là chuyển đổi đường dẫn kiểu MSYS trong Git Bash; sửa bằng \`MSYS_NO_PATHCONV=1\`, không mở rộng IAM tùy tiện. Đây là ví dụ tại sao phải phân biệt **bug ở shell/tooling** với **failure ở IAM/service** trước khi chỉnh security policy.
+
+Bài học: tách bốn mức bằng chứng: (1) code và synthetic CI PASS, (2) operator xác nhận internal demo chạy, (3) đo các acceptance metrics trong phạm vi nhỏ, (4) production/public readiness. Dừng EC2 khi không dùng, xác minh trạng thái sau lệnh stop và billing riêng; giữ zero inbound, Terraform state và private GeoLife cache ở đúng ranh giới.
+
+## 2026-10-15 — Đóng một experiment bằng kết luận “chưa đủ bằng chứng” vẫn là một thành công nghiên cứu
+
+Chuỗi Stage10a–10l bắt đầu với câu hỏi liệu \`Evidence v2 = cbrt(C*O*R)*sqrt(H)\` có thay v1 được không. Ở full-history tiered cohort chỉ 21/55 có đủ v2: 34/55 thực sự chỉ có một eligible location theo ranker (không phải lỗi join), nghĩa là \`C\` thiếu *do định nghĩa feature*, không nên tự điền 0 hoặc 1.
+
+Stage10i cho thấy trong 43 candidate có GPS ở khung giờ FUTURE, chỉ 31 có đủ unique spatial matching; 25 thấy lại selected TRAIN anchor, 6 thấy TRAIN anchor khác, 12 spatially unresolved. \`25/31=80,6%\` là tỷ lệ conditional recurrence sau chọn những người match được — **không phải semantic accuracy**. Stage10j–10k cho thấy những anchor cùng emitted qua các cutoff thường ổn định hình học dưới tiêu chí all-member 200m (38/38, 42/42, 36/36), trong khi admission, evaluation horizon và spatial observability thay đổi.
+
+Stage10l dùng 70% TRAIN, giữ nguyên v1 và chỉ tạo \`R_train_mask\` từ 9 lần bỏ ngày **trong TRAIN** để tránh leakage từ Stage05 full-history R. V2 chỉ tính được cho 11/44 emitted; trong 31 spatially observable chỉ 9 có score v2 (7 observed same-anchor, 2 other-anchor). Không đủ other-anchor cases để ước lượng so sánh pairwise ranking v1-v2 theo tiêu chí đã khai báo. Không thể tuyên bố v2 tốt hơn, cũng không thể tuyên bố v1 đã tối ưu. Vì vậy dừng đúng lúc, không chỉnh score trên 9 cases để “thắng”.
+
+Một insight về v1 cũng phải ghi rõ: khi không có eligible runner-up, top-two margin của v1 dùng zero-fill; khi đó \`M=S\` và \`evidence_strength=(2*S+H)/3\`, không phải ba bằng chứng độc lập. Hiểu giới hạn giải thích của v1 không tự động cấp phép đổi production.
+
+Bài học: **đừng trộn observation quality, anchor recurrence, semantic correctness vào một con số confidence.** Báo rõ \`location concentration/support\`, \`observed opportunity\`, và \`TRAIN-only stability\` như các evidence axes, đi kèm \`abstain/unresolved\`. Khi làm experiment mới, ưu tiên upstream trajectory-file assembly audit và eligibility waterfall trước khi nới HOME/OFFICE gates; dùng independent labels trước khi nói về accuracy hoặc calibrated probability.
