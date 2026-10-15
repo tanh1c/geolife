@@ -57,10 +57,11 @@ def audit_runner_up(
     frames = []
     for label in ("HOME", "OFFICE"):
         prefix = label.lower()
-        for min_dates in (1, cfg.home_min_dates if label == "HOME"
+        for min_dates in (0, cfg.home_min_dates if label == "HOME"
                           else cfg.office_min_dates):
-            if min_dates == 1:
-                # Only sparse HOME uses raw eligible ranking (not min_dates=3).
+            if min_dates == 0:
+                # Stage-08b raw ranking requires stay_count >=2 and dwell >0;
+                # it does NOT require >=1 supported behavior dates.
                 if label != "HOME":
                     continue
             subset = features.loc[
@@ -83,7 +84,7 @@ def audit_runner_up(
             )
             subset["_next_loc"] = subset.groupby("user_id")["location_id"].shift(-1)
             subset["label"] = label
-            subset["raw_ranking"] = min_dates == 1
+            subset["raw_ranking"] = min_dates == 0
             frames.append(subset.loc[
                 subset["_rank"].eq(1),
                 ["user_id", "label", "raw_ranking", "location_id",
