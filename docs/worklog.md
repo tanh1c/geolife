@@ -4308,3 +4308,8 @@ After rollback: `/health` HTTP 200; `/v2/model-info` reports `routing_mode=basel
 **Protocol & security:** See `docs/deployment/12_s2_async_sqs_contract_and_local_dryrun.md`. Future `POST /v2/jobs` → encrypted private TTL store → SQS with **only job_id** → worker with conditional status and DLQ → owner-protected `GET /v2/jobs/{job_id}`; no raw GPS/token/account IDs on SQS. AWS SQS Standard is at-least-once, so worker idempotency is mandatory. Sync full-result latency must be compared to async **full completion latency**, not the quick HTTP 202 ACK. No AWS resources, Terraform, permissions, network, geolife data or app routes changed on S2a.
 
 **Verification gate:** Python CI on the S2a PR must PASS before claiming code acceptance. Local PowerShell smoke is optional, with no AWS/Modal/frontend dependencies. Next S2b requires explicit AWS budget/IAM/storage/security approval; SQS and monitoring remain **NOT DONE** until actually provisioned and demonstrated.
+
+
+### S2a final GitHub synthetic acceptance (2026-10-16)
+
+At PR #77 head `246501a487e4`, **Python CI PASS** and **Docker smoke PASS**. Python unit tests cover owner isolation, pointer-only queue messages, TTL, same-owner idempotency, duplicate delivery suppression, retry and simulated DLQ; no real AWS calls or GPS dataset. This documentation-only update records tests, not deployment. Original Checkpoint 3 async acceptance **remains NOT DONE** until S2b provisions scoped AWS SQS/DLQ, protected private TTL storage and worker with user-approved budget/IAM, demonstrates authenticated job polling and reports comparable sync/async full-completion latency.
