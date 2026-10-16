@@ -80,23 +80,6 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      # Temporary lock repair diagnostic for cross-platform npm optional packages.
-      # This step regenerates npm metadata on Linux before strict npm ci,
-      # then emits the public dependency lock as chunked log diagnostics.
-      # Remove this diagnostic after committing the repaired lockfile.
-      - name: Rebuild cross-platform package-lock (temporary diagnostic)
-        run: |
-          npm install --package-lock-only --include=optional --ignore-scripts --no-audit --no-fund
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          lock = json.loads(Path('package-lock.json').read_text(encoding='utf-8'))
-          payload = json.dumps(lock, ensure_ascii=True, separators=(',', ':'))
-          print('LOCK_EXPORT_BEGIN')
-          for offset in range(0, len(payload), 1800):
-              print('LOCK_CHUNK:' + payload[offset:offset+1800])
-          print('LOCK_EXPORT_END')
-          PY
       - name: Install pinned frontend dependencies
         run: npm ci
       - name: Type-check React frontend
