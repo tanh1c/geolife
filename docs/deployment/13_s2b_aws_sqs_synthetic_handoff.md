@@ -38,6 +38,10 @@ In Windows PowerShell from repository root:
 
 Python CI runs moto and the Terraform root is validated without apply. The tests require no AWS account or Modal Volume. The CP1/CP2 private baseline remains unchanged.
 
+## Before any operator AWS plan or apply
+
+**User has approved an overall 10 USD, Singapore-only, synthetic S2b experiment, but explicitly requires plan/IAM/cost review before creation.** The mandatory [2026-10-16 10 USD pre-apply gate](14_s2b_10usd_preapply_gate_2026-10-16.md) now contains the read-only AWS SSO/EC2/SG/SSM/IAM/Budgets preflight script, isolated private Terraform plan commands, an exact 10-resource allowlist and a fail-closed JSON plan checker. This document covers **post-approval operations only**. DO NOT apply or attach IAM until that pre-apply gate is reviewed.
+
 ## Operator approval and actual AWS demo (NOT YET RUN)
 
 **First obtain explicit approval of AWS cost/scope/role policy and storage cleanup.** The operator must verify the AWS account, chosen ap-southeast-1 region, existing EC2/SSM state and costs, and review the S2b Terraform plan. Plan/apply uses only infra/terraform/async_s2b as its state root; never import or modify the original EC2 Terraform state. Do not enable extra inbound SG or public endpoint.
