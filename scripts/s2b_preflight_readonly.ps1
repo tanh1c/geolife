@@ -2,13 +2,13 @@
 S2b AWS preflight — READ-ONLY AWS CLI calls. Does NOT start EC2, attach IAM,
 create budgets, create AWS resources, run terraform apply, or store credentials.
 Execution:
-  .\scripts\s2b_preflight_readonly.ps1 -Profile geolife -ExpectedAccountId <12 digits> -InstanceId i-...
+  .\scripts\s2b_preflight_readonly.ps1 -AwsProfile geolife -ExpectedAccountId <12 digits> -InstanceId i-...
 Results are only an identity/network summary. All returned AWS account details
 must be reviewed locally. Never post credentials, private data, or raw AWS plans.
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true)][string]$Profile,
+    [Parameter(Mandatory=$true)][string]$AwsProfile,
     [Parameter(Mandatory=$true)][ValidatePattern('^\d{12}$')][string]$ExpectedAccountId,
     [Parameter(Mandatory=$true)][ValidatePattern('^i-[0-9a-f]{8,17}$')][string]$InstanceId,
     [ValidateSet('ap-southeast-1')][string]$Region = 'ap-southeast-1'
@@ -17,7 +17,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function ReadAwsJson([string[]]$AwsArgs, [string]$CallRegion = $Region) {
-    $lines = & aws @AwsArgs --profile $Profile --region $CallRegion --output json --no-cli-pager 2>&1
+    $lines = & aws @AwsArgs --profile $AwsProfile --region $CallRegion --output json --no-cli-pager 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "Read-only AWS command failed (inspect locally): $($AwsArgs[0]) $($AwsArgs[1])"
     }
