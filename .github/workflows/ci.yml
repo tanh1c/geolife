@@ -67,3 +67,24 @@ jobs:
 
       - name: Import API contracts
         run: python -c "from geolife.api import app, ClassifyRequest, ClassifyResponse, InferRequest, InferResponse; print('API contracts import ok')"
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned frontend dependencies
+        run: npm ci
+      - name: Type-check React frontend
+        run: npm run typecheck
+      - name: Build static frontend
+        run: npm run build
+      - name: Verify build output
+        run: test -s dist/index.html

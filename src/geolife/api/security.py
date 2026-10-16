@@ -29,6 +29,15 @@ DEMO_CSP = (
 )
 
 
+RECOMMENDER_CSP = (
+    "default-src 'self'; "
+    "base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
+    "form-action 'self'; connect-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; img-src 'none'"
+)
+
+
 def restricted_demo_mode() -> bool:
     return (
         os.getenv("GEOLIFE_PRIVATE_DEMO", "").strip() == "1"
@@ -74,4 +83,6 @@ async def secure_http(request: Request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
     if path == "/demo":
         response.headers["Content-Security-Policy"] = DEMO_CSP
+    elif path == "/destination-demo":
+        response.headers["Content-Security-Policy"] = RECOMMENDER_CSP
     return response
