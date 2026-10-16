@@ -3,8 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Search, X, CheckCircle2, ChevronRight, Sparkles } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Search, X, CheckCircle2, ChevronRight, Sparkles, ArrowLeft, MapPin } from 'lucide-react';
+import { GeoLife, placeName, getPlaceIcon, type Result } from './GeoLife';
+
+const DEMO_DATE = '2026-09-24';
+const DEMO_OFFSET = '+07:00';
+const defaultDemoHour = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', hourCycle: 'h23' }).format(new Date());
+const demoClock = (hour: string) => `${DEMO_DATE}T${hour}:00${DEMO_OFFSET}`;
 import {
   CarIllustration,
   FoodIllustration,
@@ -28,14 +34,100 @@ import { LiquidGlassButton } from './components/common/LiquidGlassButton';
 import { PrismaticGlassButton } from './components/common/PrismaticGlassButton';
 import { AssetImage } from './components/common/AssetImage';
 import { AssetGallery } from './components/dev/AssetGallery';
-import { GeoLife } from './GeoLife';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'home' | 'search' | 'booking' | 'assets' | 'geolife'>('home');
+  const [currentScreen, setCurrentScreen] = useState<'home' | 'search' | 'booking' | 'assets' | 'geolife' | 'ride-suggestions'>('home');
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [selectedDestination, setSelectedDestination] = useState<string>('Vincom Center Bà Triệu');
   const [activeServiceModal, setActiveServiceModal] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<any | null>(null);
+  const [session, setSession] = useState<{ account: string; token: string } | null>(null);
+  const [suggestionResult, setSuggestionResult] = useState<Result | null>(null);
+  const [suggestionWhen, setSuggestionWhen] = useState('2026-09-24T08:00:00+07:00');
+  const [suggestionOrigin, setSuggestionOrigin] = useState('s0_starting_point');
+  const [demoHour, setDemoHour] = useState(`${defaultDemoHour}:00`);
+  // ponytail: demo uses the fixed fixture date; add a timeline picker if multi-day playback is needed.
+  const [rideSuggestions, setRideSuggestions] = useState<Result | null>(null);
+  const [showRidePopup, setShowRidePopup] = useState(false);
+  const [rideLoading, setRideLoading] = useState(false);
+  const [rideMessage, setRideMessage] = useState('');
+  const [bookingFromSuggestion, setBookingFromSuggestion] = useState(false);
+  const [rideWhen, setRideWhen] = useState('');
+  const rideRequest = useRef(0);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+
+  const leaveRideSuggestions = () => {
+    rideRequest.current += 1;
+    setShowRidePopup(false);
+    setCurrentScreen('home');
+  };
+
+  const showRideSuggestions = async () => {
+    if (!sessionRef.current) {
+      setCurrentScreen('geolife');
+      return;
+    }
+    const request = ++rideRequest.current;
+    const currentSession = sessionRef.current;
+    const when = demoClock(demoHour);
+    setRideWhen(when);
+    setShowRidePopup(true);
+    setCurrentScreen('home');
+    setRideMessage('');
+    if (!rideSuggestions) {
+      setRideLoading(true);
+    }
+    const params = new URLSearchParams({ when, origin_place_id: suggestionOrigin });
+    try {
+      const response = await fetch(`/v2/me/destination-suggestions?${params}`, {
+        headers: { Authorization: `Bearer ${currentSession.token}` }, cache: 'no-store',
+      });
+      if (request !== rideRequest.current || sessionRef.current !== currentSession) return;
+      if (response.status === 401) {
+        endSession();
+        return;
+      }
+      if (!response.ok) throw new Error('Không lấy được gợi ý từ API local.');
+      const data: Result = await response.json();
+      if (request === rideRequest.current && sessionRef.current === currentSession) setRideSuggestions(data);
+    } catch {
+      if (request === rideRequest.current) setRideMessage('Không kết nối được API gợi ý. Hãy thử lại sau.');
+    } finally {
+      if (request === rideRequest.current) setRideLoading(false);
+    }
+  };
+
+  // Automatically pre-fetch smart destination suggestions for the current demo hour whenever session or demoHour changes
+  useEffect(() => {
+    if (session) {
+      const when = demoClock(demoHour);
+      setRideWhen(when);
+      const params = new URLSearchParams({ when, origin_place_id: suggestionOrigin });
+      fetch(`/v2/me/destination-suggestions?${params}`, {
+        headers: { Authorization: `Bearer ${session.token}` },
+        cache: 'no-store',
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: Result | null) => {
+          if (data) setRideSuggestions(data);
+        })
+        .catch(() => {});
+    }
+  }, [session, demoHour, suggestionOrigin]);
+
+  const endSession = () => {
+    rideRequest.current += 1;
+    sessionRef.current = null;
+    setSession(null);
+    setSuggestionResult(null);
+    setRideSuggestions(null);
+    setRideMessage('');
+    setShowRidePopup(false);
+    setBookingFromSuggestion(false);
+    setActiveTab('home');
+    setCurrentScreen('home');
+  };
 
   // 8 additional services strictly ordered as requested:
   // bike -> intercity -> express -> subscription -> giftcard -> vinbus -> buyvinfast -> car-rent
@@ -100,6 +192,7 @@ export default function App() {
 
   const handlePlaceSelect = (place: PlaceSelection) => {
     setSelectedDestination(place.name + (place.entrance ? ` (${place.entrance})` : ''));
+    setBookingFromSuggestion(false);
     setCurrentScreen('booking');
   };
 
@@ -108,20 +201,100 @@ export default function App() {
       {/* Mobile Frame Container (matches 375x812 - 390x844 mobile ergonomics) */}
       <div className="w-full max-w-[412px] h-[100dvh] md:h-[864px] md:max-h-[92vh] md:rounded-[44px] md:shadow-[0_20px_60px_rgba(15,35,40,0.22)] md:border-[7px] md:border-[#1E2528] bg-white flex flex-col relative overflow-hidden">
         
+        <div aria-label="Thanh trạng thái iPhone mô phỏng" className="absolute top-0 left-0 right-0 z-40 flex h-9 items-center justify-between bg-transparent px-6 pointer-events-none font-['SF_Pro_Text',-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[13px] font-semibold tracking-[-0.02em] text-[#202425]">
+          <label title="Giờ mô phỏng; chạm để đổi" className="pointer-events-auto">
+            <span className="sr-only">Giờ mô phỏng</span>
+            <select aria-label="Giờ mô phỏng" value={demoHour} onChange={(event) => setDemoHour(event.target.value)} className="w-[52px] appearance-none bg-transparent text-[14px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-[#2DCCD4] cursor-pointer">
+              {Array.from({ length: 24 }, (_, hour) => {
+                const time = `${hour.toString().padStart(2, '0')}:00`;
+                return <option key={time} value={time}>{time}</option>;
+              })}
+            </select>
+          </label>
+          <span className="flex items-center gap-[5px]" aria-hidden="true">
+            <svg width="17" height="13" viewBox="0 0 17 13" fill="currentColor"><rect x="0" y="9" width="2.5" height="4" rx="0.5"/><rect x="4" y="6.5" width="2.5" height="6.5" rx="0.5"/><rect x="8" y="3.5" width="2.5" height="9.5" rx="0.5"/><rect x="12" y="0" width="2.5" height="13" rx="0.5"/></svg>
+            <svg width="17" height="13" viewBox="0 0 17 13" fill="none"><path d="M1 4.2a11.8 11.8 0 0 1 15 0M3.5 7a8 8 0 0 1 10 0M6.2 9.5a4.2 4.2 0 0 1 4.6 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="8.5" cy="11.7" r="1" fill="currentColor"/></svg>
+            <svg width="24" height="13" viewBox="0 0 24 13" fill="none"><rect x="0.7" y="1" width="20" height="11" rx="2.6" stroke="currentColor" strokeWidth="1.3"/><rect x="2.6" y="2.8" width="15" height="7.4" rx="1" fill="currentColor"/><path d="M22 4.6v3.8a2 2 0 0 0 0-3.8Z" fill="currentColor"/></svg>
+          </span>
+        </div>
         {/* Screen Routing */}
         {currentScreen === 'assets' ? (
           <AssetGallery onClose={() => setCurrentScreen('home')} />
         ) : currentScreen === 'geolife' ? (
-          <GeoLife onBack={() => setCurrentScreen('home')} />
+          <GeoLife
+            session={session}
+            result={suggestionResult}
+            onResult={setSuggestionResult}
+            when={suggestionWhen}
+            onWhenChange={setSuggestionWhen}
+            origin={suggestionOrigin}
+            onOriginChange={setSuggestionOrigin}
+            onLogin={(account, token) => {
+              setSuggestionResult(null);
+              setSession({ account, token });
+              setActiveTab('home');
+              setCurrentScreen('home');
+            }}
+            onLogout={endSession}
+            onBack={() => {
+              setActiveTab('home');
+              setCurrentScreen('home');
+            }}
+            onBookDestination={(destination) => {
+              setSelectedDestination(destination);
+              setBookingFromSuggestion(true);
+              setCurrentScreen('booking');
+            }}
+          />
+        ) : currentScreen === 'ride-suggestions' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-white px-4 pb-8 text-[#202425]">
+            <header className="flex items-center gap-3 border-b border-[#EDF0F2] py-3">
+              <button type="button" onClick={leaveRideSuggestions} aria-label="Quay lại trang chủ" className="glass-button flex h-10 w-10 items-center justify-center rounded-full"><ArrowLeft className="h-5 w-5" /></button>
+              <h1 className="text-[17px] font-bold">Gợi ý điểm đến</h1>
+            </header>
+            <div className="mt-5 rounded-[18px] border border-[#EDF0F2] bg-[#F8FAFB] p-4">
+              <p className="text-[13px] font-semibold">Giờ mô phỏng: {rideWhen.slice(11, 16)}</p>
+              <p className="mt-1 text-[12px] text-[#737C7F]">{DEMO_DATE} · tài khoản {session?.account} · lịch sử synthetic</p>
+            </div>
+            <p className="mt-5 text-[13px] text-[#737C7F]">Địa điểm gợi ý cho chuyến đi lúc này:</p>
+            {rideLoading && <p role="status" className="mt-4 text-[13px]">Đang tải gợi ý...</p>}
+            {rideMessage && <p role="alert" className="mt-4 text-[13px] text-red-600">{rideMessage}</p>}
+            {rideSuggestions?.status === 'abstained' && <p role="status" className="mt-4 text-[13px]">Chưa đủ lịch sử synthetic để đưa ra gợi ý. Bạn có thể tự tìm điểm đến.</p>}
+            {rideSuggestions?.status === 'suggested' && (
+              <ol className="mt-3 space-y-2">
+                {rideSuggestions.suggestions.map((item) => (
+                  <li key={item.place_ref}>
+                    <button type="button" onClick={() => { setSelectedDestination(placeName(item.place_ref)); setBookingFromSuggestion(true); setCurrentScreen('booking'); }} className="glass-card flex w-full items-center gap-3 rounded-[18px] p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2DCCD4]">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#E0F8FA] font-bold text-[#158E9A]">{item.rank}</span>
+                      <span className="min-w-0 flex-1"><strong className="block text-[14px]">{placeName(item.place_ref)}</strong><small className="block text-[11px] text-[#737C7F]">{item.place_ref} · {item.explanations.join(' · ')}</small></span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-[#158E9A]" />
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <button type="button" onClick={() => setCurrentScreen('search')} className="mt-6 flex items-center gap-2 text-[13px] font-semibold text-[#158E9A]"><MapPin className="h-4 w-4" /> Tự chọn điểm đến</button>
+            <p className="mt-6 text-[11px] leading-relaxed text-[#737C7F]">Gợi ý chỉ dùng dữ liệu synthetic; không phải vị trí thật, điểm tin cậy hay tuyến đường đã tính toán.</p>
+          </div>
         ) : currentScreen === 'search' ? (
           <DestinationSearch
             onBack={() => setCurrentScreen('home')}
             onSelectPlace={handlePlaceSelect}
+            suggestions={rideSuggestions}
+            demoHour={demoHour}
           />
         ) : currentScreen === 'booking' ? (
           <RideBooking
-            onBack={() => setCurrentScreen('search')}
+            onBack={() => {
+              if (bookingFromSuggestion) {
+                setShowRidePopup(true);
+                setCurrentScreen('home');
+              } else {
+                setCurrentScreen('search');
+              }
+            }}
             destinationName={selectedDestination}
+            syntheticPreview={bookingFromSuggestion}
           />
         ) : (
           /* SCREEN A: HOME SCREEN (Matches REF-01 and image.png) */
@@ -196,7 +369,7 @@ export default function App() {
             {/* No external background glow outside the 2 primary action cards */}
 
             {/* Main Content Area */}
-            <div className="relative z-10 flex flex-col pt-3 pb-28">
+            <div className="relative z-10 flex flex-col pt-10 pb-28">
               
               {/* 1. Global Destination Search Bar (Liquid Glass V3 elevated input) */}
               <div className="px-4 pt-1 pb-1">
@@ -211,18 +384,13 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="px-4 mt-3">
-                <button type="button" onClick={() => setCurrentScreen('geolife')} className="w-full rounded-2xl bg-[#E0F8FA] px-4 py-3 text-left text-sm font-semibold text-[#0E4850] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2DCCD4]">
-                  GeoLife · Xem Top-3 điểm đến synthetic →
-                </button>
-              </div>
-
               {/* 2. Primary Actions Row (Two equal-width cards: "Đặt ô tô" & "Đặt món ăn") */}
               <div className="grid grid-cols-2 gap-3 px-4 mt-3">
                 {/* Card 1: Đặt ô tô (Borderless Liquid Glass with soft cyan right-edge glow) */}
-                <div
-                  onClick={() => setCurrentScreen('booking')}
-                  className="h-[108px] rounded-[22px] p-4 relative overflow-hidden glass-card-car cursor-pointer active:scale-95 transition-all flex flex-col justify-between group"
+                <button
+                  type="button"
+                  onClick={showRideSuggestions}
+                  className="h-[108px] w-full rounded-[22px] p-4 relative overflow-hidden glass-card-car cursor-pointer active:scale-95 transition-all flex flex-col justify-between group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2DCCD4]"
                 >
                   {/* High contrast dark bold text - completely crisp and opaque */}
                   <span className="relative z-10 text-[17px] font-bold text-[#0F172A] tracking-tight leading-none select-none">
@@ -240,7 +408,7 @@ export default function App() {
                       className="w-24 h-20 object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.06)]"
                     />
                   </div>
-                </div>
+                </button>
 
                 {/* Card 2: Đặt món ăn (Borderless Liquid Glass with soft golden-peach right-edge glow) */}
                 <div
@@ -325,14 +493,11 @@ export default function App() {
             activeTab={activeTab}
             onTabChange={(tab) => {
               setActiveTab(tab);
-              if (tab !== 'home') {
-                setActiveServiceModal(
-                  tab === 'history'
-                    ? 'Lịch sử chuyến đi'
-                    : tab === 'notifications'
-                    ? 'Thông báo mới'
-                    : 'Hồ sơ người dùng'
-                );
+              if (tab === 'profile') {
+                setActiveServiceModal(null);
+                setCurrentScreen('geolife');
+              } else if (tab !== 'home') {
+                setActiveServiceModal(tab === 'history' ? 'Lịch sử chuyến đi' : 'Thông báo mới');
               }
             }}
           />
@@ -397,7 +562,6 @@ export default function App() {
                         variant="turquoise"
                         size="md"
                         withDottedGrid
-                        icon={<Sparkles className="w-4 h-4 text-[#0E4850]" />}
                         onClick={() => {
                           setActiveServiceModal(null);
                           setCurrentScreen('booking');
@@ -437,25 +601,6 @@ export default function App() {
                         <span className="text-[11px] text-[#2DCCD4] font-bold shrink-0 ml-2">Khám phá</span>
                       </div>
                     ))}
-                  </div>
-                ) : activeServiceModal === 'Hồ sơ người dùng' ? (
-                  <div className="space-y-3">
-                    <p>
-                      Tài khoản thành viên Xanh SM Club. Quản lý thông tin cá nhân, phương thức thanh toán và các ưu đãi di chuyển thuần điện.
-                    </p>
-                    <button
-                      onClick={() => {
-                        setActiveServiceModal(null);
-                        setCurrentScreen('assets');
-                      }}
-                      className="w-full py-2.5 px-3 rounded-xl bg-[#E0F8FA] text-[#158E9A] font-semibold text-[13px] flex items-center justify-between hover:bg-[#D0F4F7] transition cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-[#2DCCD4]" />
-                        <span>Kho tài nguyên 3D (Asset Pipeline Gallery)</span>
-                      </span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
                   </div>
                 ) : (
                   <p>
@@ -524,6 +669,141 @@ export default function App() {
               >
                 Đặt món ngay
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Home Screen Smart Ride Suggestions Bottom Sheet */}
+        {currentScreen === 'home' && showRidePopup && (
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-2xs z-50 flex items-end justify-center animate-in fade-in duration-200"
+            onClick={leaveRideSuggestions}
+          >
+            <div
+              className="w-full max-w-[412px] bg-white rounded-t-[28px] p-5 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drag handle */}
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3 shrink-0" />
+
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100 shrink-0">
+                <div>
+                  <h3 className="text-[17px] font-bold text-[#0E4850] leading-tight">
+                    Gợi ý điểm đến
+                  </h3>
+                  <p className="text-[12px] text-[#737C7F] mt-0.5 font-medium">
+                    Giờ mô phỏng: {rideWhen.slice(11, 16) || demoHour}
+                  </p>
+                  <p className="text-[11px] text-[#737C7F]">
+                    {DEMO_DATE} · tài khoản {session?.account} · lịch sử synthetic
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={leaveRideSuggestions}
+                  aria-label="Quay lại trang chủ"
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 active:scale-90 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="py-3 flex-1 overflow-y-auto no-scrollbar">
+                {rideLoading && (
+                  <div className="py-8 text-center flex flex-col items-center justify-center">
+                    <div className="w-8 h-8 border-3 border-[#2DCCD4] border-t-transparent rounded-full animate-spin mb-3" />
+                    <p role="status" className="text-[13px] font-medium text-[#737C7F]">
+                      Đang tải gợi ý...
+                    </p>
+                  </div>
+                )}
+
+                {rideMessage && (
+                  <div role="alert" className="p-3 rounded-xl bg-red-50 text-red-600 text-[13px] font-medium">
+                    {rideMessage}
+                  </div>
+                )}
+
+                {rideSuggestions?.status === 'abstained' && (
+                  <div className="py-6 text-center">
+                    <p role="status" className="text-[13px] text-[#737C7F]">
+                      Chưa đủ lịch sử synthetic để đưa ra gợi ý. Bạn có thể tự tìm điểm đến.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRidePopup(false);
+                        setCurrentScreen('search');
+                      }}
+                      className="mt-4 px-4 py-2.5 rounded-xl bg-[#2DCCD4] text-white text-[13px] font-bold hover:bg-[#20BDC8] active:scale-95 transition cursor-pointer"
+                    >
+                      Tự chọn điểm đến
+                    </button>
+                  </div>
+                )}
+
+                {rideSuggestions?.status === 'suggested' && (
+                  <div>
+                    <p className="text-[12.5px] text-[#737C7F] mb-2.5 font-medium">
+                      Địa điểm gợi ý cho chuyến đi lúc này:
+                    </p>
+                    <ol className="space-y-2.5">
+                      {rideSuggestions.suggestions.map((item) => (
+                        <li key={item.place_ref}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDestination(placeName(item.place_ref));
+                              setBookingFromSuggestion(true);
+                              setShowRidePopup(false);
+                              setCurrentScreen('booking');
+                            }}
+                            className="glass-card flex w-full items-center gap-3 rounded-[20px] p-3 text-left border border-gray-100 hover:border-[#2DCCD4]/40 hover:bg-[#E0F8FA]/20 active:scale-[0.98] transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2DCCD4] group"
+                          >
+                            <div className="w-10 h-10 shrink-0 flex items-center justify-center group-hover:scale-105 transition-transform">
+                              {getPlaceIcon(item.place_ref, "w-10 h-10 object-contain drop-shadow-2xs")}
+                            </div>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2">
+                                <strong className="block text-[14.5px] font-bold text-[#202425] leading-snug group-hover:text-[#127F8B] transition-colors">
+                                  {placeName(item.place_ref)}
+                                </strong>
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#E0F8FA] text-[#127F8B] border border-[#2DCCD4]/30 shrink-0">
+                                  Top {item.rank}
+                                </span>
+                              </span>
+                              <small className="block text-[11.5px] text-[#737C7F] truncate mt-0.5">
+                                {item.place_ref} · {item.explanations.join(' · ')}
+                              </small>
+                            </span>
+                            <div className="shrink-0 flex items-center gap-1 text-[12px] font-bold text-[#127F8B] bg-[#E0F8FA] group-hover:bg-[#D4F4F7] px-2.5 py-1 rounded-xl border border-[#2DCCD4]/30">
+                              <span>Đặt xe</span>
+                              <ChevronRight className="h-3.5 w-3.5 text-[#127F8B]" />
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer actions */}
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRidePopup(false);
+                    setCurrentScreen('search');
+                  }}
+                  className="flex-1 h-11 rounded-xl bg-gray-100 hover:bg-gray-200 text-[#202425] font-bold text-[13px] flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer"
+                >
+                  <MapPin className="h-4 w-4 text-[#158E9A]" />
+                  <span>Tự chọn điểm đến</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

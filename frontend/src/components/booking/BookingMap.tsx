@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
   ArrowLeft,
-  Users,
   ChevronRight,
   Plus,
   Repeat,
@@ -24,7 +23,6 @@ export const BookingMap: React.FC<BookingMapProps> = ({
   onEditDestination,
   onEditPickup,
   onAddStop,
-  onBookForOther,
 }) => {
   // Support pan / drag interaction on the map
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -250,8 +248,8 @@ export const BookingMap: React.FC<BookingMapProps> = ({
 
       {/* 2. FLOATING OVERLAYS (Liquid Glass V3 materials, independent of map pan/drag) */}
 
-      {/* Top Floating Controls: Back arrow & "Đặt hộ" */}
-      <div className="absolute top-3.5 left-4 right-4 flex items-center justify-between z-20 pointer-events-auto">
+      {/* Top Floating Controls: Back arrow */}
+      <div className="absolute top-10 left-4 z-20 pointer-events-auto">
         {/* Back Button (Liquid Glass Button) */}
         <button
           onClick={onBack}
@@ -260,46 +258,29 @@ export const BookingMap: React.FC<BookingMapProps> = ({
         >
           <ArrowLeft className="w-5 h-5" strokeWidth={2.2} />
         </button>
-
-        {/* "Đặt hộ" Button (Liquid Glass Pill) */}
-        <button
-          onClick={onBookForOther}
-          className="h-10 px-3.5 rounded-full glass-pill flex items-center gap-1.5 text-[13px] font-semibold text-[#202425] cursor-pointer active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2DCCD4]"
-        >
-          <Users className="w-4 h-4 text-[#2DCCD4]" />
-          <span>Đặt hộ</span>
-        </button>
       </div>
 
-      {/* Upper-Right: Pickup Chip & Recommendation */}
-      <div className="absolute top-16 right-4 flex flex-col items-end gap-1 z-20 pointer-events-auto max-w-[280px]">
-        {/* Green Popularity Indicator */}
-        <div className="bg-[#FEFCE8]/95 text-[#16A34A] px-2.5 py-0.5 rounded-full text-[11px] font-medium shadow-2xs border border-[#FEF08A]/70 flex items-center gap-1">
-          <span>77% khách chọn điểm này</span>
+      {/* Upper-Right: Pickup Chip + Direction Swap Button */}
+      <div className="absolute top-10 right-4 flex items-center gap-1.5 z-20 pointer-events-auto max-w-[280px]">
+        {/* Pickup Chip (Liquid Glass Pill) */}
+        <div
+          onClick={onEditPickup}
+          className="h-10 px-3 glass-pill rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95 transition max-w-[210px]"
+        >
+          <span className="text-[13px] font-semibold text-[#202425] truncate">
+            {pickupLabel}
+          </span>
+          <ChevronRight className="w-4 h-4 text-[#8E989D] shrink-0" />
         </div>
 
-        {/* Pickup Location Chip + Direction Swap Button */}
-        <div className="flex items-center gap-1.5">
-          {/* Pickup Chip (Liquid Glass Pill) */}
-          <div
-            onClick={onEditPickup}
-            className="h-10 px-3 glass-pill rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95 transition max-w-[210px]"
-          >
-            <span className="text-[13px] font-semibold text-[#202425] truncate">
-              {pickupLabel}
-            </span>
-            <ChevronRight className="w-4 h-4 text-[#8E989D] shrink-0" />
-          </div>
-
-          {/* Direction Swap Button (Liquid Glass Button) */}
-          <button
-            onClick={() => {}}
-            aria-label="Đổi chiều di chuyển"
-            className="w-10 h-10 rounded-xl glass-button flex items-center justify-center text-[#2DCCD4] shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2DCCD4]"
-          >
-            <Repeat className="w-4 h-4 text-[#2DCCD4] rotate-90" strokeWidth={2.4} />
-          </button>
-        </div>
+        {/* Direction Swap Button (Liquid Glass Button) */}
+        <button
+          onClick={() => {}}
+          aria-label="Đổi chiều di chuyển"
+          className="w-10 h-10 rounded-xl glass-button flex items-center justify-center text-[#2DCCD4] shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2DCCD4]"
+        >
+          <Repeat className="w-4 h-4 text-[#2DCCD4] rotate-90" strokeWidth={2.4} />
+        </button>
       </div>
 
       {/* Lower-Left: Route summary & Destination Selector */}

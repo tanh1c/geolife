@@ -6,17 +6,20 @@ import {
   ChevronDown,
   X,
   MoreVertical,
-  Star,
   MapPin,
+  ChevronRight,
 } from 'lucide-react';
 import { HANOI_PLACES } from '../data/hanoiPlaces';
 import { PlaceSelection } from '../types/destination';
+import { placeName, getPlaceIcon, type Result } from '../GeoLife';
 
 export type { PlaceSelection };
 
 interface DestinationSearchProps {
   onBack: () => void;
   onSelectPlace: (place: PlaceSelection) => void;
+  suggestions?: Result | null;
+  demoHour?: string;
   query?: string;
   onQueryChange?: (query: string) => void;
   favorites?: string[];
@@ -95,6 +98,8 @@ const VietnamFlag: React.FC<{ className?: string }> = ({ className = "w-5 h-3.5"
 export const DestinationSearch: React.FC<DestinationSearchProps> = ({
   onBack,
   onSelectPlace,
+  suggestions,
+  demoHour,
   query: controlledQuery,
   onQueryChange,
   favorites: controlledFavorites,
@@ -105,7 +110,7 @@ export const DestinationSearch: React.FC<DestinationSearchProps> = ({
   onToggleExpand,
 }) => {
   // Support both controlled state from parent and internal fallback state
-  const [internalQuery, setInternalQuery] = useState('Vincom');
+  const [internalQuery, setInternalQuery] = useState('');
   const [internalExtraStops, setInternalExtraStops] = useState<string[]>([]);
   const [internalFavorites, setInternalFavorites] = useState<string[]>([]);
   const [internalExpandedGroups, setInternalExpandedGroups] = useState<Record<string, boolean>>({
@@ -206,7 +211,7 @@ export const DestinationSearch: React.FC<DestinationSearchProps> = ({
     <div className="flex-1 bg-white flex flex-col h-full min-h-0 overflow-hidden select-none">
       
       {/* 1. TOP HEADER (Sticky, White, Matches image_2.png) */}
-      <div className="px-3.5 pt-3 pb-2.5 bg-white border-b border-gray-100 flex items-center justify-between gap-2 shrink-0">
+      <div className="px-3.5 pt-10 pb-2.5 bg-white border-b border-gray-100 flex items-center justify-between gap-2 shrink-0">
         {/* Back Button (Subtle Liquid Glass button) */}
         <button
           onClick={onBack}
@@ -305,15 +310,77 @@ export const DestinationSearch: React.FC<DestinationSearchProps> = ({
         </div>
       )}
 
-      {/* 3. SECTION LABEL: "Thành phố Hà Nội" */}
-      <div className="px-4 pt-2 pb-1.5 shrink-0 bg-white">
-        <span className="text-[13px] font-medium text-[#737C7F]">
-          Thành phố Hà Nội
-        </span>
-      </div>
-
       {/* 4. RESULTS LIST (Vertically Scrollable, Exactly matches image_2.png) */}
       <div className="flex-1 overflow-y-auto px-4 pb-16 no-scrollbar">
+        {/* Smart AI Suggestions Card */}
+        {suggestions?.status === 'suggested' && suggestions.suggestions.length > 0 && !query && (
+          <div className="pt-2 pb-2">
+            <div className="rounded-[22px] bg-gradient-to-br from-[#F0FDFE] via-[#F8FDFF] to-white p-3.5 border border-[#2DCCD4]/35 shadow-[0_4px_16px_rgba(45,204,212,0.08)]">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2.5 border-b border-[#2DCCD4]/15">
+                <div className="flex items-center gap-2">
+                  <span className="text-[14px] font-bold text-[#0E4850] tracking-tight">
+                    Gợi ý cho bạn
+                  </span>
+                  <span className="text-[11px] font-bold text-[#127F8B] bg-[#E0F8FA] px-2 py-0.5 rounded-full border border-[#2DCCD4]/30">
+                    {demoHour ? `Lúc ${demoHour}` : 'Hiện tại'}
+                  </span>
+                </div>
+                <span className="text-[10.5px] font-semibold text-[#158E9A] bg-[#2DCCD4]/10 px-2 py-0.5 rounded-full">
+                  AI GeoLife
+                </span>
+              </div>
+
+              {/* Suggestions items */}
+              <div className="divide-y divide-gray-100/80">
+                {suggestions.suggestions.map((item) => (
+                  <div
+                    key={item.place_ref}
+                    onClick={() =>
+                      onSelectPlace({
+                        name: placeName(item.place_ref),
+                        address: item.explanations.join(' • '),
+                        distance: `Top ${item.rank}`,
+                      })
+                    }
+                    className="py-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-white/80 active:scale-[0.98] rounded-xl px-1.5 transition-all group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 shrink-0 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        {getPlaceIcon(item.place_ref, "w-10 h-10 object-contain drop-shadow-2xs")}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-[14.5px] font-bold text-[#202425] truncate leading-snug group-hover:text-[#127F8B] transition-colors">
+                            {placeName(item.place_ref)}
+                          </h4>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#E0F8FA] text-[#127F8B] shrink-0 border border-[#2DCCD4]/30">
+                            Top {item.rank}
+                          </span>
+                        </div>
+                        <p className="text-[11.5px] text-[#737C7F] truncate mt-0.5 leading-snug">
+                          {item.explanations.join(' • ')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-1 text-[12px] font-bold text-[#127F8B] bg-[#E0F8FA] group-hover:bg-[#D4F4F7] px-2.5 py-1 rounded-xl border border-[#2DCCD4]/40 transition">
+                      <span>Chọn</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-[#127F8B]" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. SECTION LABEL: "Thành phố Hà Nội" */}
+        <div className="pt-2 pb-1.5">
+          <span className="text-[13px] font-medium text-[#737C7F]">
+            Thành phố Hà Nội
+          </span>
+        </div>
         {filteredPlaces.length === 0 ? (
           <div className="py-20 text-center flex flex-col items-center justify-center">
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mb-3">
@@ -431,14 +498,6 @@ export const DestinationSearch: React.FC<DestinationSearchProps> = ({
                             </button>
                           </div>
                         </div>
-
-                        {/* Recommendation Indicator (★ 63% khách chọn điểm này) */}
-                        {entrance.isPopular && entrance.popularText && (
-                          <div className="flex items-center gap-1.5 pl-6 mt-0.5 text-[11px] font-medium text-[#16A34A]">
-                            <Star className="w-3.5 h-3.5 fill-[#16A34A] text-[#16A34A]" />
-                            <span>{entrance.popularText}</span>
-                          </div>
-                        )}
                       </div>
                     );
                   })}

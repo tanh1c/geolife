@@ -5,7 +5,6 @@ import {
   Check,
   X,
   CheckCircle2,
-  Sparkles,
 } from 'lucide-react';
 import {
   VehicleOptionList,
@@ -87,7 +86,7 @@ export const BookingBottomSheet: React.FC<BookingBottomSheetProps> = ({
   const finalFare = appliedPromo ? Math.max(currentVehicle.fare - 40000, 20000) : currentVehicle.fare;
 
   return (
-    <div className="w-full bg-white rounded-t-[28px] -mt-4 shadow-[0_-8px_30px_rgba(15,45,50,0.08)] z-30 flex flex-col justify-between px-4 pt-2 pb-7 sm:pb-8 select-none relative">
+    <div className="w-full bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(15,45,50,0.08)] z-30 flex flex-col justify-between px-4 pt-2 pb-4 sm:pb-5 select-none relative">
       
       {/* 1. Grab Handle Bar (Soft pill affordance) */}
       <div className="w-10 h-1 rounded-full bg-[#E2E8F0] mx-auto mt-0.5 mb-2.5" />
@@ -100,9 +99,9 @@ export const BookingBottomSheet: React.FC<BookingBottomSheetProps> = ({
         formatVnd={formatVnd}
       />
 
-      {/* 3. Payment & Promotion Row (HIGH PRIORITY - Pure white inline row, NO yellow annotation) */}
-      <div className="flex items-center justify-between py-2.5 px-1 mt-1">
-        {/* Left: Payment Method (Small purple icon + "Tiền mặt") */}
+      {/* 3. Payment & Promotion Row */}
+      <div className="flex items-center justify-between py-2.5 px-2 mt-1 border-t border-b border-gray-100/90">
+        {/* Left: Payment Method */}
         <button
           onClick={() => setActiveModal('payment')}
           className="flex items-center gap-2 hover:opacity-80 active:scale-95 transition cursor-pointer select-none"
@@ -112,12 +111,12 @@ export const BookingBottomSheet: React.FC<BookingBottomSheetProps> = ({
             {paymentMethod === 'cash'
               ? 'Tiền mặt'
               : paymentMethod === 'card'
-              ? 'Thẻ Visa/Master'
+              ? 'Thẻ'
               : 'Ví điện tử'}
           </span>
         </button>
 
-        {/* Right: Promotion (Small outline voucher icon + "Ưu đãi") */}
+        {/* Right: Promotion */}
         <button
           onClick={() => setActiveModal('promo')}
           className="flex items-center gap-2 hover:opacity-80 active:scale-95 transition cursor-pointer select-none"
@@ -171,7 +170,6 @@ export const BookingBottomSheet: React.FC<BookingBottomSheetProps> = ({
             variant="turquoise"
             onClick={() => setActiveModal('confirmed')}
             label={`Đặt xe ${appliedPromo ? `• ${formatVnd(finalFare)}` : ''}`}
-            icon={<Sparkles className="w-4 h-4 text-[#0E4850]" />}
           />
         </div>
       </div>

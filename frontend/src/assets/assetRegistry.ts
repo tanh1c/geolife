@@ -331,15 +331,107 @@ export const ASSET_CATALOG: Record<string, AssetMeta> = {
     hasAlpha: false,
     description: 'Banner khuyến mại Lotteria giảm giá 50% burger và khoai tây chiên.',
   },
-  'banner-express': {
-    id: 'banner-express',
-    name: 'Banner Giao hàng Xanh Express',
+  'greensm-login-bg': {
+    id: 'greensm-login-bg',
+    name: 'Xanh SM Login Background (Dọc 9:16)',
     category: 'banners',
-    recommendedFileName: 'banner-express.webp',
-    expectedDimensions: '1040×440 px',
-    format: 'webp',
+    recommendedFileName: 'greensm-login-bg-1080x1920.png',
+    expectedDimensions: '1080×1920 px',
+    format: 'png',
     hasAlpha: false,
-    description: 'Wide landscape illustration of VinFast electric delivery van with driver.',
+    description: 'Hình nền đăng nhập Xanh SM với bầu trời xanh, vệt cánh chim VinFast và xe ô tô điện trên đường phố.',
+  },
+  'greensm-profile-bg': {
+    id: 'greensm-profile-bg',
+    name: 'Xanh SM Profile Banner (Ngang 16:9)',
+    category: 'banners',
+    recommendedFileName: 'greensm-profile-bg-1920x1080.png',
+    expectedDimensions: '1920×1080 px',
+    format: 'png',
+    hasAlpha: false,
+    description: 'Banner ngang trang hồ sơ người dùng Xanh SM với skyline thành phố và xe ô tô điện.',
+  },
+  'default-avatar': {
+    id: 'default-avatar',
+    name: 'Ảnh đại diện người dùng mặc định',
+    category: 'banners',
+    recommendedFileName: 'default-avatar-circle-1080x1080.png',
+    expectedDimensions: '1080×1080 px',
+    format: 'png',
+    hasAlpha: true,
+    description: 'Avatar hình tròn màu xanh cyan gradient với bóng người màu trắng đặc trưng Green SM.',
+  },
+
+  // GeoLife Place 3D Icons
+  'place-cafe': {
+    id: 'place-cafe',
+    name: 'Địa điểm: Quán Cà Phê (3D)',
+    category: 'services',
+    recommendedFileName: 'place-cafe.png',
+    expectedDimensions: '1024×1024 px',
+    format: 'png',
+    hasAlpha: true,
+    description: 'Tách cà phê 3D màu cam ấm áp bốc khói nghi ngút cho địa điểm Cafe.',
+  },
+  'place-gym': {
+    id: 'place-gym',
+    name: 'Địa điểm: Phòng tập Gym (3D)',
+    category: 'services',
+    recommendedFileName: 'place-gym.png',
+    expectedDimensions: '1024×1024 px',
+    format: 'png',
+    hasAlpha: true,
+    description: 'Tạ tay thể hình 3D màu xanh dương cho địa điểm Phòng Gym.',
+  },
+  'place-library': {
+    id: 'place-library',
+    name: 'Địa điểm: Thư viện (3D)',
+    category: 'services',
+    recommendedFileName: 'place-library.png',
+    expectedDimensions: '1024×1024 px',
+    format: 'png',
+    hasAlpha: true,
+    description: 'Quyển sách mở 3D bìa xanh ngọc cho địa điểm Thư viện và học tập.',
+  },
+  'place-mall': {
+    id: 'place-mall',
+    name: 'Địa điểm: TTTM & Mua sắm (3D)',
+    category: 'services',
+    recommendedFileName: 'place-mall.png',
+    expectedDimensions: '1024×1024 px',
+    format: 'png',
+    hasAlpha: true,
+    description: 'Tòa nhà trung tâm thương mại 3D với mái hiên sọc màu sắc cho địa điểm Mall.',
+  },
+  'place-market': {
+    id: 'place-market',
+    name: 'Địa điểm: Khu chợ & Siêu thị (3D)',
+    category: 'services',
+    recommendedFileName: 'place-market.png',
+    expectedDimensions: '1024×1024 px',
+    format: 'png',
+    hasAlpha: true,
+    description: 'Túi xách đi chợ 3D màu cam đỏ cho địa điểm Chợ thực phẩm và mua sắm.',
+  },
+  'place-park': {
+    id: 'place-park',
+    name: 'Địa điểm: Công viên cây xanh (3D)',
+    category: 'services',
+    recommendedFileName: 'place-park.png',
+    expectedDimensions: '1024×1024 px',
+    format: 'png',
+    hasAlpha: true,
+    description: 'Cụm cây xanh 3D tươi mát trên thảm cỏ cho địa điểm Công viên.',
+  },
+  'place-station': {
+    id: 'place-station',
+    name: 'Địa điểm: Ga tàu & Bến xe (3D)',
+    category: 'services',
+    recommendedFileName: 'place-station.png',
+    expectedDimensions: '1024×1024 px',
+    format: 'png',
+    hasAlpha: true,
+    description: 'Ghim định vị 3D màu cyan với quả cầu trong suốt cho địa điểm Nhà ga và trạm trung chuyển.',
   },
 
   // Restaurants & Menu Posters
@@ -492,6 +584,16 @@ export function getAssetUrl(id: string): string | null {
 
   // 1. Direct path search by category and extensions
   for (const ext of extensions) {
+    const rootPath = `/src/assets/${id}.${ext}`;
+    if (discoveredAssets[rootPath]) {
+      return discoveredAssets[rootPath];
+    }
+    if (meta?.recommendedFileName) {
+      const recPath = `/src/assets/${meta.recommendedFileName}`;
+      if (discoveredAssets[recPath]) {
+        return discoveredAssets[recPath];
+      }
+    }
     for (const cat of categories) {
       const path = `/src/assets/${cat}/${id}.${ext}`;
       if (discoveredAssets[path]) {
@@ -503,7 +605,7 @@ export function getAssetUrl(id: string): string | null {
   // 2. Name-match search inside discoveredAssets keys
   for (const ext of extensions) {
     for (const key of Object.keys(discoveredAssets)) {
-      if (key.endsWith(`/${id}.${ext}`) || key.includes(`/${id}-`)) {
+      if (key.endsWith(`/${id}.${ext}`) || key.includes(`/${id}-`) || (meta?.recommendedFileName && key.endsWith(`/${meta.recommendedFileName}`))) {
         return discoveredAssets[key];
       }
     }
