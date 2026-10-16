@@ -16,8 +16,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function ReadAwsJson([string[]]$AwsArgs) {
-    $lines = & aws @AwsArgs --profile $Profile --region $Region --output json --no-cli-pager 2>&1
+function ReadAwsJson([string[]]$AwsArgs, [string]$CallRegion = $Region) {
+    $lines = & aws @AwsArgs --profile $Profile --region $CallRegion --output json --no-cli-pager 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "Read-only AWS command failed (inspect locally): $($AwsArgs[0]) $($AwsArgs[1])"
     }
@@ -54,7 +54,7 @@ if ($groupIds.Count -lt 1) {
 }
 $groups = ReadAwsJson (@('ec2', 'describe-security-groups', '--group-ids') + $groupIds)
 foreach ($group in $groups.SecurityGroups) {
-    if (@($group.IpPermissions).Count -gt 0) {
+    if ($null -ne $group.IpPermissions -and @($group.IpPermissions).Count -gt 0) {
         throw 'NO-GO: existing EC2 Security Group has inbound rules. Do not expose FastAPI.'
     }
 }
@@ -84,7 +84,7 @@ if ($instance.State.Name -eq 'running') {
 
 # Budget inspection is read-only. If AWS account has no suitable budget,
 # the operator must configure alerts in Billing separately before applying.
-$budgets = ReadAwsJson @('budgets', 'describe-budgets', '--account-id', $ExpectedAccountId)
+$budgets = ReadAwsJson @('budgets', 'describe-budgets', '--account-id', $ExpectedAccountId) 'us-east-1'
 $budget10 = @($budgets.Budgets | Where-Object {
     $_.BudgetType -eq 'COST' -and $_.BudgetLimit.Unit -eq 'USD' -and
     [decimal]$_.BudgetLimit.Amount -le [decimal]10
