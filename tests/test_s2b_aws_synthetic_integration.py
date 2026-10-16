@@ -149,3 +149,25 @@ def test_default_off_authenticated_endpoint_and_invalid_contract(cloud, monkeypa
     assert missing_key.status_code == 422
     malformed = client.get("/v2/jobs/non-uuid", headers=auth)
     assert malformed.status_code == 404
+
+
+def test_expired_idempotency_key_cannot_resurrect_old_ttl_record(cloud):
+    old = cloud.create(
+        owner="demo_000", key="expired-request-001",
+        fixture="short_observation",
+        variant="cp2-v2-complete-link-200m", now=1000,
+    )
+    assert cloud.get(owner="demo_000", jid=old["job_id"], now=2000) is None
+    from geolife.serving.aws_s2b import IdempotencyConflict
+    with pytest.raises(IdempotencyConflict, match="Expired"):
+        cloud.create(
+            owner="demo_000", key="expired-request-001",
+            fixture="short_observation",
+            variant="cp2-v2-complete-link-200m", now=2000,
+        )
+    fresh = cloud.create(
+        owner="demo_000", key="fresh-request-002",
+        fixture="short_observation",
+        variant="cp2-v2-complete-link-200m", now=2000,
+    )
+    assert fresh["job_id"] != old["job_id"]
