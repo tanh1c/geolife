@@ -143,7 +143,7 @@ def main() -> None:
     parser.add_argument("--expected-account", required=True, help="Twelve-digit AWS account ID (local only)")
     args = parser.parse_args()
     try:
-        data = json.loads(args.plan_json.read_text(encoding="utf-8"))
+        data = json.loads(args.plan_json.read_text(encoding="utf-8-sig"))
         result = validate_plan(data, expected_account=args.expected_account)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         # Never print raw input or resource attributes, even for parse errors.
