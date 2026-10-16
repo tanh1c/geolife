@@ -4339,3 +4339,8 @@ Optional **local PowerShell** runbook added to `docs/recommendation/01_s1_synthe
 **Next pipeline gate:** `frontend`, Python `validate` and `docker-smoke` jobs all must pass at a single final head. Optional local browser replay uses the updated two-terminal PowerShell runbook; no real data, Modal or AWS. Keep PR #76 Draft pending review and brand/asset provenance. Current visual UI closely references Xanh SM; not cleared for public branding/copyright use. The recommender remains synthetic-only and Evidence v1 production baseline unchanged.
 
 **Roadmap:** After S1b review, Track B1 Checkpoint 3 **async SQS job processing, sync-vs-async latency, CloudWatch monitoring dashboard and simulated offline drift** remain mandatory. Cognito/OIDC security work runs as a separate design/sandbox stream subject to approval. `docs/roadmap/2026-10-15_track_b1_unified_master_roadmap.md` currently lives on PR #75 (not yet in `main`). No AWS resources, network rules or user-data policies were changed by this FE/CI work.
+
+
+### S1b final GitHub verification (2026-10-16)
+
+On PR #76 implementation+doc head `d8f2f1357ff9`, **all three workflows PASS**: Python `validate`, dedicated Node 24 `frontend` (`npm ci`, TS typecheck, Vite production build), and Docker `docker-smoke`. The Linux job verified that the repaired lockfile and now-tracked `frontend/index.html` work from a clean checkout. Browser walkthrough remains operator-reported from local testing at `0cc667e`; no independent CI Playwright browser gate was added. This documentation-only entry follows the successful implementation head; do not confuse it with a public release sign-off. PR #76 remains Draft pending asset/trademark/privacy review and optional fresh local screenshot check.
