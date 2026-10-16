@@ -89,7 +89,11 @@ class AwsAsyncJobs:
             Key={"job_id": jid}, ConsistentRead=True
         ).get("Item")
         fingerprint = hashlib.sha256(f"{fixture}|{variant}".encode()).hexdigest()
-        if existing is not None and int(existing["expires_at"]) > now:
+        if existing is not None and int(existing["expires_at"]) <= now:
+            # DynamoDB TTL is asynchronous; do not reuse an expired HMAC job
+            # identifier until its tombstone is physically deleted.
+            raise IdempotencyConflict("Expired idempotency key; choose a fresh key")
+        if existing is not None:
             if (existing["owner_id"] != owner or existing["fingerprint"] != fingerprint):
                 raise IdempotencyConflict("Idempotency-Key reused with different request")
             # Safe to retry enqueue: Standard SQS may deliver duplicates anyway.
@@ -122,7 +126,8 @@ class AwsAsyncJobs:
             current = self.table.get_item(
                 Key={"job_id": jid}, ConsistentRead=True
             ).get("Item")
-            if not current or current["fingerprint"] != fingerprint or current["owner_id"] != owner:
+            if (not current or int(current["expires_at"]) <= now or
+                    current["fingerprint"] != fingerprint or current["owner_id"] != owner):
                 raise IdempotencyConflict("Idempotency-Key conflict") from None
             item = current
         if item["state"] == "pending":
@@ -308,5 +313,5 @@ def run_synthetic_inference(*, fixture: str, variant: str) -> dict[str, object]:
         "home_status": "emitted" if "HOME" in labels else "abstained",
         "office_status": "emitted" if "OFFICE" in labels else "abstained",
         "model_version": variant,
-        "note": "Synthetic aggregate; no raw GPS, Evidence Score or participant linkage.",
+        "note": "Synthetic-only aggregate; not verified semantic ground truth.",
     }
