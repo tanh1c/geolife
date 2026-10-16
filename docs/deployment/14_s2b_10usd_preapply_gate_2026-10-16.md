@@ -44,16 +44,16 @@ terraform -version
 python --version
 
 # Set LOCAL variables to known identities from the previous GeoLife EC2/SSM deployment.
-$profile = "YOUR_EXISTING_AWS_SSO_PROFILE"
+$awsProfile = "YOUR_EXISTING_AWS_SSO_PROFILE"
 $expectedAccount = "YOUR_12_DIGIT_AWS_ACCOUNT_ID"
 $instanceId = "i-YOUR_EXISTING_EC2_ID"
 $region = "ap-southeast-1"
 
-aws sso login --profile $profile
+aws sso login --profile $awsProfile
 aws sts get-caller-identity --profile $profile --region $region
 
 # Only describes IAM/network/SSM/budgets; never starts EC2, changes IAM or applies Terraform.
-.\scripts\s2b_preflight_readonly.ps1 -Profile $profile -ExpectedAccountId $expectedAccount -InstanceId $instanceId -Region $region
+.\scripts\s2b_preflight_readonly.ps1 -AwsProfile $awsProfile -ExpectedAccountId $expectedAccount -InstanceId $instanceId -Region $region
 ```
 
 Do NOT paste the full caller identity, account ID, IAM role ARN or budget details in public chat. Report only: `account matched / region matched / EC2 running|stopped / SG inbound count=0 / SSM Online|not testable / role reviewed / budget alerts ready|pending`.
@@ -73,7 +73,7 @@ New-Item -ItemType Directory -Path $tfDir | Out-Null
 Copy-Item "infra/terraform/async_s2b/*.tf" -Destination $tfDir
 
 # Explicitly select the SAME AWS SSO profile / region that passed preflight.
-$env:AWS_PROFILE = $profile
+$env:AWS_PROFILE = $awsProfile
 $env:AWS_REGION = "ap-southeast-1"
 $env:AWS_DEFAULT_REGION = "ap-southeast-1"
 
