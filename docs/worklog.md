@@ -4313,3 +4313,16 @@ After rollback: `/health` HTTP 200; `/v2/model-info` reports `routing_mode=basel
 ### S2a final GitHub synthetic acceptance (2026-10-16)
 
 At PR #77 head `246501a487e4`, **Python CI PASS** and **Docker smoke PASS**. Python unit tests cover owner isolation, pointer-only queue messages, TTL, same-owner idempotency, duplicate delivery suppression, retry and simulated DLQ; no real AWS calls or GPS dataset. This documentation-only update records tests, not deployment. Original Checkpoint 3 async acceptance **remains NOT DONE** until S2b provisions scoped AWS SQS/DLQ, protected private TTL storage and worker with user-approved budget/IAM, demonstrates authenticated job polling and reports comparable sync/async full-completion latency.
+
+
+## 2026-10-16 — S2b AWS SQS async serving implementation (no apply)
+
+**Roadmap:** Original Track B1 Checkpoint 3 requires actual AWS queue-based async serving, sync-vs-async latency and monitoring/drift. This PR #78 is stacked on PR #77 S2a simulator; both distinct from PR #76 React FE–BE synthetic demo. The Master Roadmap remains in PR #75. No older CP1/CP2 threshold or Evidence v1 is changed.
+
+**Implemented for review:** Created opt-in `src/geolife/serving/aws_s2b.py` with S3 SSE-S3 synthetic fixture storage, DynamoDB conditional owner-bound status/TTL/lease and HMAC idempotency, SQS Standard pointer-only message `{"job_id": ...}`, bounded worker retry + DLQ semantics and **existing** CP1/CP2 model execution on hardcoded fictional GPS. HTTP endpoints `POST /v2/jobs` 202 and `GET /v2/jobs/{job_id}` use existing demo bearer account, reject arbitrary/private GPS and hide scores/coords; require `GEOLIFE_S2B_ENABLE=1`. API OpenAPI updated. No real GeoLife dataset identifier or private location data enters cloud.
+
+**Infrastructure:** `infra/terraform/async_s2b/` is **separate from EC2 Terraform state**; defines encrypted SQS/DLQ, private SSE-S3 with 1-day lifecycle, DynamoDB TTL and DLQ alarm. Outputs least-privilege IAM policy as *review-only*; does not modify/attach to the existing EC2 role, open security groups or create new EC2. **No terraform apply, SDK AWS calls or user cloud actions were performed by the assistant**. TTL/lifecycle deletes are asynchronous and not an exact 15-minute physical erase; only synthetic fixtures permitted.
+
+**Testing and measurement:** Added moto-based end-to-end adapter/API tests, standalone bounded worker CLI and private SSM-only latency benchmark script. Benchmark separates synchronous complete response, async HTTP 202 acknowledgement and async complete result latency; no actual measurements are available before an approved AWS test. CI Terraform separate-root validation added. Exact operator handoff is `docs/deployment/13_s2b_aws_sqs_synthetic_handoff.md`. **Status at time of writing: source/tests implemented; awaiting GitHub Actions results and a separate operator cost/IAM approval for any AWS resources.**
+
+**No-track-completion claim:** S2b contract and Terraform in PR #78 is not production async serving and does not complete Checkpoint 3. Need operator-approved SSM-only synthetic AWS implementation validation, sync/async latency numbers, worker/DLQ acceptance and then monitoring dashboard plus offline simulated drift.
