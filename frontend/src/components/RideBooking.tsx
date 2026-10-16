@@ -63,6 +63,10 @@ export const RideBooking: React.FC<RideBookingProps> = ({
 
   return (
     <div className="flex-1 bg-[#F5F8F9] flex flex-col h-full min-h-full relative overflow-hidden select-none">
+      <div role="status" className="shrink-0 z-40 bg-[#fff9e8] border-b border-[#e5c979] px-4 py-3 text-[12px] text-[#594612]">
+        <strong>{syntheticPreview ? 'Gợi ý GeoLife synthetic · Booking mô phỏng' : 'GeoLife UI demo · Booking mô phỏng'}</strong>
+        <span className="block mt-1">Không đặt xe thật. Giá, thời gian đón và bản đồ chỉ là hình minh họa; chưa tính từ địa điểm được chọn. Không liên kết với dịch vụ gọi xe.</span>
+      </div>
       {/* 1. Upper Half: Interactive Map with Route & Floating Controls */}
       <div className="flex-1 min-h-[160px] relative overflow-hidden">
         <BookingMap
