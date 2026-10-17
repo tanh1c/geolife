@@ -261,3 +261,126 @@ def test_partial_state_recovery_rejects_no_op_without_prior_managed():
     rows[:] = [r for r in rows if r["address"] != "aws_s3_bucket.payloads"]
     with pytest.raises(guard.PlanRejected, match="No-op without"):
         guard.validate_plan(plan, expected_account="123456789012", allow_partial_state=True)
+
+
+def test_refresh_drift_distinct_from_actual_noop_changes():
+    plan = _partial_state_sample()
+    bucket = next(row for row in plan["resource_changes"]
+                  if row["address"] == "aws_s3_bucket.payloads")
+    observed_after = copy.deepcopy(bucket["change"]["after"])
+    plan["resource_drift"] = [{
+        "address": "aws_s3_bucket.payloads",
+        "mode": "managed",
+        "change": {
+            "actions": ["update"],
+            "before": {**observed_after, "hosted_zone_id": "old"},
+            "after": observed_after,
+        },
+    }]
+    with pytest.raises(guard.PlanRejected, match="Drift requires"):
+        guard.validate_plan(
+            plan, expected_account="123456789012", allow_partial_state=True
+        )
+    review = guard.drift_summary(plan)
+    assert review["count"] == 1
+    assert review["drift"][0]["resource"] == "aws_s3_bucket.payloads"
+    assert review["drift"][0]["changed_attribute_paths"] == ["hosted_zone_id"]
+    assert review["displays_aws_attribute_values"] is False
+    out = guard.validate_plan(
+        plan, expected_account="123456789012", allow_partial_state=True,
+        reviewed_drift_digest=review["fingerprint_sha256"],
+    )
+    assert out["reviewed_refresh_drift_count"] == 1
+    assert out["changes"] == {"create": 4, "update": 0, "delete": 0, "no_op": 6}
+    assert out["terraform_apply_authorized"] is False
+
+
+def test_refresh_drift_rejects_changed_digest():
+    plan = _partial_state_sample()
+    bucket = next(row for row in plan["resource_changes"]
+                  if row["address"] == "aws_s3_bucket.payloads")
+    plan["resource_drift"] = [{
+        "address": bucket["address"],
+        "mode": "managed",
+        "change": {
+            "actions": ["update"],
+            "before": {**bucket["change"]["after"], "id": "former"},
+            "after": bucket["change"]["after"],
+        },
+    }]
+    bad = guard.drift_summary(plan)["fingerprint_sha256"]
+    plan["resource_drift"][0]["change"]["before"]["id"] = "modified"
+    with pytest.raises(guard.PlanRejected, match="Drift requires"):
+        guard.validate_plan(
+            plan, expected_account="123456789012",
+            allow_partial_state=True, reviewed_drift_digest=bad,
+        )
+
+
+def test_refresh_drift_rejects_unsupported_plan_action_even_if_reviewed():
+    plan = _partial_state_sample()
+    pending = next(row for row in plan["resource_changes"]
+                   if row["address"] == "aws_s3_bucket_policy.payloads")
+    plan["resource_drift"] = [{
+        "address": pending["address"], "mode": "managed",
+        "change": {"actions": ["update"], "before": {"policy": "old"},
+                   "after": {"policy": "new"}},
+    }]
+    review = guard.drift_summary(plan)
+    with pytest.raises(guard.PlanRejected, match="untracked or changing"):
+        guard.validate_plan(
+            plan, expected_account="123456789012", allow_partial_state=True,
+            reviewed_drift_digest=review["fingerprint_sha256"],
+        )
+
+
+def test_refresh_drift_rejects_nonmatching_remote_and_planned_after():
+    plan = _partial_state_sample()
+    bucket = next(row for row in plan["resource_changes"]
+                  if row["address"] == "aws_s3_bucket.payloads")
+    plan["resource_drift"] = [{
+        "address": bucket["address"], "mode": "managed",
+        "change": {"actions": ["update"], "before": {"id": "old"},
+                   "after": {"id": "new"}},
+    }]
+    review = guard.drift_summary(plan)
+    with pytest.raises(guard.PlanRejected, match="after-state differs"):
+        guard.validate_plan(
+            plan, expected_account="123456789012", allow_partial_state=True,
+            reviewed_drift_digest=review["fingerprint_sha256"],
+        )
+
+
+def test_refresh_drift_does_not_accept_delete_or_external_resource():
+    plan = _partial_state_sample()
+    plan["resource_drift"] = [{
+        "address": "aws_s3_bucket.payloads", "mode": "managed",
+        "change": {"actions": ["delete"], "before": {"id": "test"},
+                   "after": {}},
+    }]
+    with pytest.raises(guard.PlanRejected, match="Unexpected drift operation"):
+        guard.drift_summary(plan)
+    plan["resource_drift"][0]["address"] = "aws_security_group.public"
+    plan["resource_drift"][0]["change"]["actions"] = ["update"]
+    with pytest.raises(guard.PlanRejected, match="Unexpected, duplicate or external"):
+        guard.drift_summary(plan)
+
+
+def test_refresh_drift_review_does_not_override_forbidden_changes():
+    plan = _partial_state_sample()
+    bucket = next(row for row in plan["resource_changes"]
+                  if row["address"] == "aws_s3_bucket.payloads")
+    observed_after = copy.deepcopy(bucket["change"]["after"])
+    plan["resource_drift"] = [{
+        "address": bucket["address"], "mode": "managed",
+        "change": {"actions": ["update"],
+                   "before": {**observed_after, "hosted_zone_id": "old"},
+                   "after": observed_after},
+    }]
+    review = guard.drift_summary(plan)
+    bucket["change"]["actions"] = ["delete", "create"]
+    with pytest.raises(guard.PlanRejected):
+        guard.validate_plan(
+            plan, expected_account="123456789012", allow_partial_state=True,
+            reviewed_drift_digest=review["fingerprint_sha256"],
+        )
