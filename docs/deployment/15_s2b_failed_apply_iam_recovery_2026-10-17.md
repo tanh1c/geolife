@@ -53,6 +53,56 @@ The Terraform root's `outputs.tf` contains a *different* policy: `manual_ec2_iam
 
 Use [AWS S3 bucket permissions](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-policy-actions.html), [DynamoDB IAM authorization](https://docs.aws.amazon.com/service-authorization/latest/reference/list_dynamodb.html), [SQS IAM authorization](https://docs.aws.amazon.com/service-authorization/latest/reference/list_sqs.html), [CloudWatch IAM authorization](https://docs.aws.amazon.com/service-authorization/latest/reference/list_cloudwatch.html). AWS provider `default_tags` can require service tagging permissions beyond the three Create actions.
 
+## 3A. Operator's real post-failure inventory: 3 ABSENT + 2 UNKNOWN (2026-10-17)
+
+The local operator ran the new **read-only** inventory and confirmed `s3_bucket=ABSENT`, `sqs_jobs=ABSENT`, `sqs_dlq=ABSENT`. Two other results were **UNKNOWN due to explicit AccessDenied** on the `geolife-ops` IAM user:
+
+- `dynamodb:DescribeTable` on `geolife-mle-s2b-dev-jobs` in `ap-southeast-1`.
+- `cloudwatch:DescribeAlarms` on `geolife-mle-s2b-dev-dlq-not-empty` in `ap-southeast-1`.
+
+Those 403 denials establish **missing READ permission only**, not presence or absence of the DynamoDB table or CloudWatch metric alarm. `decision=NO_GO` is correct and must remain so until both checks are confirmed ABSENT (or an existing resource is safely reconciled).
+
+### Read-only IAM patch to review, **for geolife-ops only**, not the EC2 role
+
+An IAM administrator may add the following **two read actions only** as a short-lived, narrowly scoped statement to the existing `geolife-ops` identity policy, using the *operator-verified real account number locally*. This is **not an S2b creation/deployment policy**, does not permit `terraform apply`, and is **not automatically attached** by this PR.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadOnlyS2bDynamoTableInventory",
+      "Effect": "Allow",
+      "Action": "dynamodb:DescribeTable",
+      "Resource": "arn:aws:dynamodb:ap-southeast-1:<ACCOUNT_ID>:table/geolife-mle-s2b-dev-jobs"
+    },
+    {
+      "Sid": "ReadOnlyS2bMetricAlarmInventory",
+      "Effect": "Allow",
+      "Action": "cloudwatch:DescribeAlarms",
+      "Resource": "arn:aws:cloudwatch:ap-southeast-1:<ACCOUNT_ID>:alarm:geolife-mle-s2b-dev-dlq-not-empty"
+    }
+  ]
+}
+```
+
+AWS Service Authorization Reference lists resource-level `table` for `dynamodb:DescribeTable` and `alarm` for `cloudwatch:DescribeAlarms`. **Caveat:** CloudWatch's API documentation requires wildcard `Resource: "*"` to retrieve **composite** alarms; the S2b inventory requests only its **named metric alarm** (and the script does not request composite alarms), so use exact resource scope first. If a strictly scoped read remains AccessDenied, ask the IAM administrator to inspect permission boundaries/SCP and CloudWatch resource evaluation; do not escalate to broad cloudwatch permissions simply to pass the check.
+
+After the administrator grants the narrow READ policy (or verifies both objects independently with an authorized Console identity), rerun the **same current script** from the repo root:
+
+```powershell
+git fetch origin
+git switch feature/track-b1-s2b-aws-sqs-serving
+git pull --ff-only
+$expectedAccount = (aws sts get-caller-identity --profile geolife-terraform --query Account --output text).Trim()
+python scripts/s2b_failed_apply_inventory_readonly.py --profile geolife-terraform --expected-account $expectedAccount
+if ($LASTEXITCODE -ne 0) { throw "NO-GO: inventory still contains PRESENT or UNKNOWN" }
+```
+
+Only after **all five** are ABSENT may the operator advance to a **new Terraform plan review**, and only after the **previously unresolved billing/cost gate** (10 USD limit, alarms USD 5 and 8 and 2 USD buffer) is verified. **Do not start EC2, broaden SG, add Create/Put/Update IAM actions, reuse the failed saved plan, or retry apply based solely on these read permissions.** The existing separate [deployer policy review template](15_s2b_deployer_iam_review_template.json) is for a later provisioning decision and MUST NOT be confused with this read-only inventory patch.
+
+**Source references:** [CloudWatch IAM resource types](https://docs.aws.amazon.com/service-authorization/latest/reference/list_cloudwatch.html), [DescribeAlarms API composite-alarm permission nuance](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarms.html), [DynamoDB IAM actions](https://docs.aws.amazon.com/service-authorization/latest/reference/list_dynamodb.html).
+
 ## 4. Recover preflight & do not reuse failed saved plan
 
 1. Confirm existing IAM operator principal / AWS account / `ap-southeast-1`, SSM-only EC2 STOPPED and all SGs inbound zero. Preserve the original private failed-plan and state snapshot. Never paste credentials, plan JSON or account IDs into repo/chat.
