@@ -1,0 +1,77 @@
+{
+  "_comment": "REVIEW ONLY — not attachable JSON: remove _comment and replace account ID privately. Includes provider read-after-create S3 bucket metadata APIs (CORS, website, logging, payment, acceleration, replication, object lock). Scope only geolife-ops, never EC2. Does not authorize retrying failed apply without partial-state plan review.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S2bSyntheticBucketSetupOnly",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:GetBucketLocation",
+        "s3:GetBucketTagging",
+        "s3:PutBucketTagging",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutEncryptionConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:PutLifecycleConfiguration",
+        "s3:GetBucketPolicy",
+        "s3:PutBucketPolicy",
+        "s3:GetBucketVersioning",
+        "s3:GetBucketAcl",
+        "s3:ListBucket",
+        "s3:GetBucketCORS",
+        "s3:GetBucketWebsite",
+        "s3:GetBucketLogging",
+        "s3:GetBucketRequestPayment",
+        "s3:GetAccelerateConfiguration",
+        "s3:GetReplicationConfiguration",
+        "s3:GetBucketObjectLockConfiguration"
+      ],
+      "Resource": "arn:aws:s3:::geolife-mle-s2b-dev-<ACCOUNT_ID>-ap-southeast-1"
+    },
+    {
+      "Sid": "S2bSyntheticDynamoTableSetupOnly",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:CreateTable",
+        "dynamodb:DescribeTable",
+        "dynamodb:UpdateTimeToLive",
+        "dynamodb:DescribeTimeToLive",
+        "dynamodb:UpdateContinuousBackups",
+        "dynamodb:DescribeContinuousBackups",
+        "dynamodb:TagResource",
+        "dynamodb:ListTagsOfResource"
+      ],
+      "Resource": "arn:aws:dynamodb:ap-southeast-1:<ACCOUNT_ID>:table/geolife-mle-s2b-dev-jobs"
+    },
+    {
+      "Sid": "S2bSyntheticQueuesSetupOnly",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:CreateQueue",
+        "sqs:GetQueueUrl",
+        "sqs:GetQueueAttributes",
+        "sqs:SetQueueAttributes",
+        "sqs:TagQueue",
+        "sqs:ListQueueTags"
+      ],
+      "Resource": [
+        "arn:aws:sqs:ap-southeast-1:<ACCOUNT_ID>:geolife-mle-s2b-dev-jobs",
+        "arn:aws:sqs:ap-southeast-1:<ACCOUNT_ID>:geolife-mle-s2b-dev-dlq"
+      ]
+    },
+    {
+      "Sid": "S2bDlqAlarmSetupOnly",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:TagResource",
+        "cloudwatch:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:cloudwatch:ap-southeast-1:<ACCOUNT_ID>:alarm:geolife-mle-s2b-dev-dlq-not-empty"
+    }
+  ]
+}
