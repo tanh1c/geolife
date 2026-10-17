@@ -9,8 +9,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
+COPY scripts/run_s2b_synthetic_worker.py ./s2b_worker.py
 
-RUN python -m pip install --no-cache-dir . \
+RUN python -m pip install --no-cache-dir '.[aws]' \
     && useradd --system --uid 10001 --create-home geolife
 
 USER geolife
