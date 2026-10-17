@@ -8,6 +8,7 @@ only, not resource IDs, ARNs, secrets or Terraform configuration values.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -31,7 +32,70 @@ class PlanRejected(ValueError):
     """Fail closed for any unexpected S2b Terraform plan change."""
 
 
-def validate_plan(data: dict, *, expected_account: str, expected_region: str = "ap-southeast-1", allow_partial_state: bool = False) -> dict:
+def drift_summary(data: dict) -> dict:
+    """Summarize refresh-only differences WITHOUT exposing plan values or IDs.
+
+    Printed paths/addresses describe schema fields, never before/after values.
+    Hash covers exact drift objects, so acknowledgement is tied to this saved
+    plan and is not a blanket 'ignore resource_drift' switch.
+    """
+    rows = data.get("resource_drift", [])
+    if not isinstance(rows, list):
+        raise PlanRejected("Invalid Terraform resource_drift")
+    if len(rows) > len(EXPECTED_RESOURCES):
+        raise PlanRejected("Unexpected number of drift entries")
+    seen: set[str] = set()
+    details: list[dict] = []
+
+    def changed_paths(before: object, after: object, prefix: str = "") -> list[str]:
+        if isinstance(before, dict) and isinstance(after, dict):
+            found: list[str] = []
+            for key in sorted(set(before) | set(after)):
+                path = f"{prefix}.{key}" if prefix else key
+                if key not in before or key not in after:
+                    found.append(path)
+                else:
+                    found.extend(changed_paths(before[key], after[key], path))
+            return found
+        if before != after:
+            # A list's element indexes can contain account/user identifiers.
+            # Only display the parent attribute name, not indexes or values.
+            return [prefix or "(root)"]
+        return []
+
+    for row in rows:
+        if not isinstance(row, dict):
+            raise PlanRejected("Malformed resource_drift item")
+        addr = row.get("address")
+        if (not isinstance(addr, str) or addr not in EXPECTED_RESOURCES
+                or addr in seen or row.get("mode", "managed") != "managed"):
+            raise PlanRejected("Unexpected, duplicate or external drift resource")
+        seen.add(addr)
+        change = row.get("change")
+        if not isinstance(change, dict) or change.get("actions") not in (["update"], ["no-op"]):
+            raise PlanRejected("Unexpected drift operation (delete/replace not allowed)")
+        before, after = change.get("before"), change.get("after")
+        if not isinstance(before, dict) or not isinstance(after, dict):
+            raise PlanRejected("Missing structured drift before/after for review")
+        paths = changed_paths(before, after)
+        if change["actions"] == ["update"] and not paths:
+            raise PlanRejected("Drift update with no observable changed attributes")
+        details.append({
+            "resource": addr,
+            "observed_action": change["actions"][0],
+            "changed_attribute_paths": paths,
+        })
+    blob = json.dumps(rows, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return {
+        "count": len(details),
+        "fingerprint_sha256": hashlib.sha256(blob.encode("utf-8")).hexdigest(),
+        "drift": sorted(details, key=lambda d: d["resource"]),
+        "displays_aws_attribute_values": False,
+        "requires_manual_review": bool(details),
+    }
+
+
+def validate_plan(data: dict, *, expected_account: str, expected_region: str = "ap-southeast-1", allow_partial_state: bool = False, reviewed_drift_digest: str | None = None) -> dict:
     if not re.fullmatch(r"\d{12}", expected_account):
         raise PlanRejected("Expected account must be twelve digits")
     if expected_region != "ap-southeast-1":
@@ -127,9 +191,33 @@ def validate_plan(data: dict, *, expected_account: str, expected_region: str = "
         if no_ops != managed_prior:
             raise PlanRejected("Prior managed object addresses must exactly match no-op objects")
 
-    for drift in data.get("resource_drift", []):
-        if drift.get("change", {}).get("actions") not in (None, ["no-op"]):
-            raise PlanRejected("Resource drift detected in S2b state")
+    observation = drift_summary(data)
+    observed_rows = data.get("resource_drift", [])
+    if observed_rows and not allow_partial_state:
+        raise PlanRejected("Unexpected refresh drift on first-time S2b plan")
+    meaningful_drift = [
+        row for row in observed_rows
+        if row["change"]["actions"] != ["no-op"]
+    ]
+    if meaningful_drift:
+        if (not isinstance(reviewed_drift_digest, str)
+                or not re.fullmatch(r"[a-f0-9]{64}", reviewed_drift_digest)
+                or reviewed_drift_digest != observation["fingerprint_sha256"]):
+            raise PlanRejected(
+                "Drift requires a review of field paths and exact --reviewed-drift-digest"
+            )
+        # Drift reports historical differences, not the changes to apply.
+        # Constrain every drifted resource to *tracked* S2b state and an
+        # unchanged planned operation. The refreshed observed object must be
+        # identical to the planned no-op 'after' state. A drifting planned
+        # create/update/replace/delete is NEVER eligible for acknowledgement.
+        for row in meaningful_drift:
+            addr = row["address"]
+            planned = by_address.get(addr, {}).get("change", {})
+            if addr not in managed_prior or planned.get("actions") != ["no-op"]:
+                raise PlanRejected(f"Drift on untracked or changing resource: {addr}")
+            if row["change"]["after"] != planned.get("after"):
+                raise PlanRejected(f"Drift after-state differs from no-op plan: {addr}")
 
     def after(key: str) -> dict:
         value = by_address[key].get("change", {}).get("after")
@@ -175,6 +263,8 @@ def validate_plan(data: dict, *, expected_account: str, expected_region: str = "
         "expected_resources_to_create": counts["create"],
         "changes": counts if allow_partial_state else {k: counts[k] for k in ("create", "update", "delete")},
         "recovery_partial_state": allow_partial_state,
+        "reviewed_refresh_drift_count": len(meaningful_drift),
+        "reviewed_refresh_drift_fingerprint": observation["fingerprint_sha256"] if meaningful_drift else None,
         "region": expected_region,
         "identity_verified": True,
         "project": "geolife-s2b-synthetic-only",
@@ -196,10 +286,25 @@ def main() -> None:
         "--allow-partial-state", action="store_true",
         help="Only for recovery after a failed apply; permit allowlisted prior resources as no-op",
     )
+    parser.add_argument(
+        "--inspect-drift", action="store_true",
+        help="Read-only local report of resource drift field paths and SHA-256, not values",
+    )
+    parser.add_argument(
+        "--reviewed-drift-digest", default=None,
+        help="Exact drift SHA-256 after independent review; not an apply approval",
+    )
     args = parser.parse_args()
     try:
         data = json.loads(args.plan_json.read_text(encoding="utf-8-sig"))
-        result = validate_plan(data, expected_account=args.expected_account, allow_partial_state=args.allow_partial_state)
+        if args.inspect_drift:
+            print(json.dumps(drift_summary(data), indent=2))
+            return
+        result = validate_plan(
+            data, expected_account=args.expected_account,
+            allow_partial_state=args.allow_partial_state,
+            reviewed_drift_digest=args.reviewed_drift_digest,
+        )
     except (OSError, ValueError, KeyError, TypeError) as exc:
         # Never print raw input or resource attributes, even for parse errors.
         raise SystemExit(f"S2B_PLAN_REJECTED: {type(exc).__name__}; inspect privately") from None
