@@ -173,7 +173,7 @@ def validate_plan(data: dict, *, expected_account: str, expected_region: str = "
     return {
         "decision": "GO_FOR_MANUAL_REVIEW_ONLY_NOT_APPLY",
         "expected_resources_to_create": counts["create"],
-        "changes": counts,
+        "changes": counts if allow_partial_state else {k: counts[k] for k in ("create", "update", "delete")},
         "recovery_partial_state": allow_partial_state,
         "region": expected_region,
         "identity_verified": True,
