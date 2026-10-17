@@ -31,7 +31,7 @@ class PlanRejected(ValueError):
     """Fail closed for any unexpected S2b Terraform plan change."""
 
 
-def validate_plan(data: dict, *, expected_account: str, expected_region: str = "ap-southeast-1") -> dict:
+def validate_plan(data: dict, *, expected_account: str, expected_region: str = "ap-southeast-1", allow_partial_state: bool = False) -> dict:
     if not re.fullmatch(r"\d{12}", expected_account):
         raise PlanRejected("Expected account must be twelve digits")
     if expected_region != "ap-southeast-1":
@@ -68,10 +68,17 @@ def validate_plan(data: dict, *, expected_account: str, expected_region: str = "
     prior_values = prior.get("values", {}) if isinstance(prior, dict) else {}
     prior_rows = resource_rows(prior_values)
 
-    # This root must be a clean, new S2b state. 10 planned creates are
-    # insufficient assurance if the root already manages other resources.
-    if any(row.get("mode", "managed") == "managed" for row in prior_rows):
+    # Default: first-time plan with no managed state (old behavior).
+    # Explicit --allow-partial-state: after a FAILED apply, admit only
+    # previously-managed resources from this exact approved S2b allowlist.
+    managed_prior = {
+        row.get("address") for row in prior_rows
+        if row.get("mode", "managed") == "managed"
+    }
+    if managed_prior and not allow_partial_state:
         raise PlanRejected("S2b prior state contains existing managed resources")
+    if not managed_prior.issubset(EXPECTED_RESOURCES):
+        raise PlanRejected("S2b prior state includes unmanaged/out-of-scope resources")
 
     identities = [
         row.get("values", {}).get("account_id")
@@ -96,12 +103,29 @@ def validate_plan(data: dict, *, expected_account: str, expected_region: str = "
         raise PlanRejected(
             f"Plan resource set mismatch; missing_count={len(missing)}, unexpected_count={len(extra)}"
         )
+    counts = {"create": 0, "update": 0, "delete": 0, "no_op": 0}
     for address, item in by_address.items():
         change = item.get("change", {})
-        if change.get("actions") != ["create"]:
-            raise PlanRejected(f"Non-create Terraform action on {address}")
-        if change.get("before") is not None:
-            raise PlanRejected(f"Existing managed resource is targeted: {address}")
+        actions = change.get("actions")
+        if actions == ["create"]:
+            if change.get("before") is not None or address in managed_prior:
+                raise PlanRejected(f"Unexpected create/recreate targeting managed resource: {address}")
+            counts["create"] += 1
+        elif actions == ["no-op"] and allow_partial_state:
+            if address not in managed_prior or change.get("before") is None:
+                raise PlanRejected(f"No-op without confirmed prior managed object: {address}")
+            counts["no_op"] += 1
+        else:
+            # No in-place updates, replace, delete or import accepted blindly.
+            raise PlanRejected(f"Unexpected action requiring human reconciliation: {address}")
+
+    if allow_partial_state:
+        no_ops = {
+            addr for addr, item in by_address.items()
+            if item.get("change", {}).get("actions") == ["no-op"]
+        }
+        if no_ops != managed_prior:
+            raise PlanRejected("Prior managed object addresses must exactly match no-op objects")
 
     for drift in data.get("resource_drift", []):
         if drift.get("change", {}).get("actions") not in (None, ["no-op"]):
@@ -148,8 +172,9 @@ def validate_plan(data: dict, *, expected_account: str, expected_region: str = "
 
     return {
         "decision": "GO_FOR_MANUAL_REVIEW_ONLY_NOT_APPLY",
-        "expected_resources_to_create": len(by_address),
-        "changes": {"create": len(by_address), "update": 0, "delete": 0},
+        "expected_resources_to_create": counts["create"],
+        "changes": counts,
+        "recovery_partial_state": allow_partial_state,
         "region": expected_region,
         "identity_verified": True,
         "project": "geolife-s2b-synthetic-only",
@@ -167,10 +192,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Reject any S2b plan beyond approved resource allowlist")
     parser.add_argument("plan_json", type=Path)
     parser.add_argument("--expected-account", required=True, help="Twelve-digit AWS account ID (local only)")
+    parser.add_argument(
+        "--allow-partial-state", action="store_true",
+        help="Only for recovery after a failed apply; permit allowlisted prior resources as no-op",
+    )
     args = parser.parse_args()
     try:
         data = json.loads(args.plan_json.read_text(encoding="utf-8-sig"))
-        result = validate_plan(data, expected_account=args.expected_account)
+        result = validate_plan(data, expected_account=args.expected_account, allow_partial_state=args.allow_partial_state)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         # Never print raw input or resource attributes, even for parse errors.
         raise SystemExit(f"S2B_PLAN_REJECTED: {type(exc).__name__}; inspect privately") from None
