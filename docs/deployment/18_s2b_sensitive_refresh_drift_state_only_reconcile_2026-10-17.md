@@ -101,3 +101,45 @@ terraform "-chdir=$tfDir" show $normalPlan
 - [Terraform apply saved plan skips confirmation](https://developer.hashicorp.com/terraform/cli/commands/apply)
 
 **Stop status:** The AWS S2b infrastructure is still partially provisioned. The state-only sync and final normal resource-creating apply remain actions for the operator, not code run by the assistant.
+
+
+## Outcome update: refresh-only succeeded — final four-S3-resource gate
+
+**Local operator reported success, 2026-10-17:** refresh-only modified Terraform state only and preserved all six remote object identities; from that state, the newly saved **normal** plan `s2b-after-state-refresh.tfplan` passed the strict S2b guard **without a drift override**, showing exactly **4 create / 6 no-op / 0 update / 0 delete** and no remaining drift. All four proposed creates are S3 public access block, default encryption config, lifecycle rule and bucket policy. EC2 remains stopped; SG inbound remains zero; this plan is **NOT YET APPLIED**. Prior instructions to perform refresh-only are now historical — **do not repeat them** or regenerate the saved plan simply because this document was updated.
+
+**The only outstanding infrastructure-apply gate:** a human with AWS Billing permissions must verify existing and currently accrued S2b charges, USD 10 experiment ceiling, USD 5 and 8 alerts, and at least USD 2 cost headroom. Lack of `ce:GetCostAndUsage` on `geolife-ops` does **not** require granting cost access to that IAM user: use an already billing-authorized AWS Console session. Budgets can lag and are not automatic hard limits. The current AWS spend is unknown to this assistant; do not assume an account with prior EC2/EBS charges has free USD 10 remaining.
+
+After this **human budget check passes**, the operator who owns the unchanged protected local state and saved plan can perform this **single plan-specific deployment** (no Git checkout/switch needed):
+
+```powershell
+$tfDir = Join-Path $HOME "geolife-private/s2b-plan-3y9c3j"
+$plan = Join-Path $tfDir "s2b-after-state-refresh.tfplan"
+$env:AWS_PROFILE = "geolife-terraform"
+$env:AWS_REGION = "ap-southeast-1"
+$env:AWS_DEFAULT_REGION = "ap-southeast-1"
+if (-not (Test-Path $plan)) { throw "STOP: saved plan missing" }
+$account = (aws sts get-caller-identity --profile geolife-terraform --region ap-southeast-1 --query Account --output text).Trim()
+if ($LASTEXITCODE -ne 0 -or $account -ne "939169265033") { throw "STOP: wrong caller" }
+
+terraform "-chdir=$tfDir" show $plan
+if ($LASTEXITCODE -ne 0) { throw "STOP: could not inspect saved plan" }
+# Guard PASS is operator-reported from the SAME saved plan, not a bypass;
+# if state/config/provider changed since saving it, STOP and generate a fresh plan.
+# Manually confirm four exact S3 config creates, no modification/deletion.
+$ack = Read-Host "Cost+alerts+USD2 buffer verified, SAME plan 4 S3 creates/6 no-op approved? Type APPLY_FOUR_S3"
+if ($ack -cne "APPLY_FOUR_S3") { throw "No approval: stopped before AWS changes" }
+
+terraform "-chdir=$tfDir" apply $plan
+if ($LASTEXITCODE -ne 0) { throw "STOP: partial apply; inspect current state / AWS before any retry" }
+$managed = @(terraform "-chdir=$tfDir" state list | Where-Object { $_ -match "^aws_" })
+if ($LASTEXITCODE -ne 0 -or $managed.Count -ne 10) {
+    throw "STOP: post-apply Terraform state inventory unexpected"
+}
+# Verify S3 public access block, default SSE AES256, 1-day lifecycle and
+# HTTPS-only bucket policy with authorized read-only AWS CLI/Console.
+# Record sanitized PASS/FAIL plus AWS actual spending; do not publish state/plan.
+```
+
+A saved-plan `terraform apply` executes immediately without a Terraform approval prompt. The explicit PowerShell confirmation is intentional. Applying these four config resources does **not** by itself run API/worker or complete real AWS S2b acceptance: runtime scoped EC2 IAM, new Docker image, SSM-only worker, synthetic 202/poll and measured sync-vs-async completion remain after separate runtime approval. See [S2b execution handoff](13_s2b_aws_sqs_synthetic_handoff.md).
+
+**Repo isolation:** The assistant updated this runbook/worklog through GitHub on PR #78, not the local workspace which the operator has left on PR #76.
