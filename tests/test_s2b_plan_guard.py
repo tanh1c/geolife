@@ -181,3 +181,83 @@ def test_rejects_wrong_prior_state_identity_when_planned_is_absent():
     ]}}}
     with pytest.raises(guard.PlanRejected, match="identity"):
         guard.validate_plan(plan, expected_account="123456789012")
+
+
+def _partial_state_sample():
+    """Model a stopped mid-apply: existing bucket/table/queues/alarm in state."""
+    plan = _safe_sample()
+    created = {
+        "aws_s3_bucket.payloads",
+        "aws_dynamodb_table.jobs",
+        "aws_sqs_queue.jobs",
+        "aws_sqs_queue.dead_letter",
+        "aws_sqs_queue_redrive_allow_policy.dlq",
+        "aws_cloudwatch_metric_alarm.dlq_not_empty",
+    }
+    prior_rows = [
+        {"address": "data.aws_caller_identity.current", "mode": "data",
+         "values": {"account_id": "123456789012"}},
+    ]
+    for r in plan["resource_changes"]:
+        if r["address"] in created:
+            r["change"]["actions"] = ["no-op"]
+            r["change"]["before"] = copy.deepcopy(r["change"]["after"])
+            prior_rows.append({
+                "address": r["address"], "mode": "managed",
+                "values": copy.deepcopy(r["change"]["before"]),
+            })
+    plan["prior_state"] = {"values": {"root_module": {"resources": prior_rows}}}
+    return plan
+
+
+def test_partial_state_recovery_accepts_only_prior_allowlisted_no_ops():
+    plan = _partial_state_sample()
+    with pytest.raises(guard.PlanRejected, match="prior state"):
+        guard.validate_plan(plan, expected_account="123456789012")
+    answer = guard.validate_plan(
+        plan, expected_account="123456789012", allow_partial_state=True
+    )
+    assert answer["recovery_partial_state"] is True
+    assert answer["changes"] == {
+        "create": 4, "update": 0, "delete": 0, "no_op": 6,
+    }
+    assert answer["terraform_apply_authorized"] is False
+
+
+def test_partial_state_recovery_rejects_in_place_updates():
+    plan = _partial_state_sample()
+    item = next(i for i in plan["resource_changes"]
+                if i["address"] == "aws_s3_bucket.payloads")
+    item["change"]["actions"] = ["update"]
+    with pytest.raises(guard.PlanRejected, match="Unexpected action"):
+        guard.validate_plan(plan, expected_account="123456789012", allow_partial_state=True)
+
+
+def test_partial_state_recovery_rejects_deleted_or_recreated_resources():
+    for actions in (["delete"], ["delete", "create"], ["create"]):
+        plan = _partial_state_sample()
+        item = next(i for i in plan["resource_changes"]
+                    if i["address"] == "aws_dynamodb_table.jobs")
+        item["change"]["actions"] = actions
+        with pytest.raises(guard.PlanRejected):
+            guard.validate_plan(
+                plan, expected_account="123456789012", allow_partial_state=True
+            )
+
+
+def test_partial_state_recovery_rejects_outside_managed_state():
+    plan = _partial_state_sample()
+    plan["prior_state"]["values"]["root_module"]["resources"].append({
+        "address": "aws_security_group.public", "mode": "managed",
+        "values": {"id": "sg-unknown"}
+    })
+    with pytest.raises(guard.PlanRejected, match="out-of-scope"):
+        guard.validate_plan(plan, expected_account="123456789012", allow_partial_state=True)
+
+
+def test_partial_state_recovery_rejects_no_op_without_prior_managed():
+    plan = _partial_state_sample()
+    rows = plan["prior_state"]["values"]["root_module"]["resources"]
+    rows[:] = [r for r in rows if r["address"] != "aws_s3_bucket.payloads"]
+    with pytest.raises(guard.PlanRejected, match="No-op without"):
+        guard.validate_plan(plan, expected_account="123456789012", allow_partial_state=True)
