@@ -1,5 +1,5 @@
 {
-  "_comment": "REVIEW TEMPLATE ONLY — NOT A DEPLOYED IAM POLICY. Replace <ACCOUNT_ID> offline, delete _comment before IAM submission. Account: geolife-ops deployer ONLY, not EC2 runtime. No global star resource. Validate against actual AWS provider behavior and IAM simulator.",
+  "_comment": "REVIEW ONLY — not attachable JSON: remove _comment and replace account ID privately. Includes provider read-after-create S3 bucket metadata APIs (CORS, website, logging, payment, acceleration, replication, object lock). Scope only geolife-ops, never EC2. Does not authorize retrying failed apply without partial-state plan review.",
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -20,7 +20,14 @@
         "s3:PutBucketPolicy",
         "s3:GetBucketVersioning",
         "s3:GetBucketAcl",
-        "s3:ListBucket"
+        "s3:ListBucket",
+        "s3:GetBucketCORS",
+        "s3:GetBucketWebsite",
+        "s3:GetBucketLogging",
+        "s3:GetBucketRequestPayment",
+        "s3:GetAccelerateConfiguration",
+        "s3:GetReplicationConfiguration",
+        "s3:GetBucketObjectLockConfiguration"
       ],
       "Resource": "arn:aws:s3:::geolife-mle-s2b-dev-<ACCOUNT_ID>-ap-southeast-1"
     },
