@@ -50,7 +50,7 @@ $instanceId = "i-YOUR_EXISTING_EC2_ID"
 $region = "ap-southeast-1"
 
 aws sso login --profile $awsProfile
-aws sts get-caller-identity --profile $profile --region $region
+aws sts get-caller-identity --profile $awsProfile --region $region
 
 # Only describes IAM/network/SSM/budgets; never starts EC2, changes IAM or applies Terraform.
 .\scripts\s2b_preflight_readonly.ps1 -AwsProfile $awsProfile -ExpectedAccountId $expectedAccount -InstanceId $instanceId -Region $region
@@ -167,6 +167,43 @@ Explicit APPLY approval: NOT requested yet
 ```
 
 **Gate for a subsequent step** (not part of this document): after this report and a sanitized cost estimate are reviewed, obtain another explicit **plan-specific** go/no-go before anyone runs `terraform apply`. The user has approved budget and scope but explicitly prohibited creating resources before checking the plan.
+
+## 6A. Actual operator findings + corrected guard (2026-10-17)
+
+Operator reported, using existing `geolife-terraform` identity: **EC2 stopped, all attached SG inbound rules zero, EC2 policies reviewed** (managed SSM and inline ECR-pull/CloudWatch-log writers only), and S2b Terraform plan **10 create / 0 update / 0 destroy**, with private plan saved outside repository. S3 public-block/SSE, DynamoDB on-demand/TTL and no CloudWatch alarm notification targets checked manually. **No apply, IAM grant, EC2 start, or new resource creation was performed.**
+
+Two blockers remain:
+
+1. **Plan guard false NO-GO in old revision:** The real `terraform show -json` contained `data.aws_caller_identity.current.account_id` in `prior_state.values.root_module.resources` instead of `planned_values.root_module.resources`. This is a documented Terraform JSON representation. Fixed `scripts/s2b_plan_guard.py` to read BOTH representations from the **original unchanged plan JSON**, require every observed identity to match the expected operator account and reject any existing *managed* resources in prior state. Added tests reproducing prior-state-only identity, mismatched accounts, unexpectedly existing managed state and absent identity. **Do not treat the operator's temporary in-memory account injection as evidence of a passing official plan guard.**
+2. **Cost visibility not verified:** The current operating identity lacks Cost Explorer read permission, so the pre-existing AWS charges and USD 2 reserve have **not** been independently verified. User's 10 USD approval does not resolve this. AWS Budgets alerts are delayed and do not cap spending.
+
+### Re-run corrected guard against the SAME saved private plan
+
+**Do not regenerate/rewrite the JSON to inject account ID, and do not run plan/apply anew merely to work around the old script.** First update the local code and verify the existing plan's source Terraform snapshot is unchanged. From repository root, with the same variables created during previous preflight:
+
+```powershell
+git fetch origin
+git switch feature/track-b1-s2b-aws-sqs-serving
+git pull --ff-only
+python -m pytest -q tests/test_s2b_plan_guard.py
+
+# Reuse previously saved original plan JSON OUTSIDE Git:
+$existingPlanJson = "YOUR_PRIVATE_S2B_PLAN_DIRECTORY\\s2b-plan-private.json"
+python scripts/s2b_plan_guard.py $existingPlanJson --expected-account $expectedAccount
+if ($LASTEXITCODE -ne 0) { throw "NO-GO: original unchanged S2b plan rejected" }
+```
+
+Expected `GO_FOR_MANUAL_REVIEW_ONLY_NOT_APPLY`. This is **NOT** a final GO for Terraform apply; plan may be stale and account cost/IAM must still be reviewed.
+
+### Close the cost gate without broad IAM permissions (preferred)
+
+Use **AWS Billing and Cost Management Console** under an identity already authorized to view AWS charges. Open [Cost Explorer](https://console.aws.amazon.com/costmanagement/home#/cost-explorer) or Billing/Bills, select the **same account**, inspect **month-to-date actual estimated costs**, charges by EC2/EBS/public IPv4/CloudWatch/ECR, credits/free-tier conditions, projected extra half-hour compute and S2b services, and the AWS Budgets alarm emails at **USD 5 and 8**. Save a **sanitized** report `cost_checked=yes, estimated remaining headroom >=2 USD beyond planned experiment`; no billing screenshots or full account data are required in chat.
+
+Cost Explorer UI has no request fee, whereas Cost Explorer **API pagination costs USD 0.01/request**; enabling Cost Explorer for a new account can take about 24 hours to populate current-month data. AWS may report billing with at least one-day delay and billing can differ from Cost Explorer. Check [official pricing](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-what-is.html), [data-refresh timing](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-enable.html), and [access policies](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-access.html).
+
+If the operator **specifically needs automated read-only cost access**, ask a billing administrator to consider granting `ce:GetCostAndUsage` to **`geolife-ops`**, appropriately restricted by any available billing-view and organizational permissions. Do **not** grant it to EC2 runtime role, and do not grant `ce:*` or billing-admin permissions just to complete preflight. A Cost Explorer service/console entitlement or organization member-account restriction may still block it; the billing administrator can instead verify costs in Console. No IAM policy is modified by this PR.
+
+If accurate billed cost and reserve are unavailable, **NO-GO for apply** despite 10/0/0 plan. Once the corrected guard PASS and independent cost gate PASS, return the *redacted* summary for plan-specific human review. **Never send raw Terraform plan/state, AWS IDs, IAM policy JSON or tokens.**
 
 ## 7. Retention/teardown and pricing caveats
 
