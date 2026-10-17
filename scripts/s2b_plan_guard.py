@@ -211,6 +211,29 @@ def validate_plan(data: dict, *, expected_account: str, expected_region: str = "
         # unchanged planned operation. The refreshed observed object must be
         # identical to the planned no-op 'after' state. A drifting planned
         # create/update/replace/delete is NEVER eligible for acknowledgement.
+        # Even a no-op planned action is not enough to bless a suspicious
+        # refresh. Security-sensitive config drift requires a separate explicit
+        # investigation, never a blanket digest override.
+        protected_fragments = (
+            "public_access", "acl", "policy", "encryption",
+            "kms", "sse", "ttl", "point_in_time_recovery",
+            "billing_mode", "redrive", "alarm_actions",
+            "insufficient_data_actions", "ok_actions",
+            "force_destroy", "visibility_timeout",
+            "message_retention", "secure_transport",
+            "block_public", "restrict_public",
+            "principal", "permissions", "lifecycle",
+        )
+        for detail in observation["drift"]:
+            if detail["observed_action"] == "no-op":
+                continue
+            if any(
+                any(fragment in path.lower() for fragment in protected_fragments)
+                for path in detail["changed_attribute_paths"]
+            ):
+                raise PlanRejected(
+                    "Security-sensitive refresh drift requires separate investigation"
+                )
         for row in meaningful_drift:
             addr = row["address"]
             planned = by_address.get(addr, {}).get("change", {})
