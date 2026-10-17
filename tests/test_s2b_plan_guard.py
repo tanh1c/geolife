@@ -113,3 +113,71 @@ def test_rejects_drift_and_incorrect_expected_account():
         guard.validate_plan(plan, expected_account="123456789012")
     with pytest.raises(guard.PlanRejected):
         guard.validate_plan(_safe_sample(), expected_account="111111111111")
+
+
+def test_real_terraform_shape_identity_in_prior_state_only():
+    """Regression: the operator's saved plan had account_id in prior_state."""
+    plan = _safe_sample()
+    plan["prior_state"] = {
+        "format_version": "1.0",
+        "values": {"root_module": {"resources": [
+            {
+                "address": "data.aws_caller_identity.current",
+                "mode": "data",
+                "type": "aws_caller_identity",
+                "name": "current",
+                "values": {"account_id": "123456789012"},
+            },
+        ]}},
+    }
+    plan["planned_values"] = {
+        "root_module": {"resources": [
+            {"address": row["address"], "mode": "managed"}
+            for row in plan["resource_changes"]
+        ]}
+    }
+    response = guard.validate_plan(plan, expected_account="123456789012")
+    assert response["expected_resources_to_create"] == 10
+    assert response["identity_verified"] is True
+    assert response["terraform_apply_authorized"] is False
+
+
+def test_rejects_mismatched_caller_id_across_prior_and_planned():
+    plan = _safe_sample()
+    plan["prior_state"] = {"values": {"root_module": {"resources": [
+        {"address": "data.aws_caller_identity.current",
+         "mode": "data",
+         "values": {"account_id": "999999999999"}},
+    ]}}}
+    with pytest.raises(guard.PlanRejected, match="identity"):
+        guard.validate_plan(plan, expected_account="123456789012")
+
+
+def test_rejects_prior_state_existing_managed_resource():
+    plan = _safe_sample()
+    plan["prior_state"] = {"values": {"root_module": {"resources": [
+        {"address": "aws_instance.legacy", "mode": "managed",
+         "values": {"id": "i-existing"}},
+        {"address": "data.aws_caller_identity.current", "mode": "data",
+         "values": {"account_id": "123456789012"}},
+    ]}}}
+    with pytest.raises(guard.PlanRejected, match="prior state"):
+        guard.validate_plan(plan, expected_account="123456789012")
+
+
+def test_rejects_missing_identity_in_both_sections():
+    plan = _safe_sample()
+    plan["planned_values"] = {"root_module": {"resources": []}}
+    with pytest.raises(guard.PlanRejected, match="identity"):
+        guard.validate_plan(plan, expected_account="123456789012")
+
+
+def test_rejects_wrong_prior_state_identity_when_planned_is_absent():
+    plan = _safe_sample()
+    plan["planned_values"] = {"root_module": {"resources": []}}
+    plan["prior_state"] = {"values": {"root_module": {"resources": [
+        {"address": "data.aws_caller_identity.current", "mode": "data",
+         "values": {"account_id": "999999999999"}},
+    ]}}}
+    with pytest.raises(guard.PlanRejected, match="identity"):
+        guard.validate_plan(plan, expected_account="123456789012")
