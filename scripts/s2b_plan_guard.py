@@ -47,14 +47,40 @@ def validate_plan(data: dict, *, expected_account: str, expected_region: str = "
     if prefix != "geolife-mle-s2b-dev":
         raise PlanRejected("Unknown project prefix or resource naming")
 
-    resources = data.get("planned_values", {}).get("root_module", {}).get("resources", [])
+    # Terraform's JSON plan includes distinct planned_values and prior_state.
+    # Refreshed data source aws_caller_identity may exist ONLY in prior_state;
+    # requiring planned_values caused a false NO-GO on the actual S2b plan.
+    # Use both *unedited* representations, reject mismatches, and never
+    # manufacture the identity from variables, user-provided text or plan paths.
+    def resource_rows(values: object) -> list[dict]:
+        if not isinstance(values, dict):
+            return []
+        root = values.get("root_module", {})
+        if not isinstance(root, dict):
+            return []
+        rows = root.get("resources", [])
+        if not isinstance(rows, list):
+            raise PlanRejected("Malformed plan resource representation")
+        return rows
+
+    planned_rows = resource_rows(data.get("planned_values", {}))
+    prior = data.get("prior_state", {})
+    prior_values = prior.get("values", {}) if isinstance(prior, dict) else {}
+    prior_rows = resource_rows(prior_values)
+
+    # This root must be a clean, new S2b state. 10 planned creates are
+    # insufficient assurance if the root already manages other resources.
+    if any(row.get("mode", "managed") == "managed" for row in prior_rows):
+        raise PlanRejected("S2b prior state contains existing managed resources")
+
     identities = [
         row.get("values", {}).get("account_id")
-        for row in resources
+        for row in planned_rows + prior_rows
         if row.get("address") == "data.aws_caller_identity.current"
+        and row.get("mode", "data") == "data"
     ]
-    if len(identities) != 1 or identities[0] != expected_account:
-        raise PlanRejected("AWS caller identity in the plan does not match expected account")
+    if not identities or any(identity != expected_account for identity in identities):
+        raise PlanRejected("AWS caller identity in plan/prior_state differs from expected account")
 
     changes = data.get("resource_changes", [])
     managed = [r for r in changes if r.get("mode", "managed") == "managed"]
