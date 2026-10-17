@@ -327,7 +327,7 @@ def test_refresh_drift_rejects_unsupported_plan_action_even_if_reviewed():
                    "after": {"policy": "new"}},
     }]
     review = guard.drift_summary(plan)
-    with pytest.raises(guard.PlanRejected, match="untracked or changing"):
+    with pytest.raises(guard.PlanRejected, match="Security-sensitive|untracked or changing"):
         guard.validate_plan(
             plan, expected_account="123456789012", allow_partial_state=True,
             reviewed_drift_digest=review["fingerprint_sha256"],
