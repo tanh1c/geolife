@@ -384,3 +384,24 @@ def test_refresh_drift_review_does_not_override_forbidden_changes():
             plan, expected_account="123456789012", allow_partial_state=True,
             reviewed_drift_digest=review["fingerprint_sha256"],
         )
+
+
+def test_security_sensitive_refresh_drift_rejected_even_with_correct_digest():
+    plan = _partial_state_sample()
+    ddb = next(row for row in plan["resource_changes"]
+               if row["address"] == "aws_dynamodb_table.jobs")
+    observed = copy.deepcopy(ddb["change"]["after"])
+    plan["resource_drift"] = [{
+        "address": ddb["address"], "mode": "managed",
+        "change": {
+            "actions": ["update"],
+            "before": {**observed, "billing_mode": "PROVISIONED"},
+            "after": observed,
+        },
+    }]
+    digest = guard.drift_summary(plan)["fingerprint_sha256"]
+    with pytest.raises(guard.PlanRejected, match="Security-sensitive"):
+        guard.validate_plan(
+            plan, expected_account="123456789012", allow_partial_state=True,
+            reviewed_drift_digest=digest,
+        )
