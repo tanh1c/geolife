@@ -19,7 +19,8 @@
         "s3:GetBucketPolicy",
         "s3:PutBucketPolicy",
         "s3:GetBucketVersioning",
-        "s3:GetBucketAcl"
+        "s3:GetBucketAcl",
+        "s3:ListBucket"
       ],
       "Resource": "arn:aws:s3:::geolife-mle-s2b-dev-<ACCOUNT_ID>-ap-southeast-1"
     },
