@@ -103,6 +103,27 @@ Only after **all five** are ABSENT may the operator advance to a **new Terraform
 
 **Source references:** [CloudWatch IAM resource types](https://docs.aws.amazon.com/service-authorization/latest/reference/list_cloudwatch.html), [DescribeAlarms API composite-alarm permission nuance](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarms.html), [DynamoDB IAM actions](https://docs.aws.amazon.com/service-authorization/latest/reference/list_dynamodb.html).
 
+## 3B. Operator inventory PASS: all five resources ABSENT (2026-10-17)
+
+**New local operator report:** After obtaining the two read-only permissions, the same fail-closed `scripts/s2b_failed_apply_inventory_readonly.py` returned **ABSENT for all five named S2b targets**: S3 synthetic bucket, DynamoDB jobs table, SQS jobs queue, SQS dead-letter queue and CloudWatch DLQ metric alarm. Script verdict: `READY_FOR_NEW_PLAN_REVIEW_ONLY`. This is operator-provided evidence from their authenticated AWS environment, **not** an AWS API call or independent cloud verification by the assistant.
+
+This **closes the remote orphaned-resource inventory gate** for this specific failed apply, but **does not close the deployment gate**. As of this update:
+
+| Gate | Status |
+| --- | --- |
+| Post-failure AWS remote inventory | **PASS**, all five ABSENT (operator reported) |
+| EC2/SG | EC2 STOPPED / zero inbound (most recently operator reported) |
+| Current billing and projected USD 10 experiment total including USD 2 buffer | **UNVERIFIED**; Cost Explorer access previously denied |
+| USD 5 / USD 8 budget alert notifications and recipient | **UNVERIFIED** |
+| Temporary least-privilege deployer policy for `geolife-ops` | **REVIEW REQUIRED**; not an EC2 runtime policy |
+| New post-failure Terraform plan + unchanged JSON guard | **NOT RUN** |
+| Separate explicit review/approval of new plan | **NOT GRANTED** |
+| EC2 restart / Terraform retry apply | **NOT ALLOWED** until all gates above close |
+
+**What the operator can do now without new AWS infrastructure:** have a billing-authorized person inspect actual charges and remaining budget (AWS Billing/Cost Explorer Console) and verify USD 5/8 alerts; have an IAM admin review the [S2b deployer policy template](15_s2b_deployer_iam_review_template.json) for **`geolife-ops` only** (suggested identity policy name `GeoLifeS2bDeployerTemporary`). The review-only JSON has a non-IAM `_comment` and a private `<ACCOUNT_ID>` placeholder: strip the comment and resolve the account locally before an administrator considers submitting it. It is not a proof of least privilege or a license to add wildcard/broad admin rights. Keep the EC2 runtime role unchanged.
+
+**After** the budget and IAM scopes have been reviewed and any narrowly authorized operator policy applied by a permitted admin, generate a **new** Terraform plan from the same preserved private state directory (not the failed saved plan). Recheck 10 create / 0 update / 0 destroy and run the corrected plan guard on the **new untouched plan JSON**. Report redacted verdict only. **Stop before `terraform apply` and request a new plan-specific GO/NO-GO.** If any new resource becomes PRESENT or UNKNOWN during this process, halt and reconcile again.
+
 ## 4. Recover preflight & do not reuse failed saved plan
 
 1. Confirm existing IAM operator principal / AWS account / `ap-southeast-1`, SSM-only EC2 STOPPED and all SGs inbound zero. Preserve the original private failed-plan and state snapshot. Never paste credentials, plan JSON or account IDs into repo/chat.
