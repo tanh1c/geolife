@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { BETA_MODE } from './auth/cognito';
 import {
   ArrowLeft,
   ChevronDown,
@@ -165,7 +166,7 @@ export function GeoLife({
     const params = new URLSearchParams({ when: targetWhen });
     if (origin.trim()) params.set('origin_place_id', origin.trim());
     try {
-      const response = await fetch(`/v2/me/destination-suggestions?${params}`, {
+      const response = await fetch(`${BETA_MODE ? '/v3/beta/destination-suggestions' : '/v2/me/destination-suggestions'}?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
       });
@@ -195,6 +196,7 @@ export function GeoLife({
   }
 
   async function logout() {
+    if (BETA_MODE) { onLogout(); return; }
     setBusy(true);
     try {
       await fetch('/v2/auth/logout', {
