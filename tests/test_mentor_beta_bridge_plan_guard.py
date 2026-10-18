@@ -73,6 +73,9 @@ def test_ec2_only_adds_second_sg_without_recreation():
         instance_type="t2.micro"
     ),
     lambda p: p["resource_changes"][0]["change"]["after"].update(
+        tags={"PublicExposure": "true"}
+    ),
+    lambda p: p["resource_changes"][0]["change"]["after"].update(
         vpc_security_group_ids=["sg-00000000000000002"]
     ),
     lambda p: p["resource_changes"].append({
