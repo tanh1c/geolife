@@ -121,7 +121,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
             <path d="M 84 20 L 88 5 L 101 5 L 98 20 Z" fill="#D97706" />
             {/* Storefront Signboard */}
             <rect x="12" y="26" width="80" height="18" rx="3" fill="#14532D" />
-            <text x="52" y="39" fill="#FEF08A" fontSize="10" fontWeight="800" fontFamily="sans-serif" textAnchor="middle">
+            <text x="52" y="39" fill="#FEF08A" fontSize="10" fontWeight="800" fontFamily="inherit" textAnchor="middle">
               TRÀ SỮA
             </text>
             {/* Glass window */}
@@ -134,7 +134,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
             <polygon points="-5,25 135,25 125,8 5,8" fill="#991B1B" />
             {/* Storefront Signboard */}
             <rect x="15" y="32" width="100" height="20" rx="3" fill="#DC2626" />
-            <text x="65" y="46" fill="#FFFFFF" fontSize="11" fontWeight="800" fontFamily="sans-serif" textAnchor="middle">
+            <text x="65" y="46" fill="#FFFFFF" fontSize="11" fontWeight="800" fontFamily="inherit" textAnchor="middle">
               SIÊU THỊ
             </text>
             <rect x="20" y="55" width="90" height="28" fill="#FDE047" opacity="0.5" stroke="#991B1B" strokeWidth="1.5" />
@@ -145,7 +145,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
             <rect x="0" y="20" width="105" height="60" fill="#E2E8F0" />
             <polygon points="-5,20 110,20 100,5 5,5" fill="#1E3A8A" />
             <rect x="12" y="26" width="80" height="18" rx="3" fill="#1E40AF" />
-            <text x="52" y="39" fill="#FFFFFF" fontSize="10" fontWeight="800" fontFamily="sans-serif" textAnchor="middle">
+            <text x="52" y="39" fill="#FFFFFF" fontSize="10" fontWeight="800" fontFamily="inherit" textAnchor="middle">
               CAFE
             </text>
             <rect x="15" y="48" width="75" height="30" fill="#CBD5E1" opacity="0.6" stroke="#1E3A8A" strokeWidth="1.5" />
@@ -190,7 +190,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
 
             {/* "NHANH & CHUẨN" Slogan on Van Body */}
             <rect x="70" y="30" width="54" height="14" rx="2" fill="#0E4B52" opacity="0.4" />
-            <text x="97" y="40" fill="#FEF08A" fontSize="7.5" fontWeight="900" fontStyle="italic" fontFamily="sans-serif" textAnchor="middle">
+            <text x="97" y="40" fill="#FEF08A" fontSize="7.5" fontWeight="900" fontStyle="italic" fontFamily="inherit" textAnchor="middle">
               NHANH & CHUẨN
             </text>
 
@@ -242,7 +242,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
               <rect x="0" y="0" width="34" height="24" rx="3" fill="#15803D" stroke="#166534" strokeWidth="1" />
               <rect x="13" y="0" width="8" height="24" fill="#FACC15" />
               {/* Xanh SM logo on box */}
-              <text x="17" y="15" fill="#FFFFFF" fontSize="6.5" fontWeight="900" fontFamily="sans-serif" textAnchor="middle">
+              <text x="17" y="15" fill="#FFFFFF" fontSize="6.5" fontWeight="900" fontFamily="inherit" textAnchor="middle">
                 XANHSM
               </text>
             </g>
@@ -268,7 +268,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
               fill="#0F383D"
               fontSize="20"
               fontWeight="900"
-              fontFamily="sans-serif"
+              fontFamily="inherit"
               letterSpacing="0.5"
               stroke="#082F49"
               strokeWidth="4"
@@ -282,7 +282,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
               fill="url(#goldText)"
               fontSize="20"
               fontWeight="900"
-              fontFamily="sans-serif"
+              fontFamily="inherit"
               letterSpacing="0.5"
             >
               BẠN TRAO HÀNG HÓA
@@ -297,7 +297,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
               fill="#062E34"
               fontSize="23"
               fontWeight="900"
-              fontFamily="sans-serif"
+              fontFamily="inherit"
               letterSpacing="0.5"
               stroke="#062E34"
               strokeWidth="4.5"
@@ -311,7 +311,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
               fill="url(#cyanText)"
               fontSize="23"
               fontWeight="900"
-              fontFamily="sans-serif"
+              fontFamily="inherit"
               letterSpacing="0.5"
             >
               XANH GỬI NIỀM TIN
@@ -324,20 +324,20 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({ onBannerClick }) => {
             <rect x="0" y="0" width="102" height="42" rx="6" fill="#044738" stroke="#10B981" strokeWidth="2" />
             {/* Left yellow part: GIẢM NGAY */}
             <rect x="3" y="3" width="42" height="36" rx="4" fill="#FACC15" />
-            <text x="24" y="18" fill="#064E3B" fontSize="8" fontWeight="900" fontFamily="sans-serif" textAnchor="middle">
+            <text x="24" y="18" fill="#064E3B" fontSize="8" fontWeight="900" fontFamily="inherit" textAnchor="middle">
               GIẢM
             </text>
-            <text x="24" y="30" fill="#064E3B" fontSize="8" fontWeight="900" fontFamily="sans-serif" textAnchor="middle">
+            <text x="24" y="30" fill="#064E3B" fontSize="8" fontWeight="900" fontFamily="inherit" textAnchor="middle">
               NGAY
             </text>
             {/* Right dark part: 40K */}
-            <text x="74" y="28" fill="#FACC15" fontSize="21" fontWeight="900" fontFamily="sans-serif" textAnchor="middle">
+            <text x="74" y="28" fill="#FACC15" fontSize="21" fontWeight="900" fontFamily="inherit" textAnchor="middle">
               40K
             </text>
           </g>
 
           {/* Legal fine print on bottom-left */}
-          <text x="22" y="206" fill="#FFFFFF" fontSize="8" fontWeight="500" opacity="0.9" fontFamily="sans-serif">
+          <text x="22" y="206" fill="#FFFFFF" fontSize="8" fontWeight="500" opacity="0.9" fontFamily="inherit">
             (*) Chương trình có điều kiện & điều khoản đi kèm.
           </text>
         </svg>

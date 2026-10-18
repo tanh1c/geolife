@@ -294,7 +294,6 @@ export default function App() {
               }
             }}
             destinationName={selectedDestination}
-            syntheticPreview={bookingFromSuggestion}
           />
         ) : (
           /* SCREEN A: HOME SCREEN (Matches REF-01 and image.png) */

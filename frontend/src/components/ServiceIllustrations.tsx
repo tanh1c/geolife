@@ -375,7 +375,7 @@ export const GiftCardIcon: React.FC<{ className?: string }> = ({ className = "w-
       <path d="M 4 3 L 18 3 L 22 10 L 18 17 L 4 17 L 0 10 Z" fill="#F59E0B" />
       <path d="M 3 4 L 17 4 L 20 10 L 17 16 L 3 16 L 1 10 Z" fill="#FBBF24" />
       <circle cx="5" cy="10" r="1.5" fill="#78350F" />
-      <text x="8" y="13" fill="#78350F" fontSize="8" fontWeight="800" fontFamily="sans-serif">%</text>
+      <text x="8" y="13" fill="#78350F" fontSize="8" fontWeight="800" fontFamily="inherit">%</text>
     </g>
   </svg>
 );

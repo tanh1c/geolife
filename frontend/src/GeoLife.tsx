@@ -235,13 +235,6 @@ export function GeoLife({
             <ArrowLeft className="w-5 h-5" />
           </button>
 
-          <div className="px-3.5 py-1 rounded-full bg-white/80 backdrop-blur-md border border-white/80 shadow-xs flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#2DCCD4] animate-pulse" />
-            <span className="text-[11px] font-bold text-[#158E9A] uppercase tracking-wider">
-              GREENSM
-            </span>
-          </div>
-
           <div className="w-10 h-10" />
         </header>
 

@@ -147,7 +147,7 @@ export const BookingMap: React.FC<BookingMapProps> = ({
               fill="#0EA5E9"
               fontSize="8"
               fontWeight="700"
-              fontFamily="sans-serif"
+              fontFamily="inherit"
               transform="rotate(-38 200 255)"
               opacity="0.8"
             >
@@ -158,7 +158,7 @@ export const BookingMap: React.FC<BookingMapProps> = ({
           {/* QL5 Highway Shield Marker */}
           <g transform="translate(245, 120)">
             <rect x="0" y="0" width="28" height="13" rx="2.5" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1" />
-            <text x="14" y="9.5" fill="#475569" fontSize="7" fontWeight="800" fontFamily="sans-serif" textAnchor="middle">
+            <text x="14" y="9.5" fill="#475569" fontSize="7" fontWeight="800" fontFamily="inherit" textAnchor="middle">
               QL5
             </text>
           </g>
