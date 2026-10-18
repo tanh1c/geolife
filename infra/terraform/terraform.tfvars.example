@@ -1,3 +1,14 @@
 aws_region   = "ap-southeast-1"
 project_name = "geolife-mle"
 environment  = "dev"
+
+# REQUIRED: choose existing VPC + public subnet in ap-southeast-1.
+# The public subnet must route 0.0.0.0/0 to an Internet Gateway.
+# No inbound firewall ports are opened; only AWS SSM is allowed for access.
+vpc_id        = "vpc-REPLACE"
+subnet_id     = "subnet-REPLACE"
+
+# For AWS Free plan accounts created on/after 2025-07-15: x86_64, >=4 GiB.
+# Verify account-level FreeTierEligible AND ap-southeast-1a offering before apply.
+# m7i-flex.large (8 GiB) is an option only after separate budget review.
+instance_type = "c7i-flex.large"

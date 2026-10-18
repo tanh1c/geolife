@@ -262,3 +262,15 @@ It uses `/mnt/geolife-data/cache/03a_user_behavior_deep_dive/stays_baseline_v1.p
 **Restricted Docker mode:** The image now sets `GEOLIFE_PRIVATE_DEMO=1`. Anonymous legacy `/v1/*` and stateless `POST /v2/inferences` therefore return 404, even though OpenAPI still describes these routes for compatibility. When using a standalone Python process, setting `GEOLIFE_DEMO_AUTH_DB` also enables this guard. Python v1 model-contract/parity tests run without a demo auth DB and remain supported.
 
 Authenticated inference uses `/v2/me/inferences` (new GPS) or `/v2/me/dataset-inferences` (authorized private GeoLife cache). HTTP responses set `Cache-Control: no-store` and safety headers; declared bodies over 3 MiB are rejected. **This does not replace HTTPS/restricted ingress, limits for chunked uploads, independent account/permission review or user-data privacy protection.** Review the [pre-merge security assessment](docs/deployment/07_security_review_pre_merge.md) before deploying. No approval for a public AWS service has been given.
+
+## Checkpoint 2 AWS SSM-only demo — restricted internal research
+
+**Operator-reported acceptance on 2026-10-15 (PR #73):** Terraform's five project resources were provisioned; a digest-pinned Docker image was pushed to ECR and served on the SSM-managed EC2 loopback interface. Authenticated synthetic-GPS inference, /health and /demo, CloudWatch log events, baseline → 100% DBSCAN canary → baseline rollback, and client-observed p50/p95/p99 via the local SSM tunnel were demonstrated. See the PR #73 acceptance summary and the [AWS handoff](docs/deployment/08_aws_ssm_deployment_handoff.md). This is **not** a public endpoint, independent production-performance benchmark, permission to deploy historic GeoLife private data, or proof of real 90/10 multi-account routing. The EC2 state after the requested shutdown has **not** been independently verified; billable EBS/ECR/log/IPv4 resources may persist.
+
+Terraform provisions a private ECR repo, one short-lived SSM-managed EC2, zero-inbound security group, ECR lifecycle policy and a 7-day CloudWatch Logs group. No AWS public HTTP endpoint is part of this stage.
+
+Both authenticated routes, `POST /v2/me/inferences` and `POST /v2/me/dataset-inferences`, now use account-sticky HMAC routing for complete-link 200m vs DBSCAN 100m when canary mode is enabled. Default remains the frozen complete-link baseline. Rollback requires restart/recreation of the container. The app reports chosen variant, routing mode and release ID; this is application routing, **not** an AWS ALB traffic-weighted deployment.
+
+**AWS Phase 1 is synthetic-only**: do not transfer GeoLife historical stay caches to cloud until access/privacy permission is explicitly reviewed. Existing demo auth with private SQLite DB must be provisioned on the instance manually, not baked into image or user_data.
+
+The [exact AWS CLI/IAM/local operator handoff](docs/deployment/08_aws_ssm_deployment_handoff.md) covers account verification, budget, VPC/subnet, plan/apply, image digest, SSM tunnel, canary/rollback, CloudWatch Logs and teardown.

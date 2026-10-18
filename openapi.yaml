@@ -331,8 +331,124 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - HTTPBearer: []
+  /v2/jobs:
+    post:
+      tags:
+      - async-s2b-synthetic
+      summary: Queue a fixed synthetic CP1/CP2 inference (S2b internal only)
+      operationId: submit_async_job_v2_jobs_post
+      parameters:
+      - name: idempotency-key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 8
+          maxLength: 64
+          pattern: ^[A-Za-z0-9._-]+$
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitJob'
+      responses:
+        '202':
+          description: Accepted for synthetic asynchronous inference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /v2/jobs/{job_id}:
+    get:
+      tags:
+      - async-s2b-synthetic
+      summary: Poll an account-owned synthetic inference job
+      operationId: poll_async_job_v2_jobs__job_id__get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Job Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
 components:
   schemas:
+    SubmitJob:
+      properties:
+        fixture:
+          type: string
+          enum:
+          - three_night_home
+          - short_observation
+          title: Fixture
+        model_version:
+          type: string
+          enum:
+          - cp2-v2-complete-link-200m
+          - cp2-v2-dbscan-100m
+          title: Model Version
+          default: cp2-v2-complete-link-200m
+      type: object
+      required:
+      - fixture
+      title: SubmitJob
+      additionalProperties: false
+    JobStatus:
+      properties:
+        job_id:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Job Id
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - succeeded
+          - failed
+          title: Status
+        model_version:
+          type: string
+          title: Model Version
+        result:
+          anyOf:
+          - type: object
+            additionalProperties: true
+          - type: 'null'
+          title: Result
+          default: null
+      type: object
+      required:
+      - job_id
+      - status
+      - model_version
+      title: JobStatus
+      additionalProperties: false
     AbstainedResult:
       properties:
         label:
@@ -505,6 +621,17 @@ components:
           type: string
           title: Model Version
           default: cp2-v2-complete-link-200m
+        routing_mode:
+          type: string
+          enum:
+          - baseline
+          - canary
+          title: Routing Mode
+          default: baseline
+        release_id:
+          type: string
+          title: Release Id
+          default: local-unversioned
         coordinate_precision:
           type: string
           const: rounded_3_decimals

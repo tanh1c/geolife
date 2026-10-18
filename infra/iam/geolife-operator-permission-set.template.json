@@ -1,0 +1,85 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DiscoverProjectInstance",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "ssm:DescribeInstanceInformation",
+        "ssm:GetConnectionStatus"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-1"
+        }
+      }
+    },
+    {
+      "Sid": "StartSessionsOnlyOnGeoLifeTaggedInstances",
+      "Effect": "Allow",
+      "Action": "ssm:StartSession",
+      "Resource": "arn:aws:ec2:ap-southeast-1:REPLACE_ACCOUNT_ID:instance/*",
+      "Condition": {
+        "StringEquals": {
+          "ssm:resourceTag/Project": "geolife-mle"
+        }
+      }
+    },
+    {
+      "Sid": "AllowedSessionDocuments",
+      "Effect": "Allow",
+      "Action": "ssm:StartSession",
+      "Resource": [
+        "arn:aws:ssm:ap-southeast-1::document/AWS-StartPortForwardingSession",
+        "arn:aws:ssm:ap-southeast-1:REPLACE_ACCOUNT_ID:document/SSM-SessionManagerRunShell"
+      ]
+    },
+    {
+      "Sid": "OwnSessionManagement",
+      "Effect": "Allow",
+      "Action": [
+        "ssmmessages:OpenDataChannel",
+        "ssm:ResumeSession",
+        "ssm:TerminateSession"
+      ],
+      "Resource": "arn:aws:ssm:ap-southeast-1:REPLACE_ACCOUNT_ID:session/${aws:userid}-*"
+    },
+    {
+      "Sid": "ReadProjectLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogStreams",
+        "logs:GetLogEvents",
+        "logs:FilterLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:ap-southeast-1:REPLACE_ACCOUNT_ID:log-group:/geolife/dev/api",
+        "arn:aws:logs:ap-southeast-1:REPLACE_ACCOUNT_ID:log-group:/geolife/dev/api:*"
+      ]
+    },
+    {
+      "Sid": "DiscoverLogGroups",
+      "Effect": "Allow",
+      "Action": "logs:DescribeLogGroups",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-1"
+        }
+      }
+    },
+    {
+      "Sid": "ObserveProjectRepo",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:ListImages"
+      ],
+      "Resource": "arn:aws:ecr:ap-southeast-1:REPLACE_ACCOUNT_ID:repository/geolife-mle-dev-api"
+    }
+  ]
+}

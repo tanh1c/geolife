@@ -1,0 +1,34 @@
+name: format-terraform-on-aws-feature-branch
+
+on:
+  push:
+    branches: [feature/track-b1-aws-deployment]
+    paths:
+      - 'infra/terraform/*.tf'
+      - '.github/workflows/terraform-aws-fmt.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+      - name: Format Terraform only
+        run: terraform -chdir=infra/terraform fmt
+      - name: Commit formatted Terraform if needed
+        run: |
+          git add infra/terraform/*.tf
+          if git diff --cached --quiet; then
+            echo "Terraform already formatted"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style(terraform): apply canonical terraform fmt"
+          git push origin HEAD:feature/track-b1-aws-deployment

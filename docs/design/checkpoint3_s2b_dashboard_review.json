@@ -1,0 +1,157 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Synthetic jobs: accepted and terminal outcomes (missing is not zero)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "Sum",
+        "view": "timeSeries",
+        "metrics": [
+          ["GeoLife/SyntheticS2b", "Accepted", "model", "cp2-v2-complete-link-200m"],
+          ["GeoLife/SyntheticS2b", "Accepted", "model", "cp2-v2-dbscan-100m"],
+          ["GeoLife/SyntheticS2b", "Terminal", "model", "cp2-v2-complete-link-200m", "outcome", "succeeded"],
+          ["GeoLife/SyntheticS2b", "Terminal", "model", "cp2-v2-complete-link-200m", "outcome", "failed"],
+          ["GeoLife/SyntheticS2b", "Terminal", "model", "cp2-v2-dbscan-100m", "outcome", "succeeded"],
+          ["GeoLife/SyntheticS2b", "Terminal", "model", "cp2-v2-dbscan-100m", "outcome", "failed"]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Synthetic attempt failures (includes post-commit ACK errors)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "Sum",
+        "view": "timeSeries",
+        "metrics": [
+          ["GeoLife/SyntheticS2b", "AttemptFailed", "model", "cp2-v2-complete-link-200m"],
+          ["GeoLife/SyntheticS2b", "AttemptFailed", "model", "cp2-v2-dbscan-100m"]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "WorkerAttempt (p95, sparse synthetic samples)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "p95",
+        "view": "timeSeries",
+        "metrics": [
+          ["GeoLife/SyntheticS2b", "WorkerAttempt", "model", "cp2-v2-complete-link-200m"],
+          ["GeoLife/SyntheticS2b", "WorkerAttempt", "model", "cp2-v2-dbscan-100m"]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Lifecycle durations (p95, sparse synthetic samples)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "p95",
+        "view": "timeSeries",
+        "metrics": [
+          ["GeoLife/SyntheticS2b", "SubmitPersistAndSend", "model", "cp2-v2-complete-link-200m"],
+          ["GeoLife/SyntheticS2b", "SubmitPersistAndSend", "model", "cp2-v2-dbscan-100m"],
+          ["GeoLife/SyntheticS2b", "FirstLeaseWait", "model", "cp2-v2-complete-link-200m"],
+          ["GeoLife/SyntheticS2b", "FirstLeaseWait", "model", "cp2-v2-dbscan-100m"],
+          ["GeoLife/SyntheticS2b", "TerminalDuration", "model", "cp2-v2-complete-link-200m"],
+          ["GeoLife/SyntheticS2b", "TerminalDuration", "model", "cp2-v2-dbscan-100m"]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "S2b EMF log ingestion and extraction errors",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "Sum",
+        "view": "timeSeries",
+        "metrics": [
+          ["AWS/Logs", "IncomingBytes", "LogGroupName", "/geolife/dev/s2b-telemetry"],
+          ["AWS/Logs", "IncomingLogEvents", "LogGroupName", "/geolife/dev/s2b-telemetry"],
+          ["AWS/Logs", "EMFParsingErrors", "LogGroupName", "/geolife/dev/s2b-telemetry"],
+          ["AWS/Logs", "EMFValidationErrors", "LogGroupName", "/geolife/dev/s2b-telemetry"],
+          ["AWS/Logs", "EMFDisabledErrors", "LogGroupName", "/geolife/dev/s2b-telemetry"]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "S2b source queue depth (approximate; missing is not zero)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "Maximum",
+        "view": "timeSeries",
+        "metrics": [
+          ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "geolife-mle-s2b-dev-jobs"],
+          ["AWS/SQS", "ApproximateNumberOfMessagesNotVisible", "QueueName", "geolife-mle-s2b-dev-jobs"]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "S2b oldest source message age (seconds; approximate)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "Maximum",
+        "view": "timeSeries",
+        "metrics": [
+          ["AWS/SQS", "ApproximateAgeOfOldestMessage", "QueueName", "geolife-mle-s2b-dev-jobs"]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "S2b DLQ visible depth (existing alarm remains separate)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "Maximum",
+        "view": "timeSeries",
+        "metrics": [
+          ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "geolife-mle-s2b-dev-dlq"]
+        ]
+      }
+    }
+  ]
+}

@@ -13,6 +13,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build serving image
         run: docker build --tag geolife-api:ci .
+      - name: Verify S2b boto3 and worker are included in image
+        run: |
+          docker run --rm geolife-api:ci python -c "import boto3, geolife.serving.aws_s2b; print('S2b AWS SDK import PASS')"
+          docker run --rm geolife-api:ci python -m geolife.serving.worker_cli --help > /dev/null
       - name: Start container
         run: docker run --detach --rm --name geolife-api-ci --publish 127.0.0.1:18000:8000 --memory 2g geolife-api:ci
       - name: Wait for health and check OpenAPI
