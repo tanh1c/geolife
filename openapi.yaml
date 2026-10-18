@@ -396,7 +396,7 @@ paths:
               $ref: '#/components/schemas/SubmitJob'
       responses:
         '202':
-          description: Accepted for synthetic asynchronous inference
+          description: Successful Response
           content:
             application/json:
               schema:
