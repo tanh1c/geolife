@@ -24,6 +24,12 @@ jobs:
         run: |
           terraform -chdir=infra/terraform/mentor_beta_foundation init -backend=false -input=false
           terraform -chdir=infra/terraform/mentor_beta_foundation validate
+      - name: Format EC2 private ALB bridge (ephemeral CI working tree only)
+        run: terraform -chdir=infra/terraform/mentor_beta_bridge fmt
+      - name: Validate EC2 private ALB bridge without AWS credentials or state
+        run: |
+          terraform -chdir=infra/terraform/mentor_beta_bridge init -backend=false -input=false
+          terraform -chdir=infra/terraform/mentor_beta_bridge validate
       - name: Format private API plan (ephemeral CI working tree only)
         run: terraform -chdir=infra/terraform/mentor_beta_api fmt
       - name: Validate private API without AWS credentials or state

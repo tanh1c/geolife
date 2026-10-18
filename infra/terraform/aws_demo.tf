@@ -75,7 +75,7 @@ resource "aws_instance" "api" {
   ami                         = data.aws_ssm_parameter.al2023_ami.value
   instance_type               = var.instance_type
   subnet_id                   = var.subnet_id
-  vpc_security_group_ids      = [aws_security_group.instance.id]
+  vpc_security_group_ids      = concat([aws_security_group.instance.id], var.mentor_beta_backend_security_group_id == "" ? [] : [var.mentor_beta_backend_security_group_id])
   iam_instance_profile        = var.instance_profile_name
   associate_public_ip_address = true
   monitoring                  = false
