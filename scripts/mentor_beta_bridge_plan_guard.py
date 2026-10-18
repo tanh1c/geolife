@@ -70,8 +70,11 @@ def ec2_attach_guard(plan: dict, expected_backend_sg: str) -> dict:
     before, after = change.get("before"), change.get("after")
     if not isinstance(before, dict) or not isinstance(after, dict):
         raise ValueError("MISSING_INSTANCE_DIFF")
-    for field in IMMUTABLE_EC2_FIELDS:
-        if before.get(field) != after.get(field):
+    # Compare EVERY serialized attribute, not just a handpicked subset.
+    # A changed tag, user_data, IMDS setting, instance type, or computed field
+    # is out-of-scope until a human separately reviews the discrepancy.
+    for field in set(before) | set(after):
+        if field != "vpc_security_group_ids" and before.get(field) != after.get(field):
             raise ValueError("NON_SG_INSTANCE_CHANGE_" + field.upper())
     old = before.get("vpc_security_group_ids")
     new = after.get("vpc_security_group_ids")
