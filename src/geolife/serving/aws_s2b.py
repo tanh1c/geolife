@@ -13,10 +13,10 @@ import os
 import re
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .job_simulation import MODEL_VARIANTS
+from .lifecycle_metrics import Event, duration_ms
 
 _ID = re.compile(r"^[a-f0-9]{64}$")
 _KEY = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
@@ -44,6 +44,18 @@ class AwsAsyncJobs:
         self.table, self.s3, self.sqs = table, s3, sqs
         self.bucket, self.queue_url = bucket, queue_url
         self.hmac_secret = hmac_secret.encode("utf-8")
+        self.recorder = None
+        self.telemetry_failures = 0
+        self.clock_ns = time.time_ns
+        self.monotonic_ns = time.monotonic_ns
+
+    def _record(self, event: Event) -> None:
+        if self.recorder is not None:
+            try:
+                self.recorder.record(event)
+            except Exception:
+                self.telemetry_failures += 1
+                # ponytail: best-effort in-process only; add durable delivery after cloud review.
 
     @classmethod
     def from_environment(cls) -> "AwsAsyncJobs":
@@ -83,7 +95,8 @@ class AwsAsyncJobs:
         if not _KEY.fullmatch(key):
             raise ValueError("Invalid Idempotency-Key")
         self._check_fixture(fixture, variant)
-        now = int(time.time()) if now is None else now
+        created_ms = self.clock_ns() // 1_000_000
+        now = created_ms // 1000 if now is None else now
         jid = self._opaque_id(owner, key)
         existing = self.table.get_item(
             Key={"job_id": jid}, ConsistentRead=True
@@ -106,6 +119,7 @@ class AwsAsyncJobs:
             {"fixture": fixture, "variant": variant},
             separators=(",", ":"),
         ).encode("utf-8")
+        ack_start = self.monotonic_ns()
         self.s3.put_object(
             Bucket=self.bucket, Key=key_s3, Body=document,
             ContentType="application/json", ServerSideEncryption="AES256",
@@ -113,9 +127,10 @@ class AwsAsyncJobs:
         item = {
             "job_id": jid, "owner_id": owner, "state": "pending",
             "fingerprint": fingerprint, "fixture": fixture,
-            "model_version": variant, "created_at": now,
+            "model_version": variant, "created_at": now, "created_at_ms": created_ms,
             "expires_at": now + TTL_SECONDS, "payload_key": key_s3,
         }
+        created = True
         try:
             self.table.put_item(
                 Item=item, ConditionExpression="attribute_not_exists(job_id)",
@@ -130,8 +145,12 @@ class AwsAsyncJobs:
                     current["fingerprint"] != fingerprint or current["owner_id"] != owner):
                 raise IdempotencyConflict("Idempotency-Key conflict") from None
             item = current
+            created = False
         if item["state"] == "pending":
             self._send(jid)
+        if created:
+            self._record(Event("accepted", variant,
+                               max(0, (self.monotonic_ns() - ack_start) // 1_000_000)))
         return self._view(item)
 
     def _send(self, jid: str) -> None:
@@ -194,10 +213,15 @@ class AwsAsyncJobs:
         if item["state"] == "failed":
             return True  # preserve for SQS redrive to DLQ
         lease = secrets.token_hex(16)
+        lease_ms = self.clock_ns() // 1_000_000
+        first_lease = "first_lease_at_ms" not in item
         try:
             self.table.update_item(
                 Key={"job_id": jid},
-                UpdateExpression="SET #st=:running, lease_id=:lease, lease_until=:until",
+                UpdateExpression=(
+                    "SET #st=:running, lease_id=:lease, lease_until=:until"
+                    + (", first_lease_at_ms=:lease_ms" if first_lease else "")
+                ),
                 ConditionExpression=(
                     "expires_at > :now AND "
                     "(#st=:pending OR (#st=:running AND lease_until < :now))"
@@ -206,38 +230,52 @@ class AwsAsyncJobs:
                 ExpressionAttributeValues={
                     ":running": "running", ":pending": "pending",
                     ":now": now, ":lease": lease, ":until": now + 110,
+                    **({":lease_ms": lease_ms} if first_lease else {}),
                 },
             )
+            if first_lease:
+                self._record(Event("leased", item["model_version"],
+                                   duration_ms(lease_ms, item.get("created_at_ms", item["created_at"] * 1000))))
+            attempt_start = self.monotonic_ns()
         except Exception as exc:
             if _conditional_failed(exc):
                 return True  # another worker owns the lease; let visibility expire
             raise
+        failure_class = "payload_read"
         try:
             response_s3 = self.s3.get_object(
                 Bucket=self.bucket, Key=item["payload_key"],
             )
+            failure_class = "payload_contract"
             request = json.loads(response_s3["Body"].read())
             if not isinstance(request, dict) or set(request) != {"fixture", "variant"}:
                 raise ValueError("Unsupported synthetic payload")
             self._check_fixture(request["fixture"], request["variant"])
             if request["variant"] != item["model_version"] or request["fixture"] != item["fixture"]:
                 raise ValueError("Payload differs from persisted contract")
+            failure_class = "inference"
             result = run_synthetic_inference(
                 fixture=request["fixture"], variant=request["variant"]
             )
+            failure_class = "storage"
+            terminal_ms = self.clock_ns() // 1_000_000
             self.table.update_item(
                 Key={"job_id": jid},
                 UpdateExpression=(
-                    "SET #st=:done, result_json=:result, completed_at=:now "
-                    "REMOVE lease_id, lease_until"
+                    "SET #st=:done, result_json=:result, completed_at=:now, "
+                    "terminal_at_ms=:terminal_ms REMOVE lease_id, lease_until"
                 ),
                 ConditionExpression="#st=:running AND lease_id=:lease",
                 ExpressionAttributeNames={"#st": "state"},
                 ExpressionAttributeValues={
                     ":done": "succeeded", ":running": "running",
                     ":lease": lease, ":result": json.dumps(result), ":now": now,
+                    ":terminal_ms": terminal_ms,
                 },
             )
+            self._record(Event("succeeded", item["model_version"],
+                               duration_ms(terminal_ms, item.get("created_at_ms", item["created_at"] * 1000)),
+                               "succeeded", max(0, (self.monotonic_ns() - attempt_start) // 1_000_000)))
             # Best-effort erasure after atomic success. One-day S3 lifecycle
             # is a backstop, not an exact fifteen-minute deletion guarantee.
             try:
@@ -249,21 +287,31 @@ class AwsAsyncJobs:
             # Never log exception text: SDK and payload errors may expose data.
             attempts = int(msg.get("Attributes", {}).get("ApproximateReceiveCount", "1"))
             terminal = attempts >= 3
+            terminal_ms = self.clock_ns() // 1_000_000
+            worker_ms = max(0, (self.monotonic_ns() - attempt_start) // 1_000_000)
             try:
                 self.table.update_item(
                     Key={"job_id": jid},
                     UpdateExpression=(
-                        "SET #st=:next REMOVE lease_id, lease_until"
+                        "SET #st=:next" + (", terminal_at_ms=:terminal_ms" if terminal else "")
+                        + " REMOVE lease_id, lease_until"
                     ),
                     ConditionExpression="#st=:running AND lease_id=:lease",
                     ExpressionAttributeNames={"#st": "state"},
                     ExpressionAttributeValues={
                         ":next": "failed" if terminal else "pending",
                         ":running": "running", ":lease": lease,
+                        **({":terminal_ms": terminal_ms} if terminal else {}),
                     },
                 )
+                if terminal:
+                    self._record(Event("failed", item["model_version"],
+                                       duration_ms(terminal_ms, item.get("created_at_ms", item["created_at"] * 1000)),
+                                       "failed", worker_ms))
             except Exception:
                 pass
+            self._record(Event("attempt_failed", item["model_version"], worker_ms,
+                               error_class=failure_class))
             # Do not ack failure: AWS SQS redrive sends repeated failures to DLQ.
         return True
 

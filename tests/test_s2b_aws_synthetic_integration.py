@@ -11,7 +11,7 @@ from moto import mock_aws
 
 from geolife.api.app import app
 from geolife.api.demo_auth import provision_account
-from geolife.serving.aws_s2b import AwsAsyncJobs, FIXTURES, run_synthetic_inference
+from geolife.serving.aws_s2b import AwsAsyncJobs
 
 
 @pytest.fixture
@@ -149,6 +149,273 @@ def test_default_off_authenticated_endpoint_and_invalid_contract(cloud, monkeypa
     assert missing_key.status_code == 422
     malformed = client.get("/v2/jobs/non-uuid", headers=auth)
     assert malformed.status_code == 404
+
+
+def test_lifecycle_events_ignore_retries_and_duplicate_delivery(cloud):
+    from geolife.serving.lifecycle_metrics import InMemoryRecorder
+
+    recorder = InMemoryRecorder()
+    cloud.recorder = recorder
+    start = 1_000_000_000_125_000_000
+    cloud.clock_ns = lambda: start
+    job = cloud.create(
+        owner="demo_000", key="lifecycle-001", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m", now=start // 1_000_000_000,
+    )
+    assert [event.name for event in recorder.events] == ["accepted"]
+    item = cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]
+    assert item["created_at_ms"] == 1000000000125
+    assert item["expires_at"] == 1000000900
+    cloud.create(
+        owner="demo_000", key="lifecycle-001", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m", now=start // 1_000_000_000,
+    )
+    assert [event.name for event in recorder.events] == ["accepted"]
+    cloud.clock_ns = lambda: start + 150_000_000
+    assert cloud.process_once(now=start // 1_000_000_000)
+    item = cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]
+    assert item["state"] == "succeeded"
+    assert item["first_lease_at_ms"] == 1000000000275
+    assert item["terminal_at_ms"] == 1000000000275
+    assert [event.name for event in recorder.events] == ["accepted", "leased", "succeeded"]
+    assert recorder.events[1].duration_ms == 150
+    cloud._send(job["job_id"])
+    assert cloud.process_once(now=start // 1_000_000_000)
+    assert [event.name for event in recorder.events] == ["accepted", "leased", "succeeded"]
+
+
+def test_first_lease_timestamp_excludes_receive_wait_and_skew_is_unavailable(cloud, monkeypatch):
+    from geolife.serving.lifecycle_metrics import InMemoryRecorder
+
+    recorder = InMemoryRecorder()
+    cloud.recorder = recorder
+    start = 1_000_000_000_125_000_000
+    cloud.clock_ns = lambda: start
+    job = cloud.create(
+        owner="demo_000", key="lifecycle-receive-001", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m", now=start // 1_000_000_000,
+    )
+    original_receive = cloud.sqs.receive_message
+
+    def receive_after_wait(**kwargs):
+        message = original_receive(**kwargs)
+        cloud.clock_ns = lambda: start - 10_000_000
+        return message
+
+    monkeypatch.setattr(cloud.sqs, "receive_message", receive_after_wait)
+    assert cloud.process_once(now=start // 1_000_000_000)
+    item = cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]
+    assert item["first_lease_at_ms"] == item["created_at_ms"] - 10
+    assert recorder.events[1].name == "leased"
+    assert recorder.events[1].duration_ms is None
+    assert recorder.events[2].duration_ms is None
+
+
+def test_receive_wait_is_excluded_from_worker_execution(cloud, monkeypatch):
+    from geolife.serving.lifecycle_metrics import InMemoryRecorder
+
+    recorder = InMemoryRecorder()
+    cloud.recorder = recorder
+    start = 1_000_000_000_000_000_000
+    cloud.clock_ns = lambda: start
+    ticks = iter((0, 5_000_000, 10_000_000, 35_000_000))
+    cloud.monotonic_ns = lambda: next(ticks)
+    cloud.create(
+        owner="demo_000", key="lifecycle-wait-001", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m", now=start // 1_000_000_000,
+    )
+    original_receive = cloud.sqs.receive_message
+
+    def receive_after_wait(**kwargs):
+        message = original_receive(**kwargs)
+        cloud.clock_ns = lambda: start + 5_000_000_000
+        return message
+
+    monkeypatch.setattr(cloud.sqs, "receive_message", receive_after_wait)
+    assert cloud.process_once(now=start // 1_000_000_000)
+    assert recorder.events[0].duration_ms == 5
+    assert recorder.events[1].duration_ms == 5000
+    assert recorder.events[2].worker_ms == 25
+
+
+def test_send_failure_retry_undercount_is_explicit(cloud, monkeypatch):
+    from geolife.serving.lifecycle_metrics import InMemoryRecorder
+
+    recorder = InMemoryRecorder()
+    cloud.recorder = recorder
+    original_send = cloud.sqs.send_message
+    failed = False
+
+    def fail_first(**kwargs):
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise RuntimeError("synthetic send failure")
+        return original_send(**kwargs)
+
+    monkeypatch.setattr(cloud.sqs, "send_message", fail_first)
+    request = dict(owner="demo_000", key="lifecycle-send-001", fixture="short_observation",
+                   variant="cp2-v2-complete-link-200m")
+    with pytest.raises(RuntimeError):
+        cloud.create(**request)
+    assert recorder.events == []
+    job = cloud.create(**request)
+    assert job["status"] == "pending"
+    assert recorder.events == []
+
+
+def test_lifecycle_failure_and_telemetry_unavailability(cloud):
+    from geolife.serving.lifecycle_metrics import InMemoryRecorder, duration_ms
+
+    recorder = InMemoryRecorder()
+    cloud.recorder = recorder
+    job = cloud.create(
+        owner="demo_000", key="lifecycle-002", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m",
+    )
+    cloud.s3.delete_object(Bucket=cloud.bucket, Key=f"synthetic/{job['job_id']}.json")
+    assert cloud.process_once()
+    assert cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]["state"] == "pending"
+    assert [event.name for event in recorder.events][-2:] == ["leased", "attempt_failed"]
+    assert recorder.events[-1].error_class == "payload_read"
+    assert duration_ms(1000, 1001) is None
+    assert duration_ms(1001, 1000) == 1
+
+
+def test_terminal_failure_once_after_retries_and_recorder_failure_is_best_effort(cloud, monkeypatch):
+    receive_count = iter((1, 2, 3))
+    original_receive = cloud.sqs.receive_message
+
+    def receive_once(**kwargs):
+        response = original_receive(**kwargs)
+        for message in response.get("Messages", []):
+            message["Attributes"] = {"ApproximateReceiveCount": str(next(receive_count))}
+            cloud.sqs.change_message_visibility(
+                QueueUrl=cloud.queue_url, ReceiptHandle=message["ReceiptHandle"],
+                VisibilityTimeout=0,
+            )
+        return response
+
+    monkeypatch.setattr(cloud.sqs, "receive_message", receive_once)
+    from geolife.serving.lifecycle_metrics import InMemoryRecorder
+
+    recorder = InMemoryRecorder()
+    cloud.recorder = recorder
+    job = cloud.create(
+        owner="demo_000", key="lifecycle-terminal-001", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m",
+    )
+    cloud.s3.delete_object(Bucket=cloud.bucket, Key=f"synthetic/{job['job_id']}.json")
+    for attempt in range(3):
+        assert cloud.process_once()
+        if attempt < 2:
+            assert cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]["state"] == "pending"
+            cloud.sqs.send_message(
+                QueueUrl=cloud.queue_url, MessageBody=json.dumps({"job_id": job["job_id"]}),
+            )
+    assert cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]["state"] == "failed"
+    item = cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]
+    assert item["state"] == "failed" and item["terminal_at_ms"] >= item["created_at_ms"]
+    assert [event.name for event in recorder.events].count("failed") == 1
+    assert [event.name for event in recorder.events].count("attempt_failed") == 3
+
+    class BrokenRecorder:
+        def record(self, event):
+            raise RuntimeError("telemetry-only failure")
+
+    cloud.recorder = BrokenRecorder()
+    another = cloud.create(
+        owner="demo_000", key="lifecycle-telemetry-001", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m",
+    )
+    assert another["status"] == "pending" and cloud.telemetry_failures == 1
+
+
+def test_failed_terminal_write_does_not_emit_completion(cloud, monkeypatch):
+    from geolife.serving.lifecycle_metrics import InMemoryRecorder
+
+    recorder = InMemoryRecorder()
+    cloud.recorder = recorder
+    job = cloud.create(
+        owner="demo_000", key="lifecycle-conditional-001", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m",
+    )
+    real_update = cloud.table.update_item
+
+    def reject_terminal(**kwargs):
+        if ":done" in kwargs.get("ExpressionAttributeValues", {}):
+            raise RuntimeError("synthetic conditional-write failure")
+        return real_update(**kwargs)
+
+    monkeypatch.setattr(cloud.table, "update_item", reject_terminal)
+    assert cloud.process_once()
+    assert not any(e.name in ("succeeded", "failed") for e in recorder.events)
+    assert [e.name for e in recorder.events].count("attempt_failed") == 1
+    assert recorder.events[-1].error_class == "storage"
+    assert cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]["state"] == "pending"
+
+
+def test_failed_fallback_update_still_records_attempt_not_terminal(cloud, monkeypatch):
+    from geolife.serving.lifecycle_metrics import InMemoryRecorder
+
+    recorder = InMemoryRecorder()
+    cloud.recorder = recorder
+    job = cloud.create(
+        owner="demo_000", key="lifecycle-fallback-001", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m",
+    )
+    cloud.s3.delete_object(Bucket=cloud.bucket, Key=f"synthetic/{job['job_id']}.json")
+    original_update = cloud.table.update_item
+
+    def reject_fallback(**kwargs):
+        if ":next" in kwargs.get("ExpressionAttributeValues", {}):
+            raise RuntimeError("synthetic fallback write failure")
+        return original_update(**kwargs)
+
+    monkeypatch.setattr(cloud.table, "update_item", reject_fallback)
+    assert cloud.process_once()
+    assert [e.name for e in recorder.events] == ["accepted", "leased", "attempt_failed"]
+    assert recorder.events[-1].error_class == "payload_read"
+    assert cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]["state"] == "running"
+    assert "terminal_at_ms" not in cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]
+
+
+def test_cardinality_budget_and_worker_metrics_not_in_api(cloud):
+    from geolife.serving.lifecycle_metrics import Event, InMemoryRecorder, METRICS, metric_series
+
+    assert len(metric_series()) == 16
+    assert ("Terminal", "cp2-v2-dbscan-100m", "failed") in metric_series()
+    assert ("Accepted", "cp2-v2-complete-link-200m") in metric_series()
+    assert {dimensions for _, dimensions in METRICS.values()} == {
+        ("model",), ("model", "outcome"),
+    }
+    assert METRICS == {
+        "Accepted": ("Count", ("model",)),
+        "SubmitPersistAndSend": ("Milliseconds", ("model",)),
+        "FirstLeaseWait": ("Milliseconds", ("model",)),
+        "WorkerAttempt": ("Milliseconds", ("model",)),
+        "AttemptFailed": ("Count", ("model",)),
+        "Terminal": ("Count", ("model", "outcome")),
+        "TerminalDuration": ("Milliseconds", ("model",)),
+    }
+    assert metric_series() == {
+        (name, model, *outcome)
+        for name in METRICS
+        for model in ("cp2-v2-complete-link-200m", "cp2-v2-dbscan-100m")
+        for outcome in (("succeeded",), ("failed",)) if name == "Terminal"
+    } | {
+        (name, model)
+        for name in METRICS if name != "Terminal"
+        for model in ("cp2-v2-complete-link-200m", "cp2-v2-dbscan-100m")
+    }
+    recorder = InMemoryRecorder()
+    with pytest.raises(ValueError):
+        recorder.record(Event("accepted", "user-000"))
+    with pytest.raises(ValueError):
+        recorder.record(Event("failed", "cp2-v2-dbscan-100m", outcome="raw-exception"))
+    with pytest.raises(ValueError):
+        recorder.record(Event("attempt_failed", "cp2-v2-dbscan-100m", error_class="raw-exception"))
+    assert recorder.events == []
 
 
 def test_expired_idempotency_key_cannot_resurrect_old_ttl_record(cloud):
