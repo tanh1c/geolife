@@ -72,11 +72,15 @@ class AwsAsyncJobs:
 
         region = os.getenv("AWS_REGION", "ap-southeast-1")
         session = boto3.Session(region_name=region)
-        return cls(
+        client = cls(
             table=session.resource("dynamodb").Table(values[0]),
             s3=session.client("s3"), sqs=session.client("sqs"),
             bucket=values[1], queue_url=values[2], hmac_secret=values[3],
         )
+        if os.getenv("GEOLIFE_S2B_EMF_ENABLE") == "1":
+            from .emf import EmfRecorder
+            client.recorder = EmfRecorder()
+        return client
 
     def _opaque_id(self, owner: str, key: str) -> str:
         # HMAC binds idempotency to server-derived owner (no client user ID).
@@ -242,6 +246,7 @@ class AwsAsyncJobs:
                 return True  # another worker owns the lease; let visibility expire
             raise
         failure_class = "payload_read"
+        committed = False
         try:
             response_s3 = self.s3.get_object(
                 Bucket=self.bucket, Key=item["payload_key"],
@@ -273,6 +278,7 @@ class AwsAsyncJobs:
                     ":terminal_ms": terminal_ms,
                 },
             )
+            committed = True
             self._record(Event("succeeded", item["model_version"],
                                duration_ms(terminal_ms, item.get("created_at_ms", item["created_at"] * 1000)),
                                "succeeded", max(0, (self.monotonic_ns() - attempt_start) // 1_000_000)))
@@ -285,6 +291,10 @@ class AwsAsyncJobs:
             self._ack(receipt)
         except Exception:
             # Never log exception text: SDK and payload errors may expose data.
+            if committed:
+                self._record(Event("attempt_failed", item["model_version"],
+                                   error_class="storage"))
+                return True
             attempts = int(msg.get("Attributes", {}).get("ApproximateReceiveCount", "1"))
             terminal = attempts >= 3
             terminal_ms = self.clock_ns() // 1_000_000

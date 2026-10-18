@@ -1,6 +1,7 @@
 """Moto-only S2b AWS integration; no network, no real resources or GPS."""
 from __future__ import annotations
 
+import io
 import json
 from datetime import datetime, timezone
 
@@ -416,6 +417,164 @@ def test_cardinality_budget_and_worker_metrics_not_in_api(cloud):
     with pytest.raises(ValueError):
         recorder.record(Event("attempt_failed", "cp2-v2-dbscan-100m", error_class="raw-exception"))
     assert recorder.events == []
+
+
+def test_opt_in_emf_records_separate_api_and_worker_events(cloud, monkeypatch, capsys):
+    from geolife.serving.aws_s2b import AwsAsyncJobs
+
+    monkeypatch.setenv("GEOLIFE_S2B_EMF_ENABLE", "1")
+    client = TestClient(app)
+    auth = _token(client, "demo_000", "only-for-moto-test-long-password-000")
+    submitted = client.post(
+        "/v2/jobs", json={"fixture": "short_observation"},
+        headers={**auth, "Idempotency-Key": "emf-api-worker-001"},
+    )
+    assert submitted.status_code == 202
+    jid = submitted.json()["job_id"]
+    api_lines = capsys.readouterr().out.splitlines()
+    assert len(api_lines) == 1
+    assert {metric["Name"] for group in json.loads(api_lines[0])["_aws"]["CloudWatchMetrics"]
+            for metric in group["Metrics"]} == {"Accepted", "SubmitPersistAndSend"}
+
+    worker = AwsAsyncJobs.from_environment()
+    assert worker.process_once()
+    worker_lines = capsys.readouterr().out.splitlines()
+    assert len(worker_lines) == 2
+    names = [{metric["Name"] for group in json.loads(line)["_aws"]["CloudWatchMetrics"]
+              for metric in group["Metrics"]} for line in worker_lines]
+    assert names == [{"FirstLeaseWait"}, {"Terminal", "TerminalDuration", "WorkerAttempt"}]
+    assert client.get(f"/v2/jobs/{jid}", headers=auth).json()["status"] == "succeeded"
+    assert all(jid not in line and "demo_000" not in line and "latitude" not in line
+               for line in api_lines + worker_lines)
+    monkeypatch.delenv("GEOLIFE_S2B_EMF_ENABLE")
+    assert AwsAsyncJobs.from_environment().recorder is None
+
+
+def test_worker_cli_emf_lines_flush_before_bounded_exit(cloud, monkeypatch, capsys):
+    from geolife.serving import worker_cli
+
+    monkeypatch.setenv("GEOLIFE_S2B_EMF_ENABLE", "1")
+    job = cloud.create(
+        owner="demo_000", key="emf-cli-001", fixture="short_observation",
+        variant="cp2-v2-complete-link-200m",
+    )
+    monkeypatch.setattr("sys.argv", ["worker_cli", "--max-polls", "1"])
+    worker_cli.main()
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
+    assert len(lines) == 3
+    assert all(line.startswith("{") for line in lines[:2])
+    assert lines[-1] == "synthetic_s2b_queue_messages_seen=1"
+    assert captured.err == ""
+    assert all(job["job_id"] not in line and "latitude" not in line and "secret" not in line
+               for line in lines)
+
+
+def test_emf_retry_success_counts_one_worker_sample_per_attempt(cloud, monkeypatch):
+    from geolife.serving.emf import EmfRecorder
+
+    stream = io.StringIO()
+    cloud.recorder = EmfRecorder(stream=stream)
+    job = cloud.create(owner="demo_000", key="emf-retry-success-001",
+                       fixture="short_observation", variant="cp2-v2-complete-link-200m")
+    original_get = cloud.s3.get_object
+    failed = False
+
+    def fail_once(**kwargs):
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise RuntimeError("synthetic payload read failure")
+        return original_get(**kwargs)
+
+    monkeypatch.setattr(cloud.s3, "get_object", fail_once)
+    assert cloud.process_once()
+    assert cloud.table.get_item(Key={"job_id": job["job_id"]})["Item"]["state"] == "pending"
+    cloud._send(job["job_id"])
+    assert cloud.process_once()
+    assert cloud.get(owner="demo_000", jid=job["job_id"])["status"] == "succeeded"
+    cloud._send(job["job_id"])
+    assert cloud.process_once()
+    names = [{metric["Name"] for group in json.loads(line)["_aws"]["CloudWatchMetrics"]
+              for metric in group["Metrics"]} for line in stream.getvalue().splitlines()]
+    assert sum("WorkerAttempt" in metrics for metrics in names) == 2
+    assert sum("AttemptFailed" in metrics for metrics in names) == 1
+    assert sum("Terminal" in metrics for metrics in names) == 1
+    assert cloud.telemetry_failures == 0
+
+
+def test_emf_terminal_retries_count_last_attempt_once(cloud, monkeypatch):
+    from geolife.serving.emf import EmfRecorder
+
+    stream = io.StringIO()
+    cloud.recorder = EmfRecorder(stream=stream)
+    job = cloud.create(owner="demo_000", key="emf-terminal-failed-001",
+                       fixture="short_observation", variant="cp2-v2-complete-link-200m")
+    cloud.s3.delete_object(Bucket=cloud.bucket, Key=f"synthetic/{job['job_id']}.json")
+    receive_count = iter((1, 2, 3))
+    original_receive = cloud.sqs.receive_message
+
+    def receive_once(**kwargs):
+        response = original_receive(**kwargs)
+        for message in response.get("Messages", []):
+            message["Attributes"] = {"ApproximateReceiveCount": str(next(receive_count))}
+            cloud.sqs.change_message_visibility(QueueUrl=cloud.queue_url,
+                                                ReceiptHandle=message["ReceiptHandle"],
+                                                VisibilityTimeout=0)
+        return response
+
+    monkeypatch.setattr(cloud.sqs, "receive_message", receive_once)
+    for attempt in range(3):
+        assert cloud.process_once()
+        if attempt < 2:
+            cloud._send(job["job_id"])
+    assert cloud.get(owner="demo_000", jid=job["job_id"])["status"] == "failed"
+    monkeypatch.setattr(cloud.sqs, "receive_message", original_receive)
+    cloud._send(job["job_id"])
+    assert cloud.process_once()
+    names = [{metric["Name"] for group in json.loads(line)["_aws"]["CloudWatchMetrics"]
+              for metric in group["Metrics"]} for line in stream.getvalue().splitlines()]
+    assert sum("WorkerAttempt" in metrics for metrics in names) == 3
+    assert sum("AttemptFailed" in metrics for metrics in names) == 3
+    assert sum("Terminal" in metrics for metrics in names) == 1
+    assert cloud.telemetry_failures == 0
+
+
+def test_emf_ack_failure_after_commit_does_not_repeat_worker_or_terminal(cloud, monkeypatch):
+    from geolife.serving.emf import EmfRecorder
+
+    stream = io.StringIO()
+    cloud.recorder = EmfRecorder(stream=stream)
+    job = cloud.create(owner="demo_000", key="emf-ack-failure-001",
+                       fixture="short_observation", variant="cp2-v2-complete-link-200m")
+    original_ack = cloud._ack
+    monkeypatch.setattr(cloud, "_ack", lambda receipt: (_ for _ in ()).throw(RuntimeError("ack error")))
+    assert cloud.process_once()
+    assert cloud.get(owner="demo_000", jid=job["job_id"])["status"] == "succeeded"
+    monkeypatch.setattr(cloud, "_ack", original_ack)
+    cloud._send(job["job_id"])
+    assert cloud.process_once()
+    names = [{metric["Name"] for group in json.loads(line)["_aws"]["CloudWatchMetrics"]
+              for metric in group["Metrics"]} for line in stream.getvalue().splitlines()]
+    assert sum("WorkerAttempt" in metrics for metrics in names) == 1
+    assert sum("Terminal" in metrics for metrics in names) == 1
+    assert sum("AttemptFailed" in metrics for metrics in names) == 1
+    assert cloud.telemetry_failures == 0
+
+
+def test_emf_sink_failure_does_not_change_job_state(cloud):
+    from geolife.serving.emf import EmfRecorder
+
+    class BrokenStream:
+        def write(self, line):
+            raise OSError("synthetic log transport error")
+
+    cloud.recorder = EmfRecorder(stream=BrokenStream())
+    job = cloud.create(owner="demo_000", key="emf-sink-failure-001",
+                       fixture="short_observation", variant="cp2-v2-complete-link-200m")
+    assert cloud.process_once()
+    assert cloud.get(owner="demo_000", jid=job["job_id"])["status"] == "succeeded"
+    assert cloud.telemetry_failures == 3
 
 
 def test_expired_idempotency_key_cannot_resurrect_old_ttl_record(cloud):
