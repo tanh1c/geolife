@@ -63,6 +63,10 @@ data "aws_subnet" "alb" {
 data "aws_instance" "existing" {
   instance_id = var.existing_ec2_instance_id
 }
+data "aws_subnet" "instance" {
+  id = data.aws_instance.existing.subnet_id
+}
+
 locals {
   tag = "geolife-mentor-beta"
 }
@@ -111,7 +115,7 @@ resource "aws_lb" "private" {
       error_message = "STOP: wrong AWS account."
     }
     precondition {
-      condition     = data.aws_instance.existing.vpc_id == var.vpc_id
+      condition     = data.aws_subnet.instance.vpc_id == var.vpc_id
       error_message = "STOP: EC2 and ALB must use the same VPC."
     }
     precondition {
