@@ -51,6 +51,15 @@ def _legacy_inference(path: str) -> bool:
 
 async def secure_http(request: Request, call_next):
     path = request.scope.get("path", "")
+    if os.getenv("GEOLIFE_PUBLIC_BETA") == "1":
+        # Public process permits ONLY the synthetic beta endpoints and health.
+        allowed = request.method == "GET" and path in {
+            "/health", "/v3/beta/me", "/v3/beta/destination-suggestions",
+        }
+        if not allowed:
+            return JSONResponse({"detail": "Not found"}, status_code=404,
+                                headers={"Cache-Control": "no-store",
+                                         "X-Content-Type-Options": "nosniff"})
     if restricted_demo_mode() and _legacy_inference(path):
         # A scoped demo never exposes a parallel anonymous GPS inference API.
         # The legacy routes remain in OpenAPI for cross-version compatibility;
