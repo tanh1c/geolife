@@ -54,6 +54,12 @@ locals {
 resource "aws_s3_bucket" "site" {
   bucket        = "${local.prefix}-site"
   force_destroy = false
+  lifecycle {
+    precondition {
+      condition     = data.aws_caller_identity.current.account_id == var.account_id
+      error_message = "Hard stop: wrong AWS account for this Terraform root."
+    }
+  }
 }
 resource "aws_s3_bucket_public_access_block" "site" {
   bucket                  = aws_s3_bucket.site.id

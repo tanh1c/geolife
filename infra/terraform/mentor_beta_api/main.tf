@@ -108,6 +108,36 @@ resource "aws_apigatewayv2_vpc_link" "beta" {
 resource "aws_apigatewayv2_api" "beta" {
   name = "geolife-mentor-beta-http-api"
   protocol_type = "HTTP"
+  lifecycle {
+    precondition {
+      condition     = data.aws_caller_identity.current.account_id == var.account_id
+      error_message = "Hard stop: wrong AWS account."
+    }
+    precondition {
+      condition     = data.aws_lb.private.load_balancer_type == "application" && data.aws_lb.private.internal
+      error_message = "Hard stop: ALB must be internal and application type."
+    }
+    precondition {
+      condition     = data.aws_lb.private.vpc_id == var.vpc_id
+      error_message = "Hard stop: ALB must be in selected VPC."
+    }
+    precondition {
+      condition     = alltrue([for s in data.aws_subnet.link : s.vpc_id == var.vpc_id])
+      error_message = "Hard stop: VPC Link subnets outside selected VPC."
+    }
+    precondition {
+      condition     = length(distinct([for s in data.aws_subnet.link : s.availability_zone])) >= 2
+      error_message = "Hard stop: VPC Link requires two AZs."
+    }
+    precondition {
+      condition     = data.aws_lb_listener.backend.load_balancer_arn == var.private_alb_arn
+      error_message = "Hard stop: ALB listener belongs to another ALB."
+    }
+    precondition {
+      condition     = data.aws_lb_listener.backend.port == var.private_alb_listener_port
+      error_message = "Hard stop: ALB listener port mismatch."
+    }
+  }
 }
 resource "aws_apigatewayv2_authorizer" "cognito" {
   api_id = aws_apigatewayv2_api.beta.id
