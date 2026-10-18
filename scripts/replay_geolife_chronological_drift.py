@@ -151,7 +151,12 @@ def replay(events: list[StayEvent], *, reference_months: int = 3,
         months[event.arrival_utc.strftime("%Y-%m")].append(event)
 
     history = []
-    for month, records in sorted(months.items()):
+    # Include calendar months with *no* observed stays. An empty month must break
+    # the streak rather than treating distant observed months as adjacent.
+    month_axis = pd.period_range(min(months), max(months), freq="M")
+    for period in month_axis:
+        month = str(period)
+        records = months.get(month, [])
         support = len(records) >= min_stays and len({e.owner for e in records}) >= min_users
         support &= len({e.arrival_utc.date() for e in records}) >= min_days
         history.append((month, records, support))
