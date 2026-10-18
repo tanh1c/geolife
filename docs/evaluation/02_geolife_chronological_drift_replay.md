@@ -7,7 +7,7 @@
 - Enforces **5,821 stays / 136 stay users** and required columns; refuses missing/invalid timestamps, coordinates, timezone resolution, or insufficient monthly support.
 - Uses per-stay **IANA local arrival hour**, dwell-duration buckets, and binned distances between consecutive stays of the same user (only if intervening gap is 0–24 hours). Data are ordered by **UTC arrival timestamp**.
 - Uses stable calendar months as windows; the first 3 supported months form the **past-only reference**, with at least 30 stays, 5 distinct users and 7 UTC arrival dates per supported month.
-- Fixed 0.5 pseudocount JS divergence in bits; exploratory threshold 0.12; 2 consecutive supported windows to emit \`observed_shift_candidate\`. Low-support windows suppress bins and reset streak. This is *not* an independently calibrated threshold.
+- Fixed 0.5 pseudocount JS divergence in bits; exploratory threshold 0.12; 2 consecutive supported windows to emit \`observed_shift_candidate\`. Low-support or **entirely missing calendar months** suppress bins and reset streak; observed months separated by an empty month are never treated as consecutive. This is *not* an independently calibrated threshold.
 - A separate **constructed histogram injection** demonstrates a two-window \`simulated_alert\`. Synthetic injection is never mixed into actual monthly GeoLife observations.
 - Report JSON contains only month-level histograms, support-safe stay counts, JS values, config and limitations. No user IDs, rows, locations, raw GPS, filenames, tokens or coordinates. Any monthly output from private data still requires human disclosure review.
 
