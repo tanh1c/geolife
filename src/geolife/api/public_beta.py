@@ -11,7 +11,8 @@ from geolife.recommendation.fixtures import fixture_visits
 from .cognito_beta import current_beta_principal
 from .recommendation import DestinationResponse, SuggestedPlace
 
-router = APIRouter(prefix="/v3/beta", tags=["cognito-invite-only-beta"])
+# No beta endpoints in the frozen default OpenAPI spec; publish a reviewed beta spec separately.
+router = APIRouter(prefix="/v3/beta", tags=["cognito-invite-only-beta"], include_in_schema=False)
 
 
 class BetaMe(BaseModel):
