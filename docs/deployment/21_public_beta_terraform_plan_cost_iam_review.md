@@ -12,7 +12,22 @@ Published website URL being reachable does not grant API access. Only manually i
 
 ## Phase A private plan commands (Windows PowerShell; DO NOT APPLY)
 
-Run these only from a clean checkout; keep binary plan, state and plan JSON on a private non-Git folder. Use an IAM-authorized operator and read-only resource-existence checks first. No fresh AWS privileges should be added by the agent.
+Run from an **isolated checkout entirely under a private non-Git working directory**: create the private parent directory locally, then clone/fetch the PR branch there without resetting active worktrees. This keeps Terraform's default local state, .terraform provider downloads, saved plan and plan JSON away from the main repo. The missing private folder is NOT an AWS blocker: local directory creation is permitted. Verify the exact branch SHA and an empty isolated state before planning. Use the IAM-authorized operator; no new AWS privileges should be added by the agent.
+
+### Minimum hard gates for PLAN versus additional APPLY review
+
+**Before initial Phase A PLAN (hard STOP only when violated):**
+- Verified STS account 939169265033, provider region ap-southeast-1, exact PR-reviewed code, isolated empty Terraform state, and no *known* existing conflicting named foundation resources.
+- Cognito ListUserPools and DescribeUserPoolDomain indicate no intended pool/domain (already ABSENT at 2026-10-18 preflight); S3 HeadBucket returned 404 for the exact intended name (preliminary negative probe, not a reservation or absolute guarantee).
+- Do not proceed if a probe reports a definite existing conflict, if known Terraform state already manages the resources, or if the actual Terraform plan encounters AccessDenied/errors. Do not perform any AWS mutation to test names.
+
+**Useful but NOT required to produce a saved PLAN:**
+- `cloudfront:ListDistributions` lists *account-owned distributions*, while this design creates a **new distribution with AWS-assigned ID/hostname**, not a fixed distribution ID. Its denial means account inventory UNVERIFIED; it is not evidence of an actual CloudFront collision. Separately check name collisions of custom OAC and response-header policy before any APPLY when allowed.
+- `s3:ListAllMyBuckets` lists only *buckets owned by the caller's account* and cannot prove global bucket-name availability. A precise `HeadBucket` 404 is useful preflight evidence, but not an atomic global reservation: S3 may still reject CREATE later. Never claim global uniqueness guaranteed from either call.
+- `ce:GetCostAndUsage` is a *billing visibility* permission, not a Terraform plan prerequisite. Mark current account spend, Free Tier and billing eligibility **UNVERIFIED**; require owner/admin billing review and Singapore cost estimate **before APPLY**, without blocking non-mutating plan.
+- If any of these three optional reads is AccessDenied, record the denial in sanitized evidence and continue PLAN ONLY. Do not request extra IAM solely to satisfy these optional queries.
+
+**No plan means NOT RUN, not Terraform PLAN FAIL.** A successful local format/init/validate is not a successful remote saved PLAN.
 
 ```powershell
 $env:AWS_PROFILE='geolife-terraform'
@@ -32,7 +47,7 @@ Only report sanitized resource type counts/create-only guard, STS account+region
 
 ## Explicit gates / separation of responsibilities
 
-1. **AWS identity & state**: STS account must be 939169265033, region ap-southeast-1. Verify new isolated local state is empty, resource names/domain/bucket availability, account CloudFront and Cognito service quotas, no existing managed resources to import or overwrite. Denied `List*` or `Describe*` is UNVERIFIED rather than PASS.
+1. **AWS identity & state**: STS account must be 939169265033, region ap-southeast-1. Verify isolated private local state empty, Cognito pool/domain negative results and the precise S3 HeadBucket result. Other account-wide inventory/quotas are UNVERIFIED if denied and must be resolved before APPLY as applicable, but do not block initial non-mutating PLAN. Never equate 404 with guaranteed future S3 bucket reservation.
 2. **Scoped IAM deployer**: Cognito UserPool/Create/Get/Describe/Delete, UserPoolClient, UserPoolDomain, UserGroup, ResourceServer, ManagedLoginBranding; CloudFront Distribution/OriginAccessControl/ResponseHeadersPolicy and relevant Get/List/Tag/Update/Delete; S3 create/list bucket and secure Get/Put bucket policy, encryption, versioning, public-access block. Admin must review exact AWS action/resource/condition applicability. Never grant `iam:*`, `ec2:AuthorizeSecurityGroupIngress`, broad s3:* on all buckets or let automation attach IAM. IAM for Phase B (API Gateway, VPC link, scoped SG Create and egress only) needs separate owner review.
 3. **No signup**: `admin_create_user_config.allow_admin_create_user_only=true`; admin-created accounts only, with group membership and custom OAuth scope. Use Cognito *User Pool*, not Identity Pool. Use PKCE and exact HTTPS callback/logout; access-token lifetime 15 min. Authentication is not proof of original GeoLife research participant ownership.
 4. **Public edge**: website TLS CloudFront, OAC private S3, managed security response headers, 2 paths only in API Gateway and backend strict allowlist. Confirm CloudFront forwarding of Authorization and query string with disabled cache; no `/v1`/`/v2`/`/internal/metrics` proxy. WAF, request throttles/byte caps, costs and branding clearance must be reviewed before serving internet traffic.
@@ -62,4 +77,4 @@ https://aws.amazon.com/vpc/pricing/
 https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-private.html
 https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html
 
-**Acceptance state now**: configuration + guard and cost/IAM/security review ONLY; no Terraform plan run, no real AWS authorization test, and no go-live.
+**2026-10-18 local preflight**: STS verified, Cognito pool/domain negative, precise S3 HeadBucket 404; CloudFront list/S3 ListAllMyBuckets/Cost Explorer denied. Saved plan **NOT RUN**. Following this gate clarification, proceed to an isolated **PLAN ONLY** without expanding IAM; all three denied optional reads remain UNVERIFIED and must be reported. No go-live or APPLY approved.
