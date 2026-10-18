@@ -1,6 +1,8 @@
 # Track B1 — MLE delivery roadmap (post-EDA pivot)
 
-Updated: 2026-10-12. This page preserves the **original post-EDA delivery plan / historical status at pivot**.
+Updated: 2026-10-12.
+> **Research closeout (2026-10-15, historical):** Stage 10a–10l Evidence v2 offline audit concluded without production promotion. See [Stage 10 final decision](../eda/45_evidence_v2_final_decision.md). See the [Unified Master Roadmap](2026-10-15_track_b1_unified_master_roadmap.md) for current acceptance scope.
+ This page preserves the **original post-EDA delivery plan / historical status at pivot**.
 
 > **Unified acceptance source (2026-10-15):** [Master Roadmap: full original Checkpoint 1–3 + prioritized Destination Recommendation + mentor security + dataset comparison](2026-10-15_track_b1_unified_master_roadmap.md). This historical roadmap remains for context; the unified document reconciles the required SQS/monitoring Track B1 definition of done with the agreed newer product priority, rather than silently dropping Checkpoint 3.
 
