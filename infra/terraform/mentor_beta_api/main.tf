@@ -105,6 +105,19 @@ resource "aws_apigatewayv2_vpc_link" "beta" {
   subnet_ids = var.vpc_link_subnet_ids
   security_group_ids = [aws_security_group.vpc_link.id]
 }
+
+# Bridge ALB SG has NO inline ingress rules; this API root owns precisely the
+# rule admitting VPC Link SG -> internal ALB listener. Neither root edits the
+# legacy EC2 SSM-only SG.
+resource "aws_vpc_security_group_ingress_rule" "alb_from_vpc_link" {
+  security_group_id            = var.private_alb_security_group_id
+  referenced_security_group_id = aws_security_group.vpc_link.id
+  ip_protocol                  = "tcp"
+  from_port                    = var.private_alb_listener_port
+  to_port                      = var.private_alb_listener_port
+  description                  = "Only beta HTTP API VPC Link can reach internal ALB"
+}
+
 resource "aws_apigatewayv2_api" "beta" {
   name = "geolife-mentor-beta-http-api"
   protocol_type = "HTTP"
@@ -120,6 +133,10 @@ resource "aws_apigatewayv2_api" "beta" {
     precondition {
       condition     = data.aws_lb.private.vpc_id == var.vpc_id
       error_message = "Hard stop: ALB must be in selected VPC."
+    }
+    precondition {
+      condition     = contains(data.aws_lb.private.security_groups, var.private_alb_security_group_id)
+      error_message = "Hard stop: selected SG not attached to the private ALB."
     }
     precondition {
       condition     = alltrue([for s in data.aws_subnet.link : s.vpc_id == var.vpc_id])

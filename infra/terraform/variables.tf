@@ -63,3 +63,16 @@ variable "instance_profile_name" {
     error_message = "Expected a scoped geolife-mle-ENV-ec2-role instance profile name."
   }
 }
+
+# Intentionally OFF in every existing SSM-only run and default terraform plan.
+# Set only to the separately approved mentor-beta backend SG in a scoped EC2
+# state plan. The old SSM-only SG itself retains NO inbound rules.
+variable "mentor_beta_backend_security_group_id" {
+  type        = string
+  default     = ""
+  description = "Optional dedicated ALB-only inbound SG ID; PLAN/approval required before EC2 attachment."
+  validation {
+    condition     = var.mentor_beta_backend_security_group_id == "" || can(regex("^sg-[0-9a-f]{8,17}$", var.mentor_beta_backend_security_group_id))
+    error_message = "Expected empty value or explicit reviewed sg-... backend SG ID."
+  }
+}
