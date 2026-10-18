@@ -80,3 +80,12 @@ def test_fail_closed_missing_schema_and_frozen_parity():
 def test_insufficient_windows_rejected():
     with pytest.raises(ReplayGateError, match="INSUFFICIENT_SUPPORTED_WINDOWS"):
         replay(sample(months=2), reference_months=3)
+
+
+def test_fully_missing_month_resets_streak():
+    events = [e for e in sample() if e.arrival_utc.month != 7]
+    result = replay(events, reference_months=2)
+    july = next(w for w in result["windows"] if w["month_utc"] == "2009-07")
+    assert july["status"] == "insufficient_support"
+    assert july["histograms"] is None
+    assert result["windows"][-1]["status"] == "observed"
