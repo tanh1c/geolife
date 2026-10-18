@@ -100,6 +100,58 @@
           ["AWS/Logs", "EMFDisabledErrors", "LogGroupName", "/geolife/dev/s2b-telemetry"]
         ]
       }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "S2b source queue depth (approximate; missing is not zero)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "Maximum",
+        "view": "timeSeries",
+        "metrics": [
+          ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "geolife-mle-s2b-dev-jobs"],
+          ["AWS/SQS", "ApproximateNumberOfMessagesNotVisible", "QueueName", "geolife-mle-s2b-dev-jobs"]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "S2b oldest source message age (seconds; approximate)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "Maximum",
+        "view": "timeSeries",
+        "metrics": [
+          ["AWS/SQS", "ApproximateAgeOfOldestMessage", "QueueName", "geolife-mle-s2b-dev-jobs"]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "S2b DLQ visible depth (existing alarm remains separate)",
+        "region": "ap-southeast-1",
+        "period": 300,
+        "stat": "Maximum",
+        "view": "timeSeries",
+        "metrics": [
+          ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "geolife-mle-s2b-dev-dlq"]
+        ]
+      }
     }
   ]
 }
