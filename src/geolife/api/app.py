@@ -22,6 +22,7 @@ from .metrics import instrument_requests, protected_metrics
 from .security import secure_http
 from .demo import router as demo_router
 from .recommendation import router as destination_router
+from .async_jobs import router as async_jobs_router
 
 
 app = FastAPI(
@@ -206,10 +207,12 @@ app.include_router(demo_router)
 # Synthetic-only destination MVP is off by default and uses demo account AuthN.
 app.include_router(destination_router)
 
+# AWS S2b routes remain disabled unless GEOLIFE_S2B_ENABLE=1 and SSM-only scope is configured.
+app.include_router(async_jobs_router)
+
 @app.get("/demo", include_in_schema=False)
 def geolife_demo_ui():
     return FileResponse(str(files("geolife.api").joinpath("static", "demo.html")), media_type="text/html")
-
 
 @app.get("/destination-demo", include_in_schema=False, tags=["synthetic-private-recommendation"])
 def synthetic_destination_demo_ui():
