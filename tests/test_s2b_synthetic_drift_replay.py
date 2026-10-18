@@ -1,11 +1,20 @@
 """Deterministic, fictional-only replay checks."""
 from __future__ import annotations
 
-from scripts.replay_s2b_synthetic_drift import CATEGORIES, evaluate, js_bits, replay, summarize
+import importlib.util
+from pathlib import Path
+
+PATH = Path(__file__).resolve().parents[1] / "scripts" / "replay_s2b_synthetic_drift.py"
+SPEC = importlib.util.spec_from_file_location("s2b_drift_replay", PATH)
+assert SPEC and SPEC.loader
+drift = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(drift)
+CATEGORIES, evaluate, js_bits, replay, summarize = (
+    drift.CATEGORIES, drift.evaluate, drift.js_bits, drift.replay, drift.summarize,
+)
 
 
 def test_replay_uses_disjoint_chronological_fixture_events(monkeypatch):
-    import scripts.replay_s2b_synthetic_drift as drift
 
     observed = []
     original = drift.evaluate
