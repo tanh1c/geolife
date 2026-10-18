@@ -17,7 +17,6 @@ BRIDGE_RESOURCES = {
     "aws_vpc_security_group_ingress_rule.backend_from_alb",
     "aws_lb.private",
     "aws_lb_target_group.beta",
-    "aws_lb_target_group_attachment.current_ec2",
     "aws_lb_listener.http_internal",
 }
 IMMUTABLE_EC2_FIELDS = (
@@ -53,9 +52,34 @@ def bridge_guard(plan: dict) -> dict:
         raise ValueError("WRONG_EC2_TARGET")
     if variables.get("beta_backend_port", {}).get("value", 18080) != 18080:
         raise ValueError("WRONG_BETA_PORT")
-    return {"gate": "BRIDGE_CREATE_ONLY", "create": 8, "update": 0,
+    if variables.get("attach_existing_target", {}).get("value", False) is not False:
+        raise ValueError("TARGET_ATTACHMENT_MUST_BE_DISABLED")
+    alb_subnets = variables.get("alb_subnet_ids", {}).get("value", [])
+    if (not isinstance(alb_subnets, list) or len(alb_subnets) != 2
+            or len(set(alb_subnets)) != 2 or "subnet-058c02e56fd08a4f0" not in alb_subnets):
+        raise ValueError("ALB_MUST_INCLUDE_EXISTING_EC2_SUBNET_1A")
+    return {"gate": "BRIDGE_CREATE_ONLY", "create": 7, "update": 0,
             "delete": 0, "replace": 0, "apply_approved": False}
 
+
+
+
+def target_attach_guard(plan: dict) -> dict:
+    """A second saved plan: register only the now-running existing EC2 target."""
+    rows = _managed_changes(plan)
+    changed = [r for r in rows if r.get("change", {}).get("actions") != ["no-op"]]
+    if len(changed) != 1 or changed[0].get("address") != "aws_lb_target_group_attachment.current_ec2[0]":
+        raise ValueError("TARGET_PLAN_MUST_ADD_ONE_REGISTERED_INSTANCE")
+    if changed[0].get("change", {}).get("actions") != ["create"]:
+        raise ValueError("TARGET_REGISTRATION_MUST_BE_CREATE_ONLY")
+    cfg = plan.get("variables", {})
+    if cfg.get("attach_existing_target", {}).get("value") is not True:
+        raise ValueError("TARGET_FLAG_MUST_BE_TRUE")
+    after = changed[0]["change"].get("after")
+    if not isinstance(after, dict) or after.get("target_id") != "i-0dfcfa110c0fd8af1" or after.get("port") != 18080:
+        raise ValueError("WRONG_TARGET_ID_OR_PORT")
+    return {"gate": "TARGET_REGISTRATION_ONLY", "create": 1, "update": 0,
+            "delete": 0, "replace": 0, "apply_approved": False}
 
 def ec2_attach_guard(plan: dict, expected_backend_sg: str) -> dict:
     if not re.fullmatch(r"sg-[0-9a-f]{8,17}", expected_backend_sg):
@@ -90,14 +114,18 @@ def ec2_attach_guard(plan: dict, expected_backend_sg: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", choices=("bridge", "ec2-attach"), required=True)
+    parser.add_argument("--phase", choices=("bridge", "ec2-attach", "target-attach"), required=True)
     parser.add_argument("--plan-json", type=Path, required=True)
     parser.add_argument("--backend-sg", default="")
     args = parser.parse_args()
     try:
         plan = json.loads(args.plan_json.read_text(encoding="utf-8"))
-        result = (bridge_guard(plan) if args.phase == "bridge" else
-                  ec2_attach_guard(plan, args.backend_sg))
+        if args.phase == "bridge":
+            result = bridge_guard(plan)
+        elif args.phase == "target-attach":
+            result = target_attach_guard(plan)
+        else:
+            result = ec2_attach_guard(plan, args.backend_sg)
     except (OSError, ValueError, TypeError) as exc:
         print("PLAN_GUARD_FAIL", str(exc).splitlines()[0][:120])
         raise SystemExit(2) from None

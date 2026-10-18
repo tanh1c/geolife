@@ -55,6 +55,11 @@ variable "beta_backend_port" {
     error_message = "Only dedicated beta port 18080 is reviewed."
   }
 }
+variable "attach_existing_target" {
+  description = "Second-stage only: do not register STOPPED EC2 in the initial bridge plan."
+  type        = bool
+  default     = false
+}
 data "aws_vpc" "target" { id = var.vpc_id }
 data "aws_subnet" "alb" {
   for_each = toset(var.alb_subnet_ids)
@@ -127,6 +132,10 @@ resource "aws_lb" "private" {
       error_message = "STOP: ALB requires two AZs."
     }
     precondition {
+      condition     = contains([for s in data.aws_subnet.alb : s.availability_zone], data.aws_subnet.instance.availability_zone)
+      error_message = "STOP: EC2 target AZ MUST be enabled on the internal ALB (include the EC2's 1a subnet)."
+    }
+    precondition {
       condition     = !contains(["terminated", "shutting-down"], data.aws_instance.existing.instance_state)
       error_message = "STOP: existing EC2 is terminated."
     }
@@ -151,9 +160,16 @@ resource "aws_lb_target_group" "beta" {
   }
 }
 resource "aws_lb_target_group_attachment" "current_ec2" {
+  count            = var.attach_existing_target ? 1 : 0
   target_group_arn = aws_lb_target_group.beta.arn
   target_id        = data.aws_instance.existing.id
   port             = var.beta_backend_port
+  lifecycle {
+    precondition {
+      condition     = data.aws_instance.existing.instance_state == "running"
+      error_message = "STOP: do not register the EC2 target until the instance is running (separate owner approval)."
+    }
+  }
 }
 resource "aws_lb_listener" "http_internal" {
   load_balancer_arn = aws_lb.private.arn
@@ -182,4 +198,9 @@ output "backend_private_ip" {
 }
 output "backend_port" {
   value = var.beta_backend_port
+}
+
+output "target_registration_enabled" {
+  value       = var.attach_existing_target
+  description = "False during initial bridge plan; separate target-registration step after EC2 starts."
 }

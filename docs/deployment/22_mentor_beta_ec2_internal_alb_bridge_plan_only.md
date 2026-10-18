@@ -2,6 +2,18 @@
 
 **Status: CODE / OFFLINE TERRAFORM VALIDATE ONLY. NOT PLANNED, NOT APPLIED, NOT LIVE.** This stacked Draft PR depends on PR #82 (foundation + API root), and PR #81 (Cognito/React + synthetic-only backend). It does not grant permission to start the existing EC2, modify network, change IAM, push images or merge PRs.
 
+## 2026-10-18 CRITICAL CORRECTION — previous saved plan is superseded
+
+**DO NOT APPLY** the operator's old bridge plan `5e8eab66b86001fa6f4c56225a9350113d305816be342d0538939901af234262`. That plan selected ALB subnets in `ap-southeast-1b` and `ap-southeast-1c`, but the existing instance `i-0dfcfa110c0fd8af1` is in `ap-southeast-1a` (subnet `subnet-058c02e56fd08a4f0`). AWS requires target AZ to be **enabled** on the ALB; otherwise target remains `unused` / `Target.NotInUse`. Terraform now enforces that the ALB subnet AZ set includes the EC2 AZ. Use `subnet-058c02e56fd08a4f0` (1a) plus one reviewed VPC subnet in 1b or 1c. Both need network/IP availability review. Existing `ALB internal=true` is unchanged.
+
+AWS also states that EC2 targets must be **running at registration time**. This root previously registered a STOPPED EC2 in the initial plan. Now `attach_existing_target=false` by default, so the first bridge plan creates **7 resources only** and intentionally leaves the target group EMPTY. This ALB is not a working serving backend yet. After *separately authorized* bridge APPLY, approved EC2 SG in-place attach, approved EC2 start, successful SSM beta container readiness, and security review, a distinct target registration plan with `attach_existing_target=true` adds **exactly 1** target attachment. Do not enable API traffic or CloudFront beta routing before target health and Cognito security checks are satisfied.
+
+New guards: `--phase bridge` expects 7 CREATE / 0 UPDATE/DELETE/REPLACE with EC2's 1a subnet included; `--phase target-attach` expects exactly one CREATE of `aws_lb_target_group_attachment.current_ec2[0]`. Any existing saved plan from older code is **invalid for deployment** regardless of its earlier PASS status. New private state and new SHA-256 review are mandatory after fresh PLAN. Neither change is permission to APPLY.
+
+AWS references:
+- https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html
+- https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-register-targets.html
+
 ## Architecture and critical runtime separation
 
 ```text
@@ -25,7 +37,7 @@ ALB is `internal=true` with no internet-facing address and a zero-public-ingress
 
 **B1: `infra/terraform/mentor_beta_bridge` (new isolated state)**
 - READ ONLY prerequisite: exact target instance ID, VPC, and two reviewed subnet IDs in different AZs. The subnets do not have to be assumed from a default VPC; confirm actual CIDR, routing, account, AZ, and available IPv4 space. The ALB `internal=true` designation is key even if reviewed subnets happen to be public-routed.
-- CREATE ONLY: internal ALB, ALB security group, EC2 beta-only additional SG, one restricted ALB->backend egress rule, one restricted backend<-ALB ingress rule, HTTP target group, registered EXISTING EC2 instance target, internal HTTP listener (8 resources). No EC2 resource/import/SG mutation here.
+- CREATE ONLY: internal ALB, ALB security group, EC2 beta-only additional SG, one restricted ALB->backend egress rule, one restricted backend<-ALB ingress rule, HTTP target group, and internal HTTP listener (**7 resources initially**; target attachment is a separately gated later CREATE after EC2 starts). No EC2 resource/import/SG mutation here.
 - The bridge ALB SG deliberately uses **standalone security-group rules** (no inline ingress). API root owns the one later ALB ingress rule from VPC Link SG. Do not add conflicting inline SG rules in other Terraform roots.
 - EC2 is STOPPED now; target state will be unhealthy until later owner-approved EC2 start/container readiness. Terraform creation/plan is NOT a health-check PASS or runtime test.
 
@@ -63,7 +75,7 @@ sudo docker run -d --name geolife-mentor-beta --restart unless-stopped \
    - **PLAN-only hard gates:** verified STS account + region, exact instance and VPC, two reviewed distinct-AZ subnet IDs, no known conflict, isolated empty state. This bridge root reads only aws_caller_identity, aws_vpc, aws_subnet and aws_instance; it has **no ELB data source**, so ELB inventory List/Describe denial alone does NOT block attempting a non-mutating Terraform PLAN. If Terraform itself encounters AccessDenied or an unexpected diff, STOP; never mutate AWS to resolve it.
    - **APPLY-only hard gates:** authorized reviewer verifies ELB name/target-group collision and current ELB inventory (DescribeLoadBalancers, DescribeTargetGroups, optionally DescribeListeners), ALB quota, adequate subnet free IPs/AZ routes, scoped IAM, full Singapore cost scenarios/account spend and approved teardown window. Missing Describe privilege remains UNVERIFIED and BLOCKS APPLY until resolved by authorized personnel. Do NOT request/attach extra IAM simply to run a non-mutating PLAN.
 2. In a private checkout, on this exact branch, run targeted `terraform fmt -check`, `init -backend=false`, `validate` for `mentor_beta_bridge`. If the original Terraform root fails fmt due to older S2b files, do not run global fmt or edit unrelated files.
-3. For bridge: only after read-only checks, run **saved Terraform PLAN ONLY** with explicit VPC/subnet values, protected state and private plan/JSON. Run `python scripts/mentor_beta_bridge_plan_guard.py --phase bridge --plan-json <PRIVATE-JSON>`. Expected strictly 8 CREATE, 0 UPDATE/DELETE/REPLACE, `apply_approved=false`. Do not claim PLAN PASS until actual operator run.
+3. For bridge: discard/supersede prior 8-create saved plan; select existing EC2 subnet **subnet-058c02e56fd08a4f0 (1a)** plus one reviewed subnet in 1b or 1c, then run **new saved Terraform PLAN ONLY** with `attach_existing_target=false` and new private saved-plan SHA. Run `python scripts/mentor_beta_bridge_plan_guard.py --phase bridge --plan-json <PRIVATE-JSON>`. Expected strictly **7 CREATE**, 0 UPDATE/DELETE/REPLACE, `apply_approved=false`. Do not claim corrected PLAN PASS until operator runs it. Target registration is later separately approved with 1 CREATE after the EC2 is running.
 4. For existing EC2 root: planning the second SG requires the backend SG ID that **does not exist yet**; postpone. After B1 APPLY separately approved, use the ORIGINAL Terraform state and plan with one optional SG; pass strict `ec2-attach` guard. Do not add SG using ad hoc CLI, outside state or an imported duplicate.
 5. API root Phase B PLAN must use real reviewed internal ALB/listener outputs after B1; it is NOT READY now. Must separately guard its expected creates and verify no public SG rule or unintended routes.
 6. Before any future APPLY: account-spend review, Singapore per-hour ALB/LCU, EC2 compute+EBS+public IPv4, API Gateway, VPC link, CloudFront PAYG/S3/Cognito costs; choose **4h / 48h / 30d** demo exposure and teardown deadline. Budget alerts do not hard-cap cost. Validate scoped IAM actions rather than adding `*` privileges.
@@ -73,4 +85,4 @@ sudo docker run -d --name geolife-mentor-beta --restart unless-stopped \
 
 Official technical references: https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-private.html , https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html , https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_target_group_attachment , https://aws.amazon.com/elasticloadbalancing/pricing/ .
 
-**Acceptance after 2026-10-18 preflight: implementation + offline Terraform CI PASS, initial AWS read-only preflight PARTIAL. Bridge PLAN NOT RUN (stopped at ELB inventory AccessDenied). The revised gates now permit non-mutating PLAN ONLY without optional ELB inventory. No saved plan or hash yet; no cost approval, no APPLY, no live authentication, no real GeoLife web access.**
+**Acceptance after 2026-10-18 operator plan: historical initial 8-create PLAN PASS and SHA archived as evidence, but SUPERSEDED due to AZ mismatch and stopped-target registration. Corrected 7-create PLAN is NOT RUN. No APPLY authorization, live authentication, or real GeoLife web access.**
