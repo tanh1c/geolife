@@ -10,7 +10,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-RUN python -m pip install --no-cache-dir . \
+RUN python -m pip install --no-cache-dir '.[aws]' \
     && useradd --system --uid 10001 --create-home geolife
 
 USER geolife
