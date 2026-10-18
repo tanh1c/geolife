@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GeoLife · Synthetic Destination Lab</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f5f4; color: #151515; }
+    main { max-width: 840px; padding: 40px 24px 72px; margin: auto; }
+    header { border-top: 5px solid #cc2929; padding-top: 19px; margin-bottom: 30px; }
+    .eyebrow { color: #2352aa; letter-spacing: .13em; font-weight: 700; font-size: 12px; }
+    h1 { font-size: clamp(30px, 5vw, 48px); margin: 7px 0 12px; line-height: 1.08; letter-spacing: -.045em; }
+    p { max-width: 72ch; line-height: 1.6; }
+    .sub { color: #545454; }
+    section { background: white; padding: 22px; margin: 15px 0; border: 1px solid #dadada; }
+    h2 { margin: 0 0 15px; font-size: 20px; }
+    label { display: block; margin: 12px 0 5px; font-size: 13px; font-weight: 650; }
+    input { width: 100%; padding: 10px; border: 1px solid #999; border-radius: 2px; font: inherit; }
+    button { font: inherit; background: #111; color: white; border: 0; padding: 11px 17px; margin: 12px 8px 0 0; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .quiet { background: #eeeeee; color: #111; }
+    .note { font-size: 13px; color: #4f4f4f; }
+    .status { padding: 10px; background: #f3f3f3; border-left: 3px solid #2352aa; min-height: 40px; }
+    ol { padding: 0; margin: 0; list-style: none; }
+    li { padding: 16px 0; border-top: 1px solid #e1e1e1; }
+    .rank { font-size: 11px; color: #cc2929; font-weight: 750; letter-spacing: .06em; }
+    .place { display: block; font-weight: 700; font-size: 18px; margin: 3px 0; }
+    .reasons { font-size: 13px; color: #545454; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">GEO LIFE / INTERNAL R&D</div>
+      <h1>Destination suggestions</h1>
+      <p class="sub">Top-3 địa điểm giả lập theo lịch sử ghé thăm, thời gian và điểm xuất phát. Đây là <strong>nghiên cứu recommendation</strong>, không phải suy luận HOME/OFFICE đã xác minh.</p>
+    </header>
+    <section>
+      <h2>01 · Đăng nhập tài khoản test</h2>
+      <form id="login-form" autocomplete="off">
+        <label for="account">Demo account ID</label>
+        <input id="account" required value="demo_000" maxlength="64" autocomplete="username">
+        <label for="password">Mật khẩu test (không lưu trong trình duyệt)</label>
+        <input id="password" required type="password" autocomplete="off">
+        <button type="submit">Đăng nhập</button>
+        <button type="button" id="logout" class="quiet" disabled>Đăng xuất</button>
+      </form>
+      <p class="note">Không sử dụng tài khoản GeoLife thật. Token được giữ trong bộ nhớ của trang, không lưu vào localStorage/cookie do trang tự tạo.</p>
+      <p id="status" class="status" role="status" aria-live="polite">Chưa đăng nhập.</p>
+    </section>
+    <section>
+      <h2>02 · Ngữ cảnh dự đoán</h2>
+      <label for="when">Thời điểm truy vấn (ISO có múi giờ)</label>
+      <input id="when" value="2026-09-24T08:00:00+07:00" maxlength="48">
+      <label for="origin">Điểm xuất phát (tùy chọn, mã synthetic)</label>
+      <input id="origin" value="s0_starting_point" maxlength="64">
+      <button type="button" id="suggest" disabled>Xem Top-3 gợi ý</button>
+      <p class="note">Chọn tài khoản demo_001 cần dùng tên địa điểm thuộc fixture riêng của tài khoản đó. Các địa điểm ở đây hoàn toàn giả lập.</p>
+    </section>
+    <section>
+      <h2>03 · Kết quả gợi ý</h2>
+      <ol id="suggestions" aria-live="polite"></ol>
+      <p id="empty" class="sub">Chưa có kết quả.</p>
+      <p class="note">Thứ hạng thể hiện gợi ý dựa trên lịch sử synthetic, <strong>không phải</strong> phần trăm đúng, Evidence Score hay địa điểm thật của một cá nhân.</p>
+    </section>
+  </main>
+  <script>
+    (() => {
+      "use strict";
+      let bearer = "";
+      const $ = (id) => document.getElementById(id);
+      const status = (msg) => { $("status").textContent = msg; };
+      function clearSuggestions(message) {
+        $("suggestions").replaceChildren();
+        $("empty").hidden = false;
+        $("empty").textContent = message || "Chưa có kết quả.";
+      }
+      $("login-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        clearSuggestions();
+        const account = $("account").value.trim();
+        const password = $("password").value;
+        try {
+          const response = await fetch("/v2/auth/login", {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({account_id: account, password: password}),
+            cache: "no-store"
+          });
+          $("password").value = "";
+          if (!response.ok) {
+            bearer = "";
+            status("Đăng nhập thất bại hoặc tài khoản chưa được cấp.");
+          } else {
+            const payload = await response.json();
+            bearer = payload.access_token;
+            status("Đã đăng nhập bằng tài khoản demo. Lịch sử nguồn: synthetic fixture.");
+          }
+        } catch (_e) {
+          bearer = "";
+          $("password").value = "";
+          status("Không kết nối được API nội bộ.");
+        }
+        $("logout").disabled = !bearer;
+        $("suggest").disabled = !bearer;
+      });
+      $("logout").addEventListener("click", async () => {
+        const token = bearer;
+        bearer = "";
+        $("logout").disabled = true;
+        $("suggest").disabled = true;
+        clearSuggestions();
+        status("Đã đăng xuất.");
+        if (token) {
+          try {
+            await fetch("/v2/auth/logout", {
+              method: "POST", headers: {"Authorization": "Bearer " + token},
+              cache: "no-store"
+            });
+          } catch (_e) {}
+        }
+      });
+      $("suggest").addEventListener("click", async () => {
+        if (!bearer) {
+          status("Cần đăng nhập trước khi xem gợi ý.");
+          return;
+        }
+        const params = new URLSearchParams({when: $("when").value.trim()});
+        const origin = $("origin").value.trim();
+        if (origin) params.set("origin_place_id", origin);
+        clearSuggestions("Đang yêu cầu gợi ý synthetic…");
+        try {
+          const response = await fetch(
+            "/v2/me/destination-suggestions?" + params.toString(),
+            {headers: {"Authorization": "Bearer " + bearer}, cache: "no-store"}
+          );
+          if (!response.ok) {
+            status("Không có kết quả hợp lệ; kiểm tra giờ ISO, quyền và cờ synthetic.");
+            clearSuggestions();
+            return;
+          }
+          const payload = await response.json();
+          clearSuggestions(payload.status === "abstained"
+            ? "Chưa đủ dữ liệu quan sát lặp lại để gợi ý." : "");
+          if (payload.status === "suggested") {
+            $("empty").hidden = true;
+            for (const item of payload.suggestions) {
+              const li = document.createElement("li");
+              const rank = document.createElement("span");
+              rank.className = "rank";
+              rank.textContent = "TOP " + item.rank;
+              const place = document.createElement("strong");
+              place.className = "place";
+              place.textContent = item.place_ref;
+              const reason = document.createElement("span");
+              reason.className = "reasons";
+              reason.textContent = item.explanations.join(" · ");
+              li.append(rank, place, reason);
+              $("suggestions").appendChild(li);
+            }
+          }
+          status("Kết quả từ contextual ranking synthetic; chưa dùng GPS thật.");
+        } catch (_e) {
+          status("Không kết nối được API nội bộ.");
+          clearSuggestions();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

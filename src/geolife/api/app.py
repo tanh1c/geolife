@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, Path, Request
+import os
+
+from fastapi import FastAPI, Path, Request, HTTPException
 from importlib.resources import files
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse
@@ -19,6 +21,7 @@ from .v2 import router as v2_router
 from .metrics import instrument_requests, protected_metrics
 from .security import secure_http
 from .demo import router as demo_router
+from .recommendation import router as destination_router
 from .async_jobs import router as async_jobs_router
 
 
@@ -201,12 +204,25 @@ def internal_metrics(request: Request):
 # Authenticated GeoLife dataset/new-GPS demo. HTML contains no data or secrets.
 app.include_router(demo_router)
 
+# Synthetic-only destination MVP is off by default and uses demo account AuthN.
+app.include_router(destination_router)
+
 # AWS S2b routes remain disabled unless GEOLIFE_S2B_ENABLE=1 and SSM-only scope is configured.
 app.include_router(async_jobs_router)
 
 @app.get("/demo", include_in_schema=False)
 def geolife_demo_ui():
     return FileResponse(str(files("geolife.api").joinpath("static", "demo.html")), media_type="text/html")
+
+@app.get("/destination-demo", include_in_schema=False, tags=["synthetic-private-recommendation"])
+def synthetic_destination_demo_ui():
+    """Render only static instructions; no user data until account auth."""
+    if os.getenv("GEOLIFE_ENABLE_SYNTHETIC_RECOMMENDER", "") != "1":
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(
+        str(files("geolife.api").joinpath("static", "destination_demo.html")),
+        media_type="text/html",
+    )
 
 # Last registered is outermost: restrict legacy routes before reading GPS bodies.
 app.middleware("http")(secure_http)
