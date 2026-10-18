@@ -6,6 +6,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Search, X, CheckCircle2, ChevronRight, Sparkles, ArrowLeft, MapPin } from 'lucide-react';
 import { GeoLife, placeName, getPlaceIcon, type Result } from './GeoLife';
+import {BETA_MODE, completeBetaLogin, startBetaLogin, signOutBeta} from './auth/cognito';
 
 const DEMO_DATE = '2026-09-24';
 const DEMO_OFFSET = '+07:00';
@@ -36,15 +37,26 @@ import { AssetImage } from './components/common/AssetImage';
 import { AssetGallery } from './components/dev/AssetGallery';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'home' | 'search' | 'booking' | 'assets' | 'geolife' | 'ride-suggestions'>('home');
+  const [currentScreen, setCurrentScreen] = useState<'home' | 'search' | 'booking' | 'assets' | 'geolife' | 'ride-suggestions'>(BETA_MODE ? 'geolife' : 'home');
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [selectedDestination, setSelectedDestination] = useState<string>('Vincom Center Bà Triệu');
   const [activeServiceModal, setActiveServiceModal] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<any | null>(null);
   const [session, setSession] = useState<{ account: string; token: string } | null>(null);
+  const [betaError, setBetaError] = useState('');
+  const [betaLoading, setBetaLoading] = useState(BETA_MODE && window.location.search.includes('code='));
+  useEffect(() => {
+    if (!BETA_MODE) return;
+    let active = true;
+    completeBetaLogin().then(s => {
+      if (active && s) {setSession(s); setCurrentScreen('home');}
+    }).catch(e => {if (active) setBetaError(e instanceof Error ? e.message : 'OAuth failed');})
+      .finally(() => {if (active) setBetaLoading(false);});
+    return () => {active = false;};
+  }, []);
   const [suggestionResult, setSuggestionResult] = useState<Result | null>(null);
   const [suggestionWhen, setSuggestionWhen] = useState('2026-09-24T08:00:00+07:00');
-  const [suggestionOrigin, setSuggestionOrigin] = useState('s0_starting_point');
+  const [suggestionOrigin, setSuggestionOrigin] = useState(BETA_MODE ? '' : 's0_starting_point');
   const [demoHour, setDemoHour] = useState(`${defaultDemoHour}:00`);
   // ponytail: demo uses the fixed fixture date; add a timeline picker if multi-day playback is needed.
   const [rideSuggestions, setRideSuggestions] = useState<Result | null>(null);
@@ -78,9 +90,9 @@ export default function App() {
     if (!rideSuggestions) {
       setRideLoading(true);
     }
-    const params = new URLSearchParams({ when, origin_place_id: suggestionOrigin });
+    const params = new URLSearchParams({ when, ...(BETA_MODE ? {} : { origin_place_id: suggestionOrigin }) });
     try {
-      const response = await fetch(`/v2/me/destination-suggestions?${params}`, {
+      const response = await fetch(`${BETA_MODE ? '/v3/beta/destination-suggestions' : '/v2/me/destination-suggestions'}?${params}`, {
         headers: { Authorization: `Bearer ${currentSession.token}` }, cache: 'no-store',
       });
       if (request !== rideRequest.current || sessionRef.current !== currentSession) return;
@@ -103,8 +115,8 @@ export default function App() {
     if (session) {
       const when = demoClock(demoHour);
       setRideWhen(when);
-      const params = new URLSearchParams({ when, origin_place_id: suggestionOrigin });
-      fetch(`/v2/me/destination-suggestions?${params}`, {
+      const params = new URLSearchParams({ when, ...(BETA_MODE ? {} : { origin_place_id: suggestionOrigin }) });
+      fetch(`${BETA_MODE ? '/v3/beta/destination-suggestions' : '/v2/me/destination-suggestions'}?${params}`, {
         headers: { Authorization: `Bearer ${session.token}` },
         cache: 'no-store',
       })
@@ -126,7 +138,10 @@ export default function App() {
     setShowRidePopup(false);
     setBookingFromSuggestion(false);
     setActiveTab('home');
-    setCurrentScreen('home');
+    setCurrentScreen(BETA_MODE ? 'geolife' : 'home');
+    if (BETA_MODE) {
+      try {signOutBeta();} catch {setBetaError('Cognito logout chưa được cấu hình.');}
+    }
   };
 
   // 8 additional services strictly ordered as requested:
@@ -195,6 +210,21 @@ export default function App() {
     setBookingFromSuggestion(false);
     setCurrentScreen('booking');
   };
+
+  // Public site HTML can be served publicly, but app workflows require Cognito login.
+  if (BETA_MODE && !session) {
+    return <div className="min-h-screen bg-[#E8ECEE] grid place-items-center p-4">
+      <main className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-lg text-[#17343A] space-y-4">
+        <h1 className="text-2xl font-bold">GeoLife Mobility — Mentor Beta</h1>
+        <p className="text-sm">Chỉ mentor và tester được mời. Đăng nhập qua Cognito; các đề xuất và đặt xe hiện dùng dữ liệu synthetic, không phải GPS người tham gia GeoLife.</p>
+        {betaError && <p role="alert" className="text-red-700 text-sm">{betaError}</p>}
+        <button disabled={betaLoading} className="w-full bg-[#158E9A] text-white rounded-xl p-3 disabled:opacity-50"
+          onClick={() => {setBetaError('');startBetaLogin().catch(e=>setBetaError(e instanceof Error?e.message:'Cognito chưa được cấu hình'));}}>
+          {betaLoading ? 'Đang xác minh...' : 'Đăng nhập Cognito'}
+        </button>
+      </main>
+    </div>;
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#E8ECEE] flex justify-center items-center md:py-6 select-none font-sans">
