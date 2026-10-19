@@ -72,6 +72,20 @@
       }
     },
     {
+      "Sid": "BetaCloudFrontInitialDistributionTags",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:TagResource"
+      ],
+      "Resource": "arn:aws:cloudfront::939169265033:distribution/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "geolife-mle",
+          "aws:RequestTag/Environment": "mentor-beta"
+        }
+      }
+    },
+    {
       "Sid": "BetaCloudFrontOacAndHeaders",
       "Effect": "Allow",
       "Action": [
@@ -108,6 +122,21 @@
         "cognito-idp:CreateUserPool"
       ],
       "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-southeast-1",
+          "aws:RequestTag/Project": "geolife-mle",
+          "aws:RequestTag/Environment": "mentor-beta"
+        }
+      }
+    },
+    {
+      "Sid": "BetaCognitoInitialPoolTags",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:TagResource"
+      ],
+      "Resource": "arn:aws:cognito-idp:ap-southeast-1:939169265033:userpool/ap-southeast-1_*",
       "Condition": {
         "StringEquals": {
           "aws:RequestedRegion": "ap-southeast-1",
