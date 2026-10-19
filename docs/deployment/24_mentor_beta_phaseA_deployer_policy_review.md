@@ -24,3 +24,17 @@ https://docs.aws.amazon.com/service-authorization/latest/reference/list_cloudfro
 https://docs.aws.amazon.com/service-authorization/latest/reference/list_cognito-idp.html
 https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html
 
+
+## 2026-10-19 AWS Access Analyzer correction (candidate v2)
+
+Admin CloudShell reported three `INVALID_ACTION` findings in the earlier candidate. They were IAM permission *names* mistakenly copied from REST API operation names. The corrected candidate removes those three invalid entries. No new permissions were needed because the corresponding valid IAM actions were already present:
+
+| S3 API operation | IAM authorization action retained |
+|---|---|
+| `DeletePublicAccessBlock` (bucket) | `s3:PutBucketPublicAccessBlock` |
+| `DeleteBucketEncryption` | `s3:PutEncryptionConfiguration` |
+| `DeleteBucketTagging` | `s3:PutBucketTagging` |
+
+Official reference: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-policy-actions.html ; https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketEncryption.html
+
+**The original validation was FAIL. A fresh AWS Access Analyzer validation of THIS commit is REQUIRED; zero output in findings means no findings were returned, but still does not prove permissions are sufficient.** Follow with read-only IAM Policy Simulator tests of S3 exact bucket + CloudFront/Cognito create and rollback, including request tags. Do not attach the candidate policy or APPLY resources solely because syntax validation passes. This commit changes docs/policy only; it does not change saved Phase A Terraform files.
