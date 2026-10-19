@@ -15,15 +15,12 @@
         "s3:DeleteBucketPolicy",
         "s3:GetBucketPublicAccessBlock",
         "s3:PutBucketPublicAccessBlock",
-        "s3:DeleteBucketPublicAccessBlock",
         "s3:GetEncryptionConfiguration",
         "s3:PutEncryptionConfiguration",
-        "s3:DeleteBucketEncryption",
         "s3:GetBucketVersioning",
         "s3:PutBucketVersioning",
         "s3:GetBucketTagging",
-        "s3:PutBucketTagging",
-        "s3:DeleteBucketTagging"
+        "s3:PutBucketTagging"
       ],
       "Resource": "arn:aws:s3:::geolife-mentor-beta-939169265033-site"
     },
