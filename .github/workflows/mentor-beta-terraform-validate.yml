@@ -1,0 +1,32 @@
+name: mentor-beta-terraform-validate
+
+on:
+  pull_request:
+    paths:
+      - 'infra/terraform/mentor_beta_foundation/**'
+      - 'infra/terraform/mentor_beta_api/**'
+      - 'scripts/mentor_beta_plan_guard.py'
+      - '.github/workflows/mentor-beta-terraform-validate.yml'
+
+jobs:
+  offline-validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+      - name: Format foundation (ephemeral CI working tree only)
+        run: terraform -chdir=infra/terraform/mentor_beta_foundation fmt
+      - name: Validate foundation without AWS credentials or state
+        run: |
+          terraform -chdir=infra/terraform/mentor_beta_foundation init -backend=false -input=false
+          terraform -chdir=infra/terraform/mentor_beta_foundation validate
+      - name: Format private API plan (ephemeral CI working tree only)
+        run: terraform -chdir=infra/terraform/mentor_beta_api fmt
+      - name: Validate private API without AWS credentials or state
+        run: |
+          terraform -chdir=infra/terraform/mentor_beta_api init -backend=false -input=false
+          terraform -chdir=infra/terraform/mentor_beta_api validate
