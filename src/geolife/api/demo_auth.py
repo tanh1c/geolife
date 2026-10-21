@@ -45,9 +45,24 @@ class LoginResult(BaseModel):
 class DemoAccount(BaseModel):
     account_id: str
     dataset_user_id: str
+    issuer: str | None = Field(default=None, exclude=True)
+    subject: str | None = Field(default=None, exclude=True)
+
+    @property
+    def owner_id(self) -> str:
+        if self.issuer is None or self.subject is None:
+            return self.account_id
+        digest = hashlib.sha256(f"{self.issuer}\x00{self.subject}".encode()).hexdigest()
+        return f"cog_{digest[:60]}"
+
+    @property
+    def is_cognito(self) -> bool:
+        return self.issuer is not None and self.subject is not None
 
 
 def _db_path() -> Path:
+    if os.getenv("GEOLIFE_AUTH_MODE", "private_demo") != "private_demo":
+        raise HTTPException(status_code=503, detail="Demo login is disabled outside private demo mode")
     configured = os.getenv("GEOLIFE_DEMO_AUTH_DB")
     if not configured:
         raise HTTPException(

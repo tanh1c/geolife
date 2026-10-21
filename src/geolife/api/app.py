@@ -23,6 +23,7 @@ from .security import secure_http
 from .demo import router as demo_router
 from .recommendation import router as destination_router
 from .async_jobs import router as async_jobs_router
+from .research import router as research_router
 
 
 app = FastAPI(
@@ -209,6 +210,7 @@ app.include_router(destination_router)
 
 # AWS S2b routes remain disabled unless GEOLIFE_S2B_ENABLE=1 and SSM-only scope is configured.
 app.include_router(async_jobs_router)
+app.include_router(research_router, include_in_schema=False)
 
 @app.get("/demo", include_in_schema=False)
 def geolife_demo_ui():

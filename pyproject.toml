@@ -19,12 +19,14 @@ dependencies = [
   "uvicorn>=0.30",
   "timezonefinder==9.0.0",
   "prometheus-client>=0.20,<1",
+  "PyJWT[crypto]>=2.10,<3",
 ]
 
 [project.optional-dependencies]
 aws = ["boto3>=1.35,<2"]
 dev = [
   "boto3>=1.35,<2",
+  "modal>=1.0,<2",
   "moto[s3,sqs,dynamodb]>=5.0,<6",
   "jupyterlab>=4.2",
   "pytest>=8.3",

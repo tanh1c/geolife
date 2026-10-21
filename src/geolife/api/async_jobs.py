@@ -6,7 +6,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from .demo_auth import DemoAccount, current_account
+from .cognito_auth import synthetic_current_account
+from .demo_auth import DemoAccount
 from geolife.serving.aws_s2b import (
     AwsAsyncJobs, ConfigurationError, IdempotencyConflict, enabled,
 )
@@ -49,12 +50,12 @@ def submit_async_job(
     idempotency_key: str = Header(
         min_length=8, max_length=64, pattern=r"^[A-Za-z0-9._-]+$"
     ),
-    account: DemoAccount = Depends(current_account),
+    account: DemoAccount = Depends(synthetic_current_account),
     backend: AwsAsyncJobs = Depends(_backend),
 ) -> JobStatus:
     try:
         obj = backend.create(
-            owner=account.account_id, key=idempotency_key,
+            owner=account.owner_id, key=idempotency_key,
             fixture=body.fixture, variant=body.model_version,
         )
     except IdempotencyConflict:
@@ -65,7 +66,7 @@ def submit_async_job(
         # SDK errors or validation must not echo private AWS identities or data.
         raise HTTPException(status_code=503, detail="Async backend unavailable") from None
     response.headers["Location"] = "/v2/jobs/" + str(obj["job_id"])
-    return JobStatus(**obj)
+    return JobStatus.model_validate(obj)
 
 
 @router.get(
@@ -74,13 +75,13 @@ def submit_async_job(
 )
 def poll_async_job(
     job_id: str,
-    account: DemoAccount = Depends(current_account),
+    account: DemoAccount = Depends(synthetic_current_account),
     backend: AwsAsyncJobs = Depends(_backend),
 ) -> JobStatus:
     try:
-        item = backend.get(owner=account.account_id, jid=job_id)
+        item = backend.get(owner=account.owner_id, jid=job_id)
     except Exception:
         raise HTTPException(status_code=503, detail="Async backend unavailable") from None
     if item is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return JobStatus(**item)
+    return JobStatus.model_validate(item)

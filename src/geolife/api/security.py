@@ -2,8 +2,8 @@
 
 Legacy inference routes intentionally remain usable in standalone local Python
 tests, preserving the frozen v1/OpenAPI contract. The Docker image opts into
-GEOLIFE_PRIVATE_DEMO=1 by default; configuring the demo auth DB also enables
-restricted mode automatically. In restricted mode legacy/stateless routes do
+GEOLIFE_PRIVATE_DEMO=1 by default; demo auth DB configuration or Cognito mode
+also enables restricted mode. In restricted mode legacy/stateless routes do
 not accept public requests and cannot bypass per-account dataset authorization.
 
 An application content-length guard is not a substitute for upstream ingress
@@ -42,6 +42,7 @@ def restricted_demo_mode() -> bool:
     return (
         os.getenv("GEOLIFE_PRIVATE_DEMO", "").strip() == "1"
         or bool(os.getenv("GEOLIFE_DEMO_AUTH_DB", "").strip())
+        or os.getenv("GEOLIFE_AUTH_MODE", "private_demo") != "private_demo"
     )
 
 
