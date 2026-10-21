@@ -1,36 +1,31 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useState } from 'react';
+import { beginLogin, apiBaseUrl } from './auth';
+import type { AuthSession } from './auth';
 import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
   Clock,
   Clock3,
-  LockKeyhole,
   LogOut,
   MapPin,
   ShieldCheck,
   Sparkles,
-  UserRound,
-  Eye,
-  EyeOff,
   CheckCircle2,
   AlertCircle,
   Compass,
   Zap,
-  Coffee,
-  ShoppingBag,
-  Dumbbell,
-  BookOpen,
-  Trees,
 } from 'lucide-react';
 import { LiquidGlassButton } from './components/common/LiquidGlassButton';
-import { PrismaticGlassButton } from './components/common/PrismaticGlassButton';
+import { ResearchStayMap } from './components/booking/ResearchStayMap';
 import loginBg from './assets/greensm-login-bg-1080x1920.png';
 import profileBg from './assets/greensm-profile-bg-1920x1080.png';
 import defaultAvatar from './assets/default-avatar-circle-1080x1080.png';
 import placeCafe from './assets/place-cafe.png';
 import placeGym from './assets/place-gym.png';
+import placeHome from './assets/place-home.png';
 import placeLibrary from './assets/place-library.png';
+import placeOffice from './assets/place-office.png';
 import placeMall from './assets/place-mall.png';
 import placeMarket from './assets/place-market.png';
 import placePark from './assets/place-park.png';
@@ -39,8 +34,10 @@ import placeStation from './assets/place-station.png';
 const placeIcons: Record<string, string> = {
   cafe: placeCafe,
   gym: placeGym,
+  home: placeHome,
   library: placeLibrary,
   market: placeMarket,
+  office: placeOffice,
   park: placePark,
   station: placeStation,
   unseen_station: placeStation,
@@ -51,6 +48,8 @@ const placeNames: Record<string, string> = {
   library: 'Thư viện',
   market: 'Khu chợ thực phẩm',
   gym: 'Phòng tập Gym',
+  home: 'Nhà',
+  office: 'Cơ quan',
   cafe: 'Quán Cà Phê',
   park: 'Công viên cây xanh',
   station: 'Ga tàu & Bến xe',
@@ -59,17 +58,17 @@ const placeNames: Record<string, string> = {
 };
 
 const PRESET_TIMES = [
-  { label: '08:00 Sáng', desc: 'Cà phê & Đi làm', time: '2026-09-24T08:00:00+07:00' },
+  { label: '08:00 Sáng', desc: 'Đi làm', time: '2026-09-24T08:00:00+07:00' },
   { label: '12:00 Trưa', desc: 'Bữa trưa', time: '2026-09-24T12:00:00+07:00' },
-  { label: '18:00 Tối', desc: 'Tan sở & Thể thao', time: '2026-09-24T18:00:00+07:00' },
+  { label: '18:00 Tối', desc: 'Về nhà', time: '2026-09-24T18:00:00+07:00' },
 ];
 
 export function placeName(ref: string) {
-  return placeNames[ref.replace(/^s\d+_/, '')] ?? ref;
+  return placeNames[ref.replace(/^s[0-9a-f]+_/, '')] ?? ref;
 }
 
 export function getPlaceIcon(ref: string, className = "w-10 h-10 object-contain drop-shadow-sm") {
-  const clean = ref.replace(/^s\d+_/, '').toLowerCase();
+  const clean = ref.replace(/^s[0-9a-f]+_/, '').toLowerCase();
   const iconSrc = placeIcons[clean];
   if (iconSrc) {
     return (
@@ -83,6 +82,18 @@ export function getPlaceIcon(ref: string, className = "w-10 h-10 object-contain 
   return <MapPin className="w-5 h-5 text-[#158E9A]" />;
 }
 
+export type ResearchCase = {
+  case_alias: string;
+  user_id: string;
+  stops: { index: number; latitude: number; longitude: number; label: 'HOME' | 'OFFICE' | 'STOP' }[];
+  suggestions: { rank: number; place_ref: string; label: 'HOME' | 'OFFICE' | 'Điểm quen thuộc'; explanations: string[] }[];
+  stay_count: number;
+  recurring_location_count: number;
+  model_version: string;
+  predictions: Record<'HOME' | 'OFFICE', { status: 'emitted' | 'abstained'; evidence: string }>;
+  note: string;
+};
+
 type Suggestion = { rank: number; place_ref: string; explanations: string[] };
 export type Result = {
   source: 'synthetic_fixture';
@@ -93,67 +104,98 @@ export type Result = {
 
 export function GeoLife({
   session,
+  authError,
   result,
   onResult,
   when,
   onWhenChange,
   origin,
   onOriginChange,
-  onLogin,
   onLogout,
   onBack,
   onBookDestination,
+  mode,
+  onModeChange,
+  researchAlias,
+  onResearchAliasChange,
+  researchResult,
+  onResearchResultChange,
 }: {
-  session: { account: string; token: string } | null;
+  session: AuthSession | null;
+  authError: string;
   result: Result | null;
   onResult: (result: Result | null) => void;
   when: string;
   onWhenChange: (when: string) => void;
   origin: string;
   onOriginChange: (origin: string) => void;
-  onLogin: (account: string, token: string) => void;
   onLogout: () => void;
   onBack: () => void;
   onBookDestination?: (destination: string) => void;
+  mode: 'synthetic' | 'research';
+  onModeChange: (mode: 'synthetic' | 'research') => void;
+  researchAlias: string;
+  onResearchAliasChange: (alias: string) => void;
+  researchResult: ResearchCase | null;
+  onResearchResultChange: (result: ResearchCase | null) => void;
 }) {
-  const [account, setAccount] = useState('demo_000');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
-  const token = session?.token ?? '';
+  const token = session?.accessToken ?? '';
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const loginForm = useRef<HTMLFormElement>(null);
+  const [researchAliases, setResearchAliases] = useState<{ alias: string; user_id: string }[]>([]);
+  const [researchMessage, setResearchMessage] = useState('');
 
-  async function login(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function openResearch() {
+    onModeChange('research');
+    onResearchResultChange(null);
+    setResearchAliases([]);
+    setResearchMessage('Đang kiểm tra quyền truy cập…');
+    try {
+      const response = await fetch(`${apiBaseUrl}/v2/research/cases`, {
+        headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+      });
+      if (response.status === 401) { onLogout(); return; }
+      if (!response.ok) throw new Error();
+      const data: { cases: { alias: string; user_id: string }[] } = await response.json();
+      setResearchAliases(data.cases);
+      onResearchAliasChange(data.cases.some((profile) => profile.alias === researchAlias) ? researchAlias : data.cases[0]?.alias ?? '');
+      setResearchMessage('');
+    } catch {
+      setResearchMessage('Không thể kết nối dữ liệu GeoLife Research.');
+    }
+  }
+
+  async function loadResearch() {
+    if (!researchAlias) return;
+    setBusy(true);
+    onResearchResultChange(null);
+    setResearchMessage('');
+    try {
+      const response = await fetch(`${apiBaseUrl}/v2/research/cases`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alias: researchAlias }), cache: 'no-store',
+      });
+      if (response.status === 401) { onLogout(); return; }
+      if (!response.ok) throw new Error();
+      onResearchResultChange(await response.json() as ResearchCase);
+    } catch {
+      setResearchMessage('Không thể tải profile GeoLife.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function login() {
     setBusy(true);
     onResult(null);
     try {
-      const response = await fetch('/v2/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_id: account.trim(), password }),
-        cache: 'no-store',
-      });
-      setPassword('');
-      if (!response.ok) {
-        throw new Error(
-          response.status === 503
-            ? 'API chưa được cấu hình tài khoản demo.'
-            : 'Đăng nhập thất bại. Kiểm tra lại tài khoản hoặc mật khẩu demo.'
-        );
-      }
-      const data: { account_id: string; access_token: string } = await response.json();
-      onLogin(data.account_id, data.access_token);
-    } catch (error) {
-      setMessage(
-        error instanceof Error && error.message !== 'Failed to fetch'
-          ? error.message
-          : 'Không kết nối được API local (127.0.0.1:8000).'
-      );
-    } finally {
-      setPassword('');
+      await beginLogin();
+      setMessage('Đang chuyển đến trang đăng nhập…');
+      setBusy(false);
+    } catch {
+      setMessage('Không thể bắt đầu đăng nhập bảo mật. Hãy thử lại.');
       setBusy(false);
     }
   }
@@ -165,7 +207,7 @@ export function GeoLife({
     const params = new URLSearchParams({ when: targetWhen });
     if (origin.trim()) params.set('origin_place_id', origin.trim());
     try {
-      const response = await fetch(`/v2/me/destination-suggestions?${params}`, {
+      const response = await fetch(`${apiBaseUrl}/v2/me/destination-suggestions?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
       });
@@ -194,19 +236,8 @@ export function GeoLife({
     }
   }
 
-  async function logout() {
-    setBusy(true);
-    try {
-      await fetch('/v2/auth/logout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      });
-    } catch {
-      // The local session is still cleared if the API is unavailable.
-    } finally {
-      onLogout();
-    }
+  function logout() {
+    onLogout();
   }
 
   // ==========================================
@@ -255,90 +286,24 @@ export function GeoLife({
             {/* Top Specular Edge Line */}
             <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-white to-transparent" />
 
-            <form ref={loginForm} onSubmit={login} className="space-y-3.5" autoComplete="off">
-              {/* Account Input */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[12px] font-bold text-[#1E2528]" htmlFor="demo-account">
-                    Mã tài khoản
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setAccount('demo_000')}
-                    className="text-[11px] font-semibold text-[#158E9A] hover:underline cursor-pointer"
-                  >
-                    Gợi ý: demo_000
-                  </button>
-                </div>
-                <div className="glass-input flex h-[48px] items-center gap-3 rounded-[16px] px-3.5 focus-within:ring-2 focus-within:ring-[#2DCCD4]/40">
-                  <div className="w-7 h-7 rounded-xl bg-[#E0F8FA] flex items-center justify-center shrink-0 text-[#158E9A]">
-                    <UserRound className="w-4 h-4" strokeWidth={2.2} />
-                  </div>
-                  <input
-                    id="demo-account"
-                    value={account}
-                    onChange={(e) => setAccount(e.target.value)}
-                    required
-                    maxLength={64}
-                    placeholder="Nhập mã tài khoản..."
-                    autoComplete="username"
-                    className="min-w-0 flex-1 bg-transparent text-[13.5px] font-medium text-gray-900 placeholder:text-gray-400 outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Password Input */}
-              <div>
-                <label className="block text-[12px] font-bold text-[#1E2528] mb-1.5" htmlFor="demo-password">
-                  Mật khẩu
-                </label>
-                <div className="glass-input flex h-[48px] items-center gap-3 rounded-[16px] px-3.5 focus-within:ring-2 focus-within:ring-[#2DCCD4]/40">
-                  <div className="w-7 h-7 rounded-xl bg-[#E0F8FA] flex items-center justify-center shrink-0 text-[#158E9A]">
-                    <LockKeyhole className="w-4 h-4" strokeWidth={2.2} />
-                  </div>
-                  <input
-                    id="demo-password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="Nhập mật khẩu demo..."
-                    autoComplete="off"
-                    className="min-w-0 flex-1 bg-transparent text-[13.5px] font-medium text-gray-900 placeholder:text-gray-400 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="p-1 text-gray-400 hover:text-gray-600 transition cursor-pointer"
-                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Status / Alert Message */}
-              {message && (
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#E8FAFB] border border-[#2DCCD4]/30 text-[11.5px] text-[#0E525C] leading-snug animate-in fade-in">
+            <div className="space-y-3.5">
+              {(message || authError) && (
+                <div role="alert" className="flex items-center gap-2 p-2.5 rounded-xl bg-[#E8FAFB] border border-[#2DCCD4]/30 text-[11.5px] text-[#0E525C] leading-snug">
                   <AlertCircle className="w-4 h-4 text-[#158E9A] shrink-0" />
-                  <span>{message}</span>
+                  <span>{message || authError}</span>
                 </div>
               )}
-
-              {/* Submit CTA */}
-              <button type="submit" className="sr-only">
-                Đăng nhập
-              </button>
+              <p className="text-center text-[13px] text-[#24545B]">Đăng nhập an toàn bằng tài khoản được mời.</p>
               <div className="pt-1">
-                <PrismaticGlassButton
-                  label={busy ? 'Đang xác thực...' : 'Đăng nhập ngay'}
+                <LiquidGlassButton
+                  label={busy ? 'Đang chuyển đến đăng nhập...' : 'Đăng nhập bằng Cognito'}
                   size="full"
                   variant="turquoise"
                   disabled={busy}
-                  onClick={() => loginForm.current?.requestSubmit()}
+                  onClick={login}
                 />
               </div>
-            </form>
+            </div>
 
           </div>
         </main>
@@ -396,7 +361,7 @@ export function GeoLife({
             <div className="relative shrink-0">
               <img
                 src={defaultAvatar}
-                alt={account}
+                alt={session?.account ?? 'Ảnh đại diện'}
                 className="w-14 h-14 rounded-full object-cover"
               />
               <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#2DCCD4] border-2 border-white flex items-center justify-center text-white shadow-xs">
@@ -409,12 +374,38 @@ export function GeoLife({
               <h2 className="text-[17px] font-extrabold text-gray-900 truncate tracking-tight">
                 {session?.account}
               </h2>
-              <p className="text-[12px] text-gray-500 font-medium mt-0.5">Tài khoản demo · Dữ liệu synthetic</p>
+              <p className="text-[12px] text-gray-500 font-medium mt-0.5">Tài khoản được mời · {mode === 'synthetic' ? 'Dữ liệu synthetic' : 'GeoLife Research'}</p>
             </div>
           </div>
         </div>
 
-        {/* 3. GeoLife Smart Destination Module */}
+        <div role="group" aria-label="Chế độ GeoLife" className="flex gap-2 rounded-[20px] bg-white p-2 border border-gray-100">
+          <button type="button" aria-pressed={mode === 'synthetic'} onClick={() => { onModeChange('synthetic'); onResearchResultChange(null); }} className={`flex-1 rounded-xl p-2 text-[12px] font-bold ${mode === 'synthetic' ? 'bg-[#E0F8FA] text-[#0A4850]' : 'text-gray-600'}`}>Synthetic</button>
+          <button type="button" aria-pressed={mode === 'research'} onClick={openResearch} className={`flex-1 rounded-xl p-2 text-[12px] font-bold ${mode === 'research' ? 'bg-[#E0F8FA] text-[#0A4850]' : 'text-gray-600'}`}>GeoLife Research</button>
+        </div>
+
+        {mode === 'research' ? (
+          <section className="rounded-[24px] bg-white p-4 border border-gray-100 space-y-3">
+            <h3 className="text-[15.5px] font-bold text-gray-900">GeoLife Research · profile thực tế</h3>
+            <p className="text-[12px] text-gray-600">Điểm dừng GPS lịch sử của profile đã chọn. HOME/OFFICE là suy luận CP2, không phải nhãn ground truth hoặc tuyến di chuyển.</p>
+            {researchMessage && <p role="status" className="text-[12px] text-[#0A4850]">{researchMessage}</p>}
+            {researchAliases.length > 0 && <>
+              <label className="block text-[12px] font-semibold" htmlFor="research-case">GeoLife user ID đã chọn</label>
+              <select id="research-case" value={researchAlias} onChange={(event) => { onResearchAliasChange(event.target.value); onResearchResultChange(null); }} className="w-full rounded-xl border border-gray-200 bg-white p-2 text-[13px]">
+                {researchAliases.map((profile) => <option key={profile.alias} value={profile.alias}>{profile.user_id}</option>)}
+              </select>
+              <button type="button" disabled={busy} onClick={loadResearch} className="w-full rounded-xl bg-[#E0F8FA] p-3 text-[13px] font-bold text-[#0A4850] disabled:opacity-50">{busy ? 'Đang phân tích…' : 'Xem suy luận lịch sử'}</button>
+            </>}
+            {researchResult && <div className="space-y-2 text-[12px] text-gray-700">
+              <p className="font-bold">GeoLife user ID {researchResult.user_id} · {researchResult.model_version}</p>
+              <p>Số lần dừng: {researchResult.stay_count} · Địa điểm lặp lại: {researchResult.recurring_location_count}</p>
+              {(['HOME', 'OFFICE'] as const).map((label) => <p key={label}><strong>{label}: {researchResult.predictions[label].status === 'emitted' ? 'Đã suy ra' : 'Chưa đủ bằng chứng'}</strong> · {researchResult.predictions[label].evidence}</p>)}
+              <p>{researchResult.note}</p>
+              <ResearchStayMap stops={researchResult.stops} />
+            </div>}
+          </section>
+        ) : (
+        /* 3. GeoLife Smart Destination Module */
         <section className="rounded-[24px] bg-white p-4 shadow-[0_10px_25px_rgba(15,35,40,0.05)] border border-gray-100 relative overflow-hidden">
           {/* Section Header */}
           <div className="flex items-center justify-between mb-1">
@@ -507,7 +498,7 @@ export function GeoLife({
           </div>
 
           {/* Primary CTA */}
-          <PrismaticGlassButton
+          <LiquidGlassButton
             label={busy ? 'Đang phân tích thói quen...' : 'Dự đoán điểm đến'}
             size="full"
             variant="turquoise"
@@ -578,6 +569,7 @@ export function GeoLife({
             </div>
           )}
         </section>
+        )}
 
         {/* 5. Standard Green SM Profile Menu Items */}
         <section className="rounded-[24px] bg-white p-2 shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-gray-100 divide-y divide-gray-50">

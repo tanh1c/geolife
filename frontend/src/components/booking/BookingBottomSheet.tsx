@@ -12,7 +12,6 @@ import {
   VehicleOptionData,
 } from './VehicleOptionList';
 import { LiquidGlassButton } from '../common/LiquidGlassButton';
-import { PrismaticGlassButton } from '../common/PrismaticGlassButton';
 
 interface BookingBottomSheetProps {
   vehicles: VehicleOptionData[];
@@ -163,9 +162,9 @@ export const BookingBottomSheet: React.FC<BookingBottomSheetProps> = ({
           </span>
         </button>
 
-        {/* Primary CTA: Prismatic Refractive Liquid Glass Button (~60% width, turquoise brand aura) */}
+        {/* Primary CTA: Caustic Liquid Glass Button */}
         <div className="flex-1">
-          <PrismaticGlassButton
+          <LiquidGlassButton
             size="full"
             variant="turquoise"
             onClick={() => setActiveModal('confirmed')}

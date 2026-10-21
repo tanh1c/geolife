@@ -5,7 +5,9 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { Search, X, CheckCircle2, ChevronRight, Sparkles, ArrowLeft, MapPin } from 'lucide-react';
-import { GeoLife, placeName, getPlaceIcon, type Result } from './GeoLife';
+import { GeoLife, placeName, getPlaceIcon, type Result, type ResearchCase } from './GeoLife';
+import { apiBaseUrl, finishLogin, isSessionValid, logout as cognitoLogout } from './auth';
+import type { AuthSession } from './auth';
 
 const DEMO_DATE = '2026-09-24';
 const DEMO_OFFSET = '+07:00';
@@ -31,7 +33,6 @@ import { FloatingNav, TabType } from './components/FloatingNav';
 import { DestinationSearch, PlaceSelection } from './components/DestinationSearch';
 import { RideBooking } from './components/RideBooking';
 import { LiquidGlassButton } from './components/common/LiquidGlassButton';
-import { PrismaticGlassButton } from './components/common/PrismaticGlassButton';
 import { AssetImage } from './components/common/AssetImage';
 import { AssetGallery } from './components/dev/AssetGallery';
 
@@ -41,7 +42,13 @@ export default function App() {
   const [selectedDestination, setSelectedDestination] = useState<string>('Vincom Center Bà Triệu');
   const [activeServiceModal, setActiveServiceModal] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<any | null>(null);
-  const [session, setSession] = useState<{ account: string; token: string } | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [mode, setMode] = useState<'synthetic' | 'research'>('synthetic');
+  const [researchAlias, setResearchAlias] = useState('');
+  const [researchResult, setResearchResult] = useState<ResearchCase | null>(null);
+  const [researchProfiles, setResearchProfiles] = useState<{ alias: string; user_id: string }[]>([]);
+  const [researchMessage, setResearchMessage] = useState('');
+  const [authError, setAuthError] = useState('');
   const [suggestionResult, setSuggestionResult] = useState<Result | null>(null);
   const [suggestionWhen, setSuggestionWhen] = useState('2026-09-24T08:00:00+07:00');
   const [suggestionOrigin, setSuggestionOrigin] = useState('s0_starting_point');
@@ -57,13 +64,61 @@ export default function App() {
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
+  const endSession = () => {
+    rideRequest.current += 1;
+    sessionRef.current = null;
+    setSession(null);
+    setMode('synthetic');
+    setResearchAlias('');
+    setResearchResult(null);
+    setResearchProfiles([]);
+    setResearchMessage('');
+    setSuggestionResult(null);
+    setRideSuggestions(null);
+    setRideMessage('');
+    setAuthError('');
+    setShowRidePopup(false);
+    setBookingFromSuggestion(false);
+    setActiveTab('home');
+    setCurrentScreen('home');
+  };
+
+  useEffect(() => {
+    finishLogin().then((restored) => {
+      if (restored && isSessionValid(restored)) setSession(restored);
+    }).catch(() => {
+      setAuthError('Đăng nhập chưa hoàn tất. Vui lòng thử lại.');
+      setCurrentScreen('geolife');
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    const remaining = session.expiresAt * 1000 - Date.now();
+    if (remaining <= 0) {
+      endSession();
+      cognitoLogout();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      endSession();
+      cognitoLogout();
+    }, remaining);
+    return () => window.clearTimeout(timer);
+  }, [session]);
+
+  const onSessionExpired = () => {
+    endSession();
+    cognitoLogout();
+  };
+
   const leaveRideSuggestions = () => {
     rideRequest.current += 1;
     setShowRidePopup(false);
     setCurrentScreen('home');
   };
 
-  const showRideSuggestions = async () => {
+  const showRideSuggestions = async (selectedAlias?: string) => {
     if (!sessionRef.current) {
       setCurrentScreen('geolife');
       return;
@@ -75,17 +130,48 @@ export default function App() {
     setShowRidePopup(true);
     setCurrentScreen('home');
     setRideMessage('');
+    if (mode === 'research') {
+      setRideLoading(true);
+      setResearchResult(null);
+      try {
+        const listed = await fetch(`${apiBaseUrl}/v2/research/cases`, {
+          headers: { Authorization: `Bearer ${currentSession.accessToken}` }, cache: 'no-store',
+        });
+        if (listed.status === 401) { onSessionExpired(); return; }
+        if (!listed.ok) throw new Error();
+        const data: { cases: { alias: string; user_id: string }[] } = await listed.json();
+        if (request !== rideRequest.current || sessionRef.current !== currentSession) return;
+        setResearchProfiles(data.cases);
+        const preferred = selectedAlias ?? researchAlias;
+        const alias = data.cases.some((profile) => profile.alias === preferred) ? preferred : data.cases[0]?.alias;
+        if (!alias) throw new Error();
+        setResearchAlias(alias);
+        const response = await fetch(`${apiBaseUrl}/v2/research/cases`, {
+          method: 'POST', headers: { Authorization: `Bearer ${currentSession.accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alias, when }), cache: 'no-store',
+        });
+        if (response.status === 401) { onSessionExpired(); return; }
+        if (!response.ok) throw new Error();
+        const caseResult: ResearchCase = await response.json();
+        if (request === rideRequest.current && sessionRef.current === currentSession) setResearchResult(caseResult);
+      } catch {
+        if (request === rideRequest.current) setRideMessage('Không tải được điểm dừng GeoLife.');
+      } finally {
+        if (request === rideRequest.current) setRideLoading(false);
+      }
+      return;
+    }
     if (!rideSuggestions) {
       setRideLoading(true);
     }
     const params = new URLSearchParams({ when, origin_place_id: suggestionOrigin });
     try {
-      const response = await fetch(`/v2/me/destination-suggestions?${params}`, {
-        headers: { Authorization: `Bearer ${currentSession.token}` }, cache: 'no-store',
+      const response = await fetch(`${apiBaseUrl}/v2/me/destination-suggestions?${params}`, {
+        headers: { Authorization: `Bearer ${currentSession.accessToken}` }, cache: 'no-store',
       });
       if (request !== rideRequest.current || sessionRef.current !== currentSession) return;
       if (response.status === 401) {
-        endSession();
+        onSessionExpired();
         return;
       }
       if (!response.ok) throw new Error('Không lấy được gợi ý từ API local.');
@@ -100,34 +186,29 @@ export default function App() {
 
   // Automatically pre-fetch smart destination suggestions for the current demo hour whenever session or demoHour changes
   useEffect(() => {
-    if (session) {
-      const when = demoClock(demoHour);
-      setRideWhen(when);
-      const params = new URLSearchParams({ when, origin_place_id: suggestionOrigin });
-      fetch(`/v2/me/destination-suggestions?${params}`, {
-        headers: { Authorization: `Bearer ${session.token}` },
-        cache: 'no-store',
+    if (!session || mode !== 'synthetic') return;
+    const controller = new AbortController();
+    const when = demoClock(demoHour);
+    setRideWhen(when);
+    const params = new URLSearchParams({ when, origin_place_id: suggestionOrigin });
+    fetch(`${apiBaseUrl}/v2/me/destination-suggestions?${params}`, {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+      cache: 'no-store', signal: controller.signal,
+    })
+      .then((res) => {
+        if (controller.signal.aborted) return null;
+        if (res.status === 401) {
+          onSessionExpired();
+          return null;
+        }
+        return res.ok ? res.json() : null;
       })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data: Result | null) => {
-          if (data) setRideSuggestions(data);
-        })
-        .catch(() => {});
-    }
-  }, [session, demoHour, suggestionOrigin]);
-
-  const endSession = () => {
-    rideRequest.current += 1;
-    sessionRef.current = null;
-    setSession(null);
-    setSuggestionResult(null);
-    setRideSuggestions(null);
-    setRideMessage('');
-    setShowRidePopup(false);
-    setBookingFromSuggestion(false);
-    setActiveTab('home');
-    setCurrentScreen('home');
-  };
+      .then((data: Result | null) => {
+        if (!controller.signal.aborted && data) setRideSuggestions(data);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [session, demoHour, suggestionOrigin, mode]);
 
   // 8 additional services strictly ordered as requested:
   // bike -> intercity -> express -> subscription -> giftcard -> vinbus -> buyvinfast -> car-rent
@@ -223,19 +304,17 @@ export default function App() {
         ) : currentScreen === 'geolife' ? (
           <GeoLife
             session={session}
+            authError={authError}
             result={suggestionResult}
             onResult={setSuggestionResult}
             when={suggestionWhen}
             onWhenChange={setSuggestionWhen}
             origin={suggestionOrigin}
             onOriginChange={setSuggestionOrigin}
-            onLogin={(account, token) => {
-              setSuggestionResult(null);
-              setSession({ account, token });
-              setActiveTab('home');
-              setCurrentScreen('home');
+            onLogout={() => {
+              endSession();
+              cognitoLogout();
             }}
-            onLogout={endSession}
             onBack={() => {
               setActiveTab('home');
               setCurrentScreen('home');
@@ -245,6 +324,12 @@ export default function App() {
               setBookingFromSuggestion(true);
               setCurrentScreen('booking');
             }}
+            mode={mode}
+            onModeChange={(next) => { rideRequest.current += 1; setShowRidePopup(false); setRideSuggestions(null); setResearchResult(null); setMode(next); }}
+            researchAlias={researchAlias}
+            onResearchAliasChange={(alias) => { rideRequest.current += 1; setResearchAlias(alias); setResearchResult(null); }}
+            researchResult={researchResult}
+            onResearchResultChange={setResearchResult}
           />
         ) : currentScreen === 'ride-suggestions' ? (
           <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-white px-4 pb-8 text-[#202425]">
@@ -388,7 +473,7 @@ export default function App() {
                 {/* Card 1: Đặt ô tô (Borderless Liquid Glass with soft cyan right-edge glow) */}
                 <button
                   type="button"
-                  onClick={showRideSuggestions}
+                  onClick={() => { void showRideSuggestions(); }}
                   className="h-[108px] w-full rounded-[22px] p-4 relative overflow-hidden glass-card-car cursor-pointer active:scale-95 transition-all flex flex-col justify-between group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2DCCD4]"
                 >
                   {/* High contrast dark bold text - completely crisp and opaque */}
@@ -551,23 +636,22 @@ export default function App() {
                       </span>
                     </div>
 
-                    {/* Liquid Glass Showcase 2: Prismatic Refractive Button (3D Tilt) */}
+                    {/* Liquid Glass Showcase 2: Caustic Button */}
                     <div className="py-4 px-3 rounded-2xl bg-[#E2E8EC] flex flex-col items-center justify-center border border-gray-200/80 shadow-inner relative overflow-hidden">
                       <div className="text-[11px] font-bold text-[#0E4850] uppercase tracking-wider mb-2.5">
-                        2. Prismatic Refractive Glass (Góc nghiêng 3D)
+                        2. Caustic Liquid Glass (Thấu kính lồi)
                       </div>
-                      <PrismaticGlassButton
+                      <LiquidGlassButton
                         label="Đặt xe Xanh Car"
                         variant="turquoise"
                         size="md"
-                        withDottedGrid
                         onClick={() => {
                           setActiveServiceModal(null);
                           setCurrentScreen('booking');
                         }}
                       />
                       <span className="text-[10.5px] text-[#737C7F] mt-2 font-medium">
-                        Góc quay động --angle • Độ nghiêng rotate3d khi nhấn
+                        Viền specular phản xạ 45°
                       </span>
                     </div>
                   </div>
@@ -695,7 +779,7 @@ export default function App() {
                     Giờ mô phỏng: {rideWhen.slice(11, 16) || demoHour}
                   </p>
                   <p className="text-[11px] text-[#737C7F]">
-                    {DEMO_DATE} · tài khoản {session?.account} · lịch sử synthetic
+                    {mode === 'research' ? `GeoLife user ID ${researchResult?.user_id ?? ''} · gợi ý từ lịch sử` : `${DEMO_DATE} · tài khoản ${session?.account} · lịch sử synthetic`}
                   </p>
                 </div>
                 <button
@@ -710,6 +794,32 @@ export default function App() {
 
               {/* Content */}
               <div className="py-3 flex-1 overflow-y-auto no-scrollbar">
+                {mode === 'research' && researchProfiles.length > 1 && (
+                  <label className="mb-3 block text-[12px] font-semibold" htmlFor="ride-research-profile">
+                    GeoLife user ID
+                    <select id="ride-research-profile" value={researchAlias} onChange={(event) => { setResearchAlias(event.target.value); setResearchResult(null); void showRideSuggestions(event.target.value); }} className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-[13px]">
+                      {researchProfiles.map((profile) => <option key={profile.alias} value={profile.alias}>{profile.user_id}</option>)}
+                    </select>
+                  </label>
+                )}
+                {mode === 'research' && researchResult && (
+                  <div>
+                    <p className="text-[12.5px] text-[#737C7F] mb-2.5 font-medium">Điểm đến gợi ý từ lịch sử GeoLife (không phải vị trí hiện tại):</p>
+                    {researchResult.suggestions.length ? (
+                      <ol className="space-y-2.5">
+                        {researchResult.suggestions.map((item) => (
+                          <li key={item.place_ref}>
+                            <button type="button" onClick={() => { setSelectedDestination(`${item.label} · GeoLife ${researchResult.user_id}`); setBookingFromSuggestion(true); setShowRidePopup(false); setCurrentScreen('booking'); }} className="glass-card flex w-full items-center gap-3 rounded-[20px] p-3 text-left border border-gray-100 hover:border-[#2DCCD4]/40 cursor-pointer">
+                              <span className="w-10 h-10 shrink-0 flex items-center justify-center">{getPlaceIcon(item.label === 'HOME' ? 'home' : item.label === 'OFFICE' ? 'office' : 'station')}</span>
+                              <span className="min-w-0 flex-1"><strong className="block text-[14.5px]">{item.label}</strong><small className="block text-[11.5px] text-[#737C7F]">{item.explanations.join(' · ')}</small></span>
+                              <span className="text-[11px] font-bold text-[#127F8B]">Top {item.rank} · Đặt xe</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : <p role="status" className="text-[13px]">Chưa đủ lịch sử lặp lại để gợi ý điểm đến.</p>}
+                  </div>
+                )}
                 {rideLoading && (
                   <div className="py-8 text-center flex flex-col items-center justify-center">
                     <div className="w-8 h-8 border-3 border-[#2DCCD4] border-t-transparent rounded-full animate-spin mb-3" />
@@ -725,7 +835,7 @@ export default function App() {
                   </div>
                 )}
 
-                {rideSuggestions?.status === 'abstained' && (
+                {mode === 'synthetic' && rideSuggestions?.status === 'abstained' && (
                   <div className="py-6 text-center">
                     <p role="status" className="text-[13px] text-[#737C7F]">
                       Chưa đủ lịch sử synthetic để đưa ra gợi ý. Bạn có thể tự tìm điểm đến.
@@ -743,7 +853,7 @@ export default function App() {
                   </div>
                 )}
 
-                {rideSuggestions?.status === 'suggested' && (
+                {mode === 'synthetic' && rideSuggestions?.status === 'suggested' && (
                   <div>
                     <p className="text-[12.5px] text-[#737C7F] mb-2.5 font-medium">
                       Địa điểm gợi ý cho chuyến đi lúc này:
@@ -791,7 +901,7 @@ export default function App() {
 
               {/* Footer actions */}
               <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 shrink-0">
-                <button
+                {mode === 'synthetic' && <button
                   type="button"
                   onClick={() => {
                     setShowRidePopup(false);
@@ -801,7 +911,7 @@ export default function App() {
                 >
                   <MapPin className="h-4 w-4 text-[#158E9A]" />
                   <span>Tự chọn điểm đến</span>
-                </button>
+                </button>}
               </div>
             </div>
           </div>

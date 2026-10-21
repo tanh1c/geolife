@@ -110,3 +110,26 @@ def test_heldout_boundary_is_strict():
     ]
     with pytest.raises(ValueError, match="strict time boundary"):
         evaluate_first_heldout(visits)
+
+
+def test_commute_demo_uses_inferred_home_office_and_clock_context():
+    from geolife.api.schemas import ClassifyRequest
+    from geolife.api.service import raw_request_to_stay_frame
+    from geolife.model import infer_home_office
+    from geolife.recommendation.fixtures import commute_points, commute_visits
+
+    points = commute_points()
+    assert len({point["timestamp_utc"] for point in points}) == len(points)
+    stays = raw_request_to_stay_frame("synthetic", ClassifyRequest.model_validate({"points": points}))
+    inferred = infer_home_office(stays)
+    assert set(inferred["label"]) == {"HOME", "OFFICE"}
+    assert abs(float(inferred.loc[inferred["label"] == "HOME", "latitude"].iloc[0]) - 21.03) < .001
+    assert abs(float(inferred.loc[inferred["label"] == "OFFICE", "latitude"].iloc[0]) - 21.05) < .001
+
+    visits = commute_visits()
+    morning = suggest_destinations(visits, owner_id="demo_000", query_at=_time(24, 8))
+    evening = suggest_destinations(visits, owner_id="demo_000", query_at=_time(24, 18))
+    assert morning[0].place_id == "s0_office"
+    assert evening[0].place_id == "s0_home"
+    assert all(len(group) == 3 for group in (morning, evening))
+    assert suggest_destinations(visits, owner_id="other", query_at=_time(24, 8)) == []
